@@ -12,6 +12,7 @@ import {
   Package,
   ShoppingCart,
   FileText,
+  Landmark,
   BarChart3,
   Settings,
   Bell,
@@ -89,6 +90,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+
 
 // NOTE: This file is .jsx, so TypeScript `type ...` declarations must not be used.
 // All state/page types are treated as plain strings in the UI.
@@ -5553,36 +5555,57 @@ function UsersScreen() {
 
 function SettingsScreen() {
   const [activeTab, setActiveTab] = useState("business");
+  
+  // Custom states for switches
+  const [isComposition, setIsComposition] = useState(false);
+  const [showHsn, setShowHsn] = useState(true);
+  const [showDesc, setShowDesc] = useState(true);
+  const [showBank, setShowBank] = useState(false);
+
+  // Navin safe tabs configuration
   const tabs = [
     { key: "business", label: "Business Profile", icon: Building2 },
     { key: "gst", label: "GST & Tax", icon: Percent },
+    { key: "transaction", label: "Transaction Settings", icon: FileText },
     { key: "invoice", label: "Invoice Settings", icon: Receipt },
-    { key: "users", label: "Security", icon: Lock },
+    { key: "party", label: "Party Management", icon: Users },
+    { key: "item", label: "Item & Inventory", icon: Package2 }, // Fixed here!
+    { key: "accounting", label: "Accounting & Books", icon: Landmark },
+    { key: "users", label: "Security & Access", icon: Lock },
   ];
 
   return (
     <div className="flex gap-6">
-      <Card className="w-48 p-3 h-fit flex-shrink-0">
+      {/* SIDEBAR NAVIGATION */}
+      <div className="w-56 p-3 h-fit flex-shrink-0 bg-white border rounded-xl shadow-sm">
         <nav className="space-y-0.5">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === t.key ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"}`}
-            >
-              <t.icon className="w-4 h-4 flex-shrink-0" />
-              {t.label}
-            </button>
-          ))}
+          {tabs.map((t) => {
+            const IconComponent = t.icon; // Dynamic parsing handle
+            return (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === t.key 
+                    ? "bg-blue-50 text-blue-700" 
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <IconComponent className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{t.label}</span>
+              </button>
+            );
+          })}
         </nav>
-      </Card>
+      </div>
 
+      {/* RIGHT SIDE WORKSPACE */}
       <div className="flex-1 space-y-5">
+        
+        {/* TAB 1: BUSINESS PROFILE */}
         {activeTab === "business" && (
-          <Card className="p-6">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              Business Information
-            </h3>
+          <div className="bg-white border rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-5">Business Information</h3>
             <div className="flex items-start gap-6 mb-6">
               <div className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center border-2 border-dashed border-slate-300 cursor-pointer hover:bg-slate-50 flex-shrink-0">
                 <div className="text-center">
@@ -5593,174 +5616,252 @@ function SettingsScreen() {
               <div className="flex-1 grid grid-cols-2 gap-4">
                 <Input label="Business Name" value="Sharma Traders" />
                 <Input label="Owner Name" value="Vikram Sharma" />
-                <Input
-                  label="Phone"
-                  value="+91 98765 43210"
-                  icon={<Phone className="w-4 h-4" />}
-                />
-                <Input
-                  label="Email"
-                  value="contact@sharmatraders.in"
-                  icon={<Mail className="w-4 h-4" />}
-                />
+                <Input label="Phone" value="+91 98765 43210" icon={<Phone className="w-4 h-4" />} />
+                <Input label="Email" value="contact@sharmatraders.in" icon={<Mail className="w-4 h-4" />} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
+              <Select label="Business Type" value="Retail" options={["Retail", "Wholesale", "Manufacturing", "Services"]} />
+              <Select label="Financial Year Start" value="April (Standard India)" options={["April (Standard India)", "January"]} />
               <div className="col-span-2">
-                <Input
-                  label="Address"
-                  value="Shop No. 14, Sadar Bazaar, Nagpur"
-                  icon={<MapPin className="w-4 h-4" />}
-                />
+                <Input label="Address" value="Shop No. 14, Sadar Bazaar, Nagpur" icon={<MapPin className="w-4 h-4" />} />
               </div>
               <Input label="City" value="Nagpur" />
               <Input label="State" value="Maharashtra" />
               <Input label="Pincode" value="440001" />
-              <Select
-                label="Country"
-                value="India"
-                onChange={() => {}}
-                options={["India"]}
-              />
+              <Select label="Country" value="India" options={["India"]} />
             </div>
-            <Btn variant="primary" icon={<Check className="w-4 h-4" />}>
-              Save Changes
-            </Btn>
-          </Card>
+            <Btn variant="primary" icon={<Check className="w-4 h-4" />}>Save Changes</Btn>
+          </div>
         )}
+
+        {/* TAB 2: GST & TAX SETTINGS */}
         {activeTab === "gst" && (
-          <Card className="p-6">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              GST & Tax Settings
-            </h3>
+          <div className="bg-white border rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-5">GST & Tax Settings</h3>
             <div className="grid grid-cols-2 gap-4">
               <Input label="GSTIN" value="27AAPCS0510Q1Z6" />
               <Select
                 label="GST Registration Type"
-                value="Regular"
-                onChange={() => {}}
+                value={isComposition ? "Composition" : "Regular"}
+                onChange={(e) => setIsComposition(e.target.value === "Composition")}
                 options={["Regular", "Composition", "Unregistered"]}
               />
               <Input label="PAN Number" value="AAPCS0510Q" />
-              <Select
-                label="Default GST Rate %"
-                value="18"
-                onChange={() => {}}
-                options={["0", "5", "12", "18", "28"]}
-              />
+              <Select label="Default GST Rate %" value="18" options={["0", "5", "12", "18", "28"]} />
             </div>
             <div className="mt-4 space-y-3">
               {[
-                ["Enable IGST", "Apply IGST for inter-state transactions"],
-                ["Enable Cess", "Apply additional cess on specific products"],
-                ["Reverse Charge", "Enable reverse charge mechanism"],
-              ].map(([l, d]) => (
-                <div
-                  key={l}
-                  className="flex items-start justify-between py-3 border-b border-slate-100"
-                >
+                ["Enable IGST", "Apply IGST for inter-state transactions", true],
+                ["Enable Cess", "Apply additional cess on specific products", false],
+                ["Reverse Charge Mechanism (RCM)", "Enable reverse charge options in purchase invoices", false],
+              ].map(([l, d, active]) => (
+                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
                   <div>
                     <p className="text-sm font-medium text-slate-900">{l}</p>
                     <p className="text-xs text-slate-500">{d}</p>
                   </div>
-                  <button className="w-10 h-6 bg-blue-600 rounded-full relative flex-shrink-0 ml-4">
-                    <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow" />
+                  <button className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${active ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${active ? "right-1" : "left-1"}`} />
                   </button>
                 </div>
               ))}
             </div>
-            <Btn
-              variant="primary"
-              className="mt-5"
-              icon={<Check className="w-4 h-4" />}
-            >
-              Save GST Settings
-            </Btn>
-          </Card>
+            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save GST Settings</Btn>
+          </div>
         )}
+
+        {/* TAB 3: TRANSACTION SETTINGS */}
+        {activeTab === "transaction" && (
+          <div className="bg-white border rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-5">Transaction Settings</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <Select label="Default Sale Price" value="Retail Price" options={["Retail Price", "Wholesale Price", "Minimum Sale Price"]} />
+              <Select label="Discount Type" value="Percentage" options={["Percentage", "Flat Amount", "None"]} />
+            </div>
+            <div className="space-y-3">
+              {[
+                ["Passcode for Sales Return", "Ask verification lock passcode on every credit note entry", false],
+                ["Enable Cash Discount Field", "Show custom cash discount row inside ledger transactions", true],
+                ["Link Orders to Invoices", "Auto-convert approved purchase orders into open bills", true],
+              ].map(([l, d, active]) => (
+                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{l}</p>
+                    <p className="text-xs text-slate-500">{d}</p>
+                  </div>
+                  <button className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Transaction Rules</Btn>
+          </div>
+        )}
+
+        {/* TAB 4: INVOICE SETTINGS */}
         {activeTab === "invoice" && (
-          <Card className="p-6">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              Invoice Settings
-            </h3>
+          <div className="bg-white border rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-5">Invoice Settings</h3>
             <div className="grid grid-cols-2 gap-4">
               <Input label="Invoice Prefix" value="INV-" />
               <Input label="Starting Number" value="1001" />
-              <Input
-                label="Invoice Footer"
-                value="Thank you for your business!"
-              />
-              <Select
-                label="Default Payment Terms"
-                value="Net 15"
-                onChange={() => {}}
-                options={["Immediate", "Net 7", "Net 15", "Net 30", "Net 60"]}
-              />
+              <Input label="Invoice Footer" value="Thank you for your business!" />
+              <Select label="Invoice Print Paper Size" value="Regular A4" options={["Regular A4", "Compact A5", "3-Inch Thermal Roll"]} />
             </div>
-            <div className="mt-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-                Invoice Template
-              </p>
+
+            <div className="mt-5 border-t pt-4 space-y-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Column Display Options</p>
+              <div className="flex items-center justify-between py-2 border-b border-slate-50">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Show HSN Code Column</p>
+                  <p className="text-xs text-slate-500">Render HSN block inside invoice grids</p>
+                </div>
+                <button onClick={() => setShowHsn(!showHsn)} className={`w-10 h-6 rounded-full relative ${showHsn ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${showHsn ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between py-2 border-b border-slate-50">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Print Item Specific Description</p>
+                  <p className="text-xs text-slate-500">Show a separate descriptions line row below product</p>
+                </div>
+                <button onClick={() => setShowDesc(!showDesc)} className={`w-10 h-6 rounded-full relative ${showDesc ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${showDesc ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Include Firm Bank Details</p>
+                  <p className="text-xs text-slate-500">Automatically print bank details at invoice bottom</p>
+                </div>
+                <button onClick={() => setShowBank(!showBank)} className={`w-10 h-6 rounded-full relative ${showBank ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${showBank ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+            </div>
+
+            {showBank && (
+              <div className="grid grid-cols-3 gap-4 mt-3 p-4 bg-slate-50 rounded-xl border">
+                <Input label="Bank Name" value="State Bank of India" />
+                <Input label="Account Number" value="34001294811" />
+                <Input label="IFSC Code" value="SBIN0001042" />
+              </div>
+            )}
+
+            <div className="mt-5">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Invoice Template</p>
               <div className="grid grid-cols-3 gap-3">
                 {["Classic", "Modern", "Minimal"].map((t, i) => (
-                  <button
-                    key={t}
-                    className={`border-2 rounded-xl p-3 text-center transition-all ${i === 1 ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}
-                  >
+                  <button key={t} className={`border-2 rounded-xl p-3 text-center transition-all ${i === 1 ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}>
                     <div className="h-16 bg-slate-100 rounded-lg mb-2" />
                     <p className="text-xs font-medium text-slate-700">{t}</p>
                   </button>
                 ))}
               </div>
             </div>
-            <Btn
-              variant="primary"
-              className="mt-5"
-              icon={<Check className="w-4 h-4" />}
-            >
-              Save Invoice Settings
-            </Btn>
-          </Card>
+            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Invoice Settings</Btn>
+          </div>
         )}
+
+        {/* TAB 5: PARTY MANAGEMENT */}
+        {activeTab === "party" && (
+          <div className="bg-white border rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-5">Party Settings</h3>
+            <div className="space-y-3">
+              {[
+                ["Enable Party Grouping", "Categorize retailers, wholesalers and suppliers into structural pools", true],
+                ["Track Party-wise Balance Limits", "Restrict raw bill allocation if safety credit thresholds cross limit", false],
+                ["Shipping Address Verification", "Keep separate shipping and billing text blocks for every party ledger", true],
+              ].map(([l, d, active]) => (
+                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{l}</p>
+                    <p className="text-xs text-slate-500">{d}</p>
+                  </div>
+                  <button className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Party Profiles</Btn>
+          </div>
+        )}
+
+        {/* TAB 6: ITEM & INVENTORY */}
+        {activeTab === "item" && (
+          <div className="bg-white border rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-5">Item & Inventory Settings</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <Select label="Stock Value Formula" value="FIFO Method" options={["FIFO Method", "Average Base Price Code"]} />
+              <Input label="Low Stock Warning Counter Alert" value="10 Units Remaining" />
+            </div>
+            <div className="space-y-3">
+              {[
+                ["Enable Serial Tracking / Batch Numbers", "Store dynamic batch indices and expiry timestamps inside database records", false],
+                ["Multi-unit Measurement Scale", "Allow dynamic calculation mappings like Box to individual pieces conversion", true],
+                ["Barcode Scanner Integration Hook", "Map standard text fields inputs direct via optical barcode readings", true],
+              ].map(([l, d, active]) => (
+                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{l}</p>
+                    <p className="text-xs text-slate-500">{d}</p>
+                  </div>
+                  <button className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Inventory Parameters</Btn>
+          </div>
+        )}
+
+        {/* TAB 7: ACCOUNTING & BOOKS */}
+        {activeTab === "accounting" && (
+          <div className="bg-white border rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-5">Accounting & Book-keeping</h3>
+            <div className="space-y-3">
+              {[
+                ["Enable Trial Balance Reporting", "Real-time sync sheet layout balancing credits and debits together", true],
+                ["Auto Bank Statement Imports", "Enable automated mapping hooks for institutional bank settlement feeds", false],
+                ["Profit Center Allocation tracking", "Perform split accounting across multi-location business setups", false],
+              ].map(([l, d, active]) => (
+                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{l}</p>
+                    <p className="text-xs text-slate-500">{d}</p>
+                  </div>
+                  <button className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Accounting Rules</Btn>
+          </div>
+        )}
+
+        {/* TAB 8: SECURITY SETTINGS */}
         {activeTab === "users" && (
-          <Card className="p-6">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              Security Settings
-            </h3>
+          <div className="bg-white border rounded-xl p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-5">Security Settings</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4">
-                <Input
-                  label="Current Password"
-                  type="password"
-                  placeholder="••••••••"
-                  icon={<Lock className="w-4 h-4" />}
-                />
-                <Input
-                  label="New Password"
-                  type="password"
-                  placeholder="Min. 8 characters"
-                  icon={<Lock className="w-4 h-4" />}
-                />
-                <Input
-                  label="Confirm New Password"
-                  type="password"
-                  placeholder="Re-enter new password"
-                  icon={<Lock className="w-4 h-4" />}
-                />
+                <Input label="Current Password" type="password" placeholder="••••••••" icon={<Lock className="w-4 h-4" />} />
+                <Input label="New Password" type="password" placeholder="Min. 8 characters" icon={<Lock className="w-4 h-4" />} />
+                <Input label="Confirm New Password" type="password" placeholder="Re-enter new password" icon={<Lock className="w-4 h-4" />} />
               </div>
               <div className="space-y-3 pt-2">
                 {[
                   ["Two-Factor Authentication", "Require OTP on login"],
-                  [
-                    "Session Timeout",
-                    "Auto-logout after 30 minutes of inactivity",
-                  ],
-                  ["Login Notifications", "Send email on new login"],
+                  ["Session Timeout", "Auto-logout after 30 minutes of inactivity"],
                 ].map(([l, d]) => (
-                  <div
-                    key={l}
-                    className="flex items-start justify-between py-3 border-b border-slate-100"
-                  >
+                  <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
                     <div>
                       <p className="text-sm font-medium text-slate-900">{l}</p>
                       <p className="text-xs text-slate-500">{d}</p>
@@ -5771,17 +5872,14 @@ function SettingsScreen() {
                   </div>
                 ))}
               </div>
-              <Btn variant="primary" icon={<Lock className="w-4 h-4" />}>
-                Update Password
-              </Btn>
+              <Btn variant="primary" icon={<Lock className="w-4 h-4" />}>Update Password</Btn>
             </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>
   );
 }
-
 // ─── NOTIFICATIONS SCREEN ─────────────────────────────────────────────────────
 
 function NotificationsScreen() {
