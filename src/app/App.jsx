@@ -1,4 +1,11 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -127,66 +134,66 @@ const adminStats = [
 const customers = [
   {
     id: 1,
-    name: "Raj Enterprises",
-    contact: "Rajesh Kumar",
-    phone: "+91 98765 43210",
-    email: "raj@enterprises.in",
-    city: "Mumbai",
+    name: "Prathamesh Enterprises",
+    contact: "Prathamesh",
+    phone: "+91 8830164600",
+    email: "prathamesh@enterprises.in",
+    city: "Nashik",
     balance: 45200,
     status: "Active",
     invoices: 24,
   },
   {
     id: 2,
-    name: "Mehta Traders",
-    contact: "Suresh Mehta",
-    phone: "+91 87654 32109",
-    email: "suresh@mehtatraders.in",
-    city: "Delhi",
-    balance: -8400,
+    name: "Gawali traders",
+    contact: "Omkar Gawali",
+    phone: "+91 8830164600",
+    email: "omkar@gawalitraders.in",
+    city: "Nashik",
+    balance: 8400,
     status: "Active",
     invoices: 18,
   },
   {
     id: 3,
-    name: "Patel Industries",
-    contact: "Ankit Patel",
-    phone: "+91 76543 21098",
-    email: "ankit@patelindustries.in",
-    city: "Ahmedabad",
+    name: "Akshata Industries",
+    contact: "Akshatat Rajguru",
+    phone: "+91 8830164600",
+    email: "Akshata@industries.in",
+    city: "Nashik",
     balance: 12800,
     status: "Inactive",
     invoices: 7,
   },
   {
     id: 4,
-    name: "Sharma & Sons",
-    contact: "Vikram Sharma",
-    phone: "+91 65432 10987",
-    email: "vikram@sharmasons.in",
-    city: "Jaipur",
-    balance: 0,
+    name: "Diksha traders",
+    contact: "Diksha Patil",
+    phone: "+91 8830164600",
+    email: "Diskha@patil.in",
+    city: "Jalgaon",
+    balance: -10000,
     status: "Active",
     invoices: 31,
   },
   {
     id: 5,
-    name: "Gupta Wholesale",
-    contact: "Ramesh Gupta",
-    phone: "+91 54321 09876",
-    email: "ramesh@guptawholesale.in",
-    city: "Lucknow",
+    name: "Sanchit Wholesale",
+    contact: "Sanchit Mutkule",
+    phone: "+91 8830164600",
+    email: "Sanchit@wholesale.in",
+    city: "Nashik",
     balance: 67500,
     status: "Active",
     invoices: 42,
   },
   {
     id: 6,
-    name: "Singh Distributors",
-    contact: "Harpreet Singh",
-    phone: "+91 43210 98765",
-    email: "hp@singhdist.in",
-    city: "Chandigarh",
+    name: "Nandini distributors",
+    contact: "Nandini Thakare",
+    phone: "+91 8830164600",
+    email: "nandini@distributors.in",
+    city: "Jalgaon",
     balance: -2100,
     status: "Active",
     invoices: 15,
@@ -197,29 +204,29 @@ const suppliers = [
   {
     id: 1,
     name: "TechVision Pvt Ltd",
-    contact: "Arun Verma",
-    phone: "+91 98111 22333",
-    email: "arun@techvision.in",
-    city: "Bangalore",
+    contact: "Prathamesh",
+    phone: "+91 9765969840",
+    email: "prathamesh@techvision.in",
+    city: "Nashik",
     balance: 125000,
     status: "Active",
   },
   {
     id: 2,
     name: "FabWorld Exports",
-    contact: "Priya Joshi",
-    phone: "+91 87222 33444",
-    email: "priya@fabworld.in",
-    city: "Surat",
+    contact: "Omkar",
+    phone: "+91 9765969840",
+    email: "Omkar@fabworld.in",
+    city: "Dubai Phata",
     balance: 43000,
     status: "Active",
   },
   {
     id: 3,
     name: "AgriLink Wholesale",
-    contact: "Mohan Das",
-    phone: "+91 76333 44555",
-    email: "mohan@agrilink.in",
+    contact: "Sanchit",
+    phone: "+91 9765969840",
+    email: "Sanchit@agrilink.in",
     city: "Pune",
     balance: 8900,
     status: "Active",
@@ -227,9 +234,9 @@ const suppliers = [
   {
     id: 4,
     name: "Metro Hardware Hub",
-    contact: "Deepak Rao",
-    phone: "+91 65444 55666",
-    email: "deepak@metrohardware.in",
+    contact: "Akshata",
+    phone: "+91 9765969840",
+    email: "Akshata@metrohardware.in",
     city: "Hyderabad",
     balance: 31200,
     status: "Inactive",
@@ -239,7 +246,7 @@ const suppliers = [
 const products = [
   {
     id: 1,
-    name: "Samsung Galaxy Buds Pro",
+    name: "Boult Audio Airbus",
     sku: "EL-SGB-001",
     category: "Electronics",
     supplier: "TechVision Pvt Ltd",
@@ -251,7 +258,7 @@ const products = [
   },
   {
     id: 2,
-    name: "Cotton Linen Shirt (L)",
+    name: "Max Fashion Shirt (L)",
     sku: "CL-CLS-002",
     category: "Clothing",
     supplier: "FabWorld Exports",
@@ -275,7 +282,7 @@ const products = [
   },
   {
     id: 4,
-    name: "Power Drill 800W Bosch",
+    name: "Zeronics Mouse",
     sku: "HW-PDB-004",
     category: "Hardware",
     supplier: "Metro Hardware Hub",
@@ -287,7 +294,7 @@ const products = [
   },
   {
     id: 5,
-    name: "Wireless Mechanical Keyboard",
+    name: "Owen",
     sku: "EL-WMK-005",
     category: "Electronics",
     supplier: "TechVision Pvt Ltd",
@@ -299,7 +306,7 @@ const products = [
   },
   {
     id: 6,
-    name: "Denim Jeans Slim Fit (32)",
+    name: "Denim Jeans (32)",
     sku: "CL-DJS-006",
     category: "Clothing",
     supplier: "FabWorld Exports",
@@ -311,7 +318,7 @@ const products = [
   },
   {
     id: 7,
-    name: "Olive Oil Extra Virgin 1L",
+    name: "Olive Oil ",
     sku: "GR-OOE-007",
     category: "Groceries",
     supplier: "AgriLink Wholesale",
@@ -659,6 +666,207 @@ function Card({ children, className = "" }) {
   );
 }
 
+function FixedPhoneInput({
+  label,
+  icon,
+  placeholder,
+  error,
+  value: controlledValue,
+  onChange,
+}) {
+  const PREFIX = "+91 ";
+  const TEN = 10;
+  const inputRef = useRef(null);
+
+  const [internalValue, setInternalValue] = useState(PREFIX);
+  const value = controlledValue ?? internalValue;
+
+  const getDigits = (v) => {
+    const raw = String(v ?? "");
+    const withoutPrefix = raw.startsWith(PREFIX)
+      ? raw.slice(PREFIX.length)
+      : raw;
+    return withoutPrefix.replace(/\D/g, "").slice(0, TEN);
+  };
+
+  const validate = (v) => {
+    const raw = String(v ?? "");
+    if (!raw || !raw.trim()) return "Phone field is required.";
+
+    if (!raw.startsWith(PREFIX)) {
+      return "Phone must contain exactly 10 numeric digits.";
+    }
+
+    const digitsPart = raw.slice(PREFIX.length);
+    if (!digitsPart) return "Phone field is required.";
+
+    if (digitsPart.length !== TEN) {
+      return "Phone number must be exactly 10 digits.";
+    }
+    if (!/^\d{10}$/.test(digitsPart)) return "Phone number must be numeric.";
+
+    return "";
+  };
+
+  const normaliseToFullValue = (digits) => `${PREFIX}${digits}`;
+  const updateValue = (next) => {
+    if (typeof onChange === "function") onChange(next);
+    else setInternalValue(next);
+  };
+
+  const setCaret = (position) => {
+    setTimeout(() => {
+      try {
+        inputRef.current?.setSelectionRange(position, position);
+      } catch {}
+    }, 0);
+  };
+
+  const setCaretToEnd = () => {
+    const digitsLength = value.slice(PREFIX.length).length;
+    const caret = Math.min(PREFIX.length + digitsLength, PREFIX.length + TEN);
+    setCaret(caret);
+  };
+
+  useEffect(() => {
+    setCaretToEnd();
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && (
+        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          {label}
+        </label>
+      )}
+      <div className="relative">
+        {icon && (
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            {icon}
+          </span>
+        )}
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onKeyDown={(e) => {
+            const input = inputRef.current;
+            const selectionStart = input?.selectionStart ?? 0;
+            const selectionEnd = input?.selectionEnd ?? 0;
+            const prefixLength = PREFIX.length;
+
+            if (e.key === "Backspace") {
+              e.preventDefault();
+              if (selectionStart <= prefixLength) {
+                setCaretToEnd();
+                return;
+              }
+
+              const digitStart = selectionStart - prefixLength;
+              const digitEnd = selectionEnd - prefixLength;
+              const currentDigits = value.slice(prefixLength);
+              const start = Math.max(
+                0,
+                Math.min(digitStart, currentDigits.length),
+              );
+              const end = Math.max(0, Math.min(digitEnd, currentDigits.length));
+              const nextDigits =
+                currentDigits.slice(
+                  0,
+                  start - (selectionStart === selectionEnd ? 1 : 0),
+                ) + currentDigits.slice(end);
+              const caretPosition = Math.max(
+                0,
+                start - (selectionStart === selectionEnd ? 1 : 0),
+              );
+              updateValue(normaliseToFullValue(nextDigits));
+              setCaret(prefixLength + caretPosition);
+              return;
+            }
+
+            if (e.key === "Delete") {
+              e.preventDefault();
+              if (selectionStart < prefixLength) {
+                setCaretToEnd();
+                return;
+              }
+
+              const digitStart = selectionStart - prefixLength;
+              const digitEnd = selectionEnd - prefixLength;
+              const currentDigits = value.slice(prefixLength);
+              const start = Math.max(
+                0,
+                Math.min(digitStart, currentDigits.length),
+              );
+              const end = Math.max(0, Math.min(digitEnd, currentDigits.length));
+              const nextDigits =
+                currentDigits.slice(0, start) +
+                currentDigits.slice(
+                  end + (selectionStart === selectionEnd ? 1 : 0),
+                );
+              const caretPosition = start;
+              updateValue(normaliseToFullValue(nextDigits));
+              setCaret(prefixLength + caretPosition);
+              return;
+            }
+
+            if (selectionStart < prefixLength) {
+              e.preventDefault();
+              setCaretToEnd();
+              return;
+            }
+
+            if (e.key === "ArrowLeft" && selectionStart <= prefixLength) {
+              e.preventDefault();
+              setCaretToEnd();
+              return;
+            }
+
+            if (e.key === "ArrowRight" && selectionStart < prefixLength) {
+              e.preventDefault();
+              setCaretToEnd();
+              return;
+            }
+
+            if (e.key.length === 1 && !/\d/.test(e.key)) {
+              if (!e.ctrlKey && !e.metaKey && !e.altKey) e.preventDefault();
+            }
+          }}
+          onBeforeInput={(e) => {
+            const data = e.data;
+            const selectionStart = inputRef.current?.selectionStart ?? 0;
+            if (selectionStart < PREFIX.length) {
+              e.preventDefault();
+              return;
+            }
+            if (data && !/^\d+$/.test(data)) e.preventDefault();
+          }}
+          onChange={(e) => {
+            const raw = String(e.target.value ?? "");
+            const digits = getDigits(raw);
+            const next = normaliseToFullValue(digits);
+            updateValue(next);
+
+            setTimeout(() => {
+              try {
+                const caret = Math.min(
+                  PREFIX.length + digits.length,
+                  PREFIX.length + TEN,
+                );
+                inputRef.current?.setSelectionRange(caret, caret);
+              } catch {}
+            }, 0);
+          }}
+          placeholder={placeholder}
+          inputMode="numeric"
+          className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 ${icon ? "pl-9 pr-3" : "px-3"} ${error ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""}`}
+        />
+      </div>
+      {error ? <p className="text-xs text-red-600 mt-0.5">{error}</p> : null}
+    </div>
+  );
+}
+
 function Input({
   label,
   value,
@@ -666,6 +874,9 @@ function Input({
   placeholder = "",
   type = "text",
   icon,
+  className = "",
+  inputClassName = "",
+  error,
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -685,9 +896,10 @@ function Input({
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           placeholder={placeholder}
-          className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 ${icon ? "pl-9 pr-3" : "px-3"}`}
+          className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 ${icon ? "pl-9 pr-3" : "px-3"} ${error ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""} ${inputClassName}`}
         />
       </div>
+      {error && <p className="text-xs text-red-600 mt-0.5">{error}</p>}
     </div>
   );
 }
@@ -885,9 +1097,7 @@ function Sidebar({ page, onNav, role, collapsed, onToggle }) {
 
         {!collapsed && (
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white truncate">
-              BillTrack Pro
-            </p>
+            <p className="text-sm font-bold text-white truncate">Smart Bill</p>
             <p className="text-[10px] text-slate-500 capitalize">
               {role.replace("-", " ")}
             </p>
@@ -1005,6 +1215,8 @@ const PAGE_LABELS = {
 };
 
 function Topbar({ page, onLogout, onNav, role, notifCount }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center px-6 gap-4 flex-shrink-0">
       <div className="flex-1">
@@ -1021,12 +1233,13 @@ function Topbar({ page, onLogout, onNav, role, notifCount }) {
         </p>
       </div>
 
-      <div className="flex items-center gap-1 bg-slate-100 rounded-lg px-3 py-2 text-slate-500 text-xs w-52 border border-slate-200">
-        <Search className="w-3.5 h-3.5 mr-1.5" />
-        Search anything...
-        <kbd className="ml-auto text-[10px] bg-slate-200 px-1.5 py-0.5 rounded">
-          ⌘K
-        </kbd>
+      <div className="flex items-center bg-slate-100 rounded-lg px-3 py-2 border border-slate-200 w-52">
+        <Search className="w-3.5 h-3.5 text-slate-400 mr-2 flex-shrink-0" />
+        <input
+          type="text"
+          placeholder="Search anything..."
+          className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
+        />
       </div>
 
       {role === "owner" && (
@@ -1060,12 +1273,28 @@ function Topbar({ page, onLogout, onNav, role, notifCount }) {
           <p className="text-xs font-semibold text-slate-800">Admin User</p>
           <p className="text-[10px] text-slate-500 capitalize">{role}</p>
         </div>
-        <button
-          onClick={onLogout}
-          className="ml-1 text-slate-400 hover:text-red-500 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
+        <div className="relative ml-1">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50">
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onLogout();
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-red-600"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
@@ -1473,9 +1702,7 @@ function LandingPage({ onNav }) {
               <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
                 <BarChart2 className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="font-bold text-white text-sm">
-                Smart Bill
-              </span>
+              <span className="font-bold text-white text-sm">Smart Bill</span>
             </div>
             <p className="text-xs leading-relaxed">
               India's most trusted billing and inventory management platform.
@@ -1517,14 +1744,91 @@ function AuthScreen({ view, onNav, onLogin }) {
   const [email, setEmail] = useState(
     view === "login" ? "admin@business.in" : "",
   );
-  const [password, setPassword] = useState(
-    view === "login" ? "password123" : "",
-  );
+  const [password, setPassword] = useState("");
   const [biz, setBiz] = useState("");
+  const [phone, setPhone] = useState("+91 ");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
+  const [loginEmailError, setLoginEmailError] = useState("");
+  const [loginPasswordError, setLoginPasswordError] = useState("");
+  const [registerEmailError, setRegisterEmailError] = useState("");
+  const [registerPasswordError, setRegisterPasswordError] = useState("");
+  const [registerPhoneError, setRegisterPhoneError] = useState("");
+
+  const isValidEmail = (raw) => {
+    const trimmed = String(raw ?? "").trim();
+    // Basic RFC 5322-ish validation
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  };
+
+  const getLoginEmailError = (raw) => {
+    const trimmed = String(raw ?? "").trim();
+    if (!trimmed) return "Email field is required.";
+    if (!isValidEmail(trimmed)) return "Please enter a valid email address.";
+    return "";
+  };
+
+  const validatePhone = (raw, required = true) => {
+    const trimmed = String(raw ?? "").trim();
+    if (!trimmed || trimmed === "+91 " || trimmed === "+91") {
+      return required ? "Phone field is required." : "";
+    }
+
+    if (!trimmed.startsWith("+91")) {
+      return "Phone must start with +91.";
+    }
+
+    const digitsPart = trimmed.slice(PREFIX.length);
+    if (!digitsPart) return required ? "Phone field is required." : "";
+    if (!/^\d{10}$/.test(digitsPart)) {
+      return "Phone number must be exactly 10 digits.";
+    }
+
+    return "";
+  };
+
+  const validatePassword = (raw) => {
+    const p = String(raw ?? "");
+    if (!p.trim()) return "Password field is required.";
+
+    if (p.length < 8) return "Password must be at least 8 characters.";
+    if (p.length > 32) return "Password must be at most 32 characters.";
+
+    if (!/[A-Z]/.test(p))
+      return "Password must contain at least one uppercase letter.";
+    if (!/[a-z]/.test(p))
+      return "Password must contain at least one lowercase letter.";
+    if (!/[0-9]/.test(p)) return "Password must contain at least one number.";
+    if (!/[^A-Za-z0-9]/.test(p))
+      return "Password must contain at least one special character.";
+
+    return "";
+  };
+
   const handleSubmit = () => {
+    if (view === "login") {
+      const errEmail = getLoginEmailError(email);
+      const errPassword = validatePassword(password);
+
+      setLoginEmailError(errEmail);
+      setLoginPasswordError(errPassword);
+
+      if (errEmail || errPassword) return;
+    }
+
+    if (view === "register") {
+      const errEmail = getLoginEmailError(email);
+      const errPassword = validatePassword(password);
+      const errPhone = validatePhone(phone);
+
+      setRegisterEmailError(errEmail);
+      setRegisterPasswordError(errPassword);
+      setRegisterPhoneError(errPhone);
+
+      if (errEmail || errPassword || errPhone) return;
+    }
+
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
@@ -1547,39 +1851,41 @@ function AuthScreen({ view, onNav, onLogin }) {
             backgroundSize: "28px 28px",
           }}
         />
-        <div className="flex items-center gap-2.5 mb-auto relative">
+        <div className="flex items-center gap-2.5 mb-10 relative z-10">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             <BarChart2 className="w-4 h-4 text-white" />
           </div>
           <span className="font-bold text-white">Smart Bill</span>
         </div>
-        <div className="relative">
-          <h2 className="text-3xl font-extrabold text-white leading-snug mb-4">
-            Manage your business
-            <br />
-            with confidence
-          </h2>
-          <p className="text-slate-400 text-sm leading-relaxed mb-8">
-            Complete billing, inventory, and accounting in one platform.
-            GST-ready, cloud-based, and built for India.
-          </p>
-          <div className="space-y-3">
-            {[
-              "100% GST Compliant invoicing",
-              "Real-time inventory tracking",
-              "Profit & Loss statements",
-              "Multi-user role access",
-            ].map((f) => (
-              <div
-                key={f}
-                className="flex items-center gap-3 text-sm text-slate-300"
-              >
-                <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Check className="w-3 h-3 text-emerald-400" />
+        <div className="relative z-10 flex-1 flex items-center">
+          <div className="w-full">
+            <h2 className="text-3xl font-extrabold text-white leading-snug mb-4">
+              Manage your business
+              <br />
+              with confidence
+            </h2>
+            <p className="text-slate-400 text-sm leading-relaxed mb-8">
+              Complete billing, inventory, and accounting in one platform.
+              GST-ready, cloud-based, and built for India.
+            </p>
+            <div className="space-y-3">
+              {[
+                "100% GST Compliant invoicing",
+                "Real-time inventory tracking",
+                "Profit & Loss statements",
+                "Multi-user role access",
+              ].map((f) => (
+                <div
+                  key={f}
+                  className="flex items-center gap-3 text-sm text-slate-300"
+                >
+                  <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Check className="w-3 h-3 text-emerald-400" />
+                  </div>
+                  {f}
                 </div>
-                {f}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -1622,17 +1928,36 @@ function AuthScreen({ view, onNav, onLogin }) {
                 <Input
                   label="Email Address"
                   value={email}
-                  onChange={setEmail}
-                  placeholder="you@business.in"
+                  onChange={(v) => {
+                    const trimmed = String(v ?? "").trimStart();
+                    // Keep cursor-friendly typing, but remove leading spaces.
+                    setEmail(trimmed);
+                    // Auto-clear / update error as soon as input becomes valid.
+                    if (trimmed && isValidEmail(trimmed))
+                      setLoginEmailError("");
+                    else
+                      setLoginEmailError(
+                        view === "login" ? getLoginEmailError(trimmed) : "",
+                      );
+                  }}
+                  placeholder=""
                   icon={<Mail className="w-4 h-4" />}
+                  error={loginEmailError}
                 />
                 <Input
                   label="Password"
                   type="password"
                   value={password}
-                  onChange={setPassword}
+                  onChange={(v) => {
+                    setPassword(v);
+                    // Auto-clear / update error as soon as password becomes valid.
+                    const err = validatePassword(v);
+                    if (!err) setLoginPasswordError("");
+                    else setLoginPasswordError(err);
+                  }}
                   placeholder="••••••••"
                   icon={<Lock className="w-4 h-4" />}
+                  error={loginPasswordError}
                 />
                 <div className="flex justify-between items-center text-xs">
                   <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
@@ -1655,6 +1980,7 @@ function AuthScreen({ view, onNav, onLogin }) {
                   size="lg"
                   onClick={handleSubmit}
                   className="w-full justify-center"
+                  disabled={loading}
                   icon={
                     loading ? (
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1688,35 +2014,53 @@ function AuthScreen({ view, onNav, onLogin }) {
               </p>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="First Name" placeholder="Rajesh" />
-                  <Input label="Last Name" placeholder="Kumar" />
+                  <Input label="First Name" placeholder="" />
+                  <Input label="Last Name" placeholder="" />
                 </div>
                 <Input
                   label="Business Name"
                   value={biz}
                   onChange={setBiz}
-                  placeholder="Sharma Traders"
+                  placeholder=""
                   icon={<Building2 className="w-4 h-4" />}
                 />
                 <Input
                   label="Email"
                   value={email}
-                  onChange={setEmail}
-                  placeholder="you@business.in"
+                  onChange={(v) => {
+                    setEmail(v);
+                    const err = getLoginEmailError(v);
+                    if (!err) setRegisterEmailError("");
+                    else setRegisterEmailError(err);
+                  }}
+                  placeholder=""
                   icon={<Mail className="w-4 h-4" />}
+                  error={registerEmailError}
                 />
-                <Input
+                <FixedPhoneInput
                   label="Phone"
-                  placeholder="+91 98765 43210"
+                  placeholder="+91"
                   icon={<Phone className="w-4 h-4" />}
+                  value={phone}
+                  onChange={(value) => {
+                    setPhone(value);
+                    setRegisterPhoneError(validatePhone(value, false));
+                  }}
+                  error={registerPhoneError}
                 />
                 <Input
                   label="Password"
                   type="password"
                   value={password}
-                  onChange={setPassword}
+                  onChange={(v) => {
+                    setPassword(v);
+                    const err = validatePassword(v);
+                    if (!err) setRegisterPasswordError("");
+                    else setRegisterPasswordError(err);
+                  }}
                   placeholder="Min. 8 characters"
                   icon={<Lock className="w-4 h-4" />}
+                  error={registerPasswordError}
                 />
                 <Select
                   label="Business Type"
@@ -1735,6 +2079,7 @@ function AuthScreen({ view, onNav, onLogin }) {
                   size="lg"
                   onClick={handleSubmit}
                   className="w-full justify-center"
+                  disabled={loading}
                   icon={
                     loading ? (
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1784,7 +2129,7 @@ function AuthScreen({ view, onNav, onLogin }) {
                     label="Email Address"
                     value={email}
                     onChange={setEmail}
-                    placeholder="you@business.in"
+                    placeholder=""
                     icon={<Mail className="w-4 h-4" />}
                   />
                   <Btn
@@ -2080,48 +2425,22 @@ function BusinessDashboard({ onNav }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="lg:col-span-2 p-5">
+        <Card className="lg:col-span-2 p-5 h-[320px] flex flex-col">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-semibold text-slate-900">
-                Sales vs Purchase
+                Daily Sales (This Week)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Monthly comparison for 2025
+                Sales trend for the current week
               </p>
             </div>
-            <div className="flex items-center gap-4 text-xs text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-0.5 bg-blue-600 rounded inline-block" />
-                Sales
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-0.5 bg-emerald-500 rounded inline-block" />
-                Purchase
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-0.5 bg-violet-500 rounded inline-block" />
-                Profit
-              </span>
-            </div>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={salesData}>
-              <defs>
-                {[
-                  ["salesGrad", "#2563EB"],
-                  ["purchGrad", "#10B981"],
-                  ["profGrad", "#8B5CF6"],
-                ].map(([id, c]) => (
-                  <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={c} stopOpacity={0.1} />
-                    <stop offset="95%" stopColor={c} stopOpacity={0} />
-                  </linearGradient>
-                ))}
-              </defs>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={dailySales} barSize={24}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
               <XAxis
-                dataKey="month"
+                dataKey="day"
                 tick={{ fill: "#94A3B8", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
@@ -2139,69 +2458,19 @@ function BusinessDashboard({ onNav }) {
                   borderRadius: 10,
                   fontSize: 12,
                 }}
-                formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, ""]}
+                formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, "Sales"]}
               />
-              <Area
-                type="monotone"
-                dataKey="sales"
-                stroke="#2563EB"
-                strokeWidth={2}
-                fill="url(#salesGrad)"
-                name="Sales"
-              />
-              <Area
-                type="monotone"
-                dataKey="purchases"
-                stroke="#10B981"
-                strokeWidth={2}
-                fill="url(#purchGrad)"
-                name="Purchase"
-              />
-              <Area
-                type="monotone"
-                dataKey="profit"
-                stroke="#8B5CF6"
-                strokeWidth={2}
-                fill="url(#profGrad)"
-                name="Profit"
-              />
-            </AreaChart>
+              <Bar dataKey="amount" fill="#2563EB" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </Card>
 
         <div className="space-y-4">
-          <Card className="p-5">
-            <h3 className="font-semibold text-slate-900 mb-4 text-sm">
-              Daily Sales (This Week)
-            </h3>
-            <ResponsiveContainer width="100%" height={120}>
-              <BarChart data={dailySales} barSize={24}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                <XAxis
-                  dataKey="day"
-                  tick={{ fill: "#94A3B8", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis hide />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #E2E8F0",
-                    borderRadius: 10,
-                    fontSize: 11,
-                  }}
-                  formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, "Sales"]}
-                />
-                <Bar dataKey="amount" fill="#2563EB" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-          <Card className="p-5">
+          <Card className="p-5 h-[320px] flex flex-col">
             <h3 className="font-semibold text-slate-900 mb-4 text-sm">
               Sales by Category
             </h3>
-            <div className="space-y-2.5">
+            <div className="space-y-2.5 flex-1 flex flex-col justify-center">
               {pieData.map((d) => (
                 <div key={d.name}>
                   <div className="flex justify-between text-xs mb-1">
@@ -2327,6 +2596,7 @@ function CustomersScreen() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [viewCustomer, setViewCustomer] = useState(null);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -2385,6 +2655,80 @@ function CustomersScreen() {
           }}
           onCancel={() => setDeleteId(null)}
         />
+      )}
+
+      {viewCustomer && (
+        <Modal title="Customer Details" onClose={() => setViewCustomer(null)}>
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Business Name
+              </p>
+              <p className="mt-1 text-lg font-semibold text-slate-900">
+                {viewCustomer.name}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Contact Person
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewCustomer.contact || "—"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Phone
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewCustomer.phone || "—"}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Email
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewCustomer.email || "—"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  City
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewCustomer.city || "—"}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Balance
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {fmt(Math.abs(viewCustomer.balance || 0))}
+                  {viewCustomer.balance > 0
+                    ? " (To Receive)"
+                    : viewCustomer.balance < 0
+                      ? " (To Pay)"
+                      : " (Balanced)"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Invoices
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewCustomer.invoices ?? 0}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {showEditModal && editId !== null && (
@@ -2607,9 +2951,6 @@ function CustomersScreen() {
           placeholder="Search customers..."
           icon={<Search className="w-4 h-4" />}
         />
-        <Btn variant="outline" size="md" icon={<Filter className="w-4 h-4" />}>
-          Filter
-        </Btn>
         <Btn
           variant="outline"
           size="md"
@@ -2651,7 +2992,6 @@ function CustomersScreen() {
                   "Phone",
                   "City",
                   "Balance",
-                  "Status",
                   "Actions",
                 ].map((h) => (
                   <th
@@ -2666,7 +3006,7 @@ function CustomersScreen() {
             <tbody className="divide-y divide-slate-50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8">
+                  <td colSpan={6} className="py-8">
                     <EmptyState
                       icon={<Users className="w-6 h-6" />}
                       title="No customers found"
@@ -2702,12 +3042,15 @@ function CustomersScreen() {
                         {c.balance >= 0 ? "To Receive" : "To Pay"}
                       </p>
                     </td>
-                    <td className="px-5 py-4">{statusBadge(c.status)}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Btn
                           variant="ghost"
                           size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewCustomer(c);
+                          }}
                           icon={<Eye className="w-3.5 h-3.5" />}
                         />
                         <Btn
@@ -2755,7 +3098,7 @@ function CustomersScreen() {
             {[1, 2, 3, "...", 8].map((p, i) => (
               <button
                 key={i}
-                className={`w-8 h-8 text-xs rounded-lg ${p === 1 ? "bg-red-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`w-8 h-8 text-xs rounded-lg ${p === 1 ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 {p}
               </button>
@@ -2773,6 +3116,7 @@ function SuppliersScreen() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [viewSupplier, setViewSupplier] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -2829,6 +3173,65 @@ function SuppliersScreen() {
           }}
           onCancel={() => setDeleteId(null)}
         />
+      )}
+
+      {viewSupplier && (
+        <Modal title="Supplier Details" onClose={() => setViewSupplier(null)}>
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Company Name
+              </p>
+              <p className="mt-1 text-lg font-semibold text-slate-900">
+                {viewSupplier.name}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Contact Person
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewSupplier.contact || "—"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Phone
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewSupplier.phone || "—"}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Email
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewSupplier.email || "—"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  City
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewSupplier.city || "—"}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Balance Due
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">
+                {fmt(viewSupplier.balance || 0)}
+              </p>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {showEditModal && editId !== null && (
@@ -3028,9 +3431,6 @@ function SuppliersScreen() {
           placeholder="Search suppliers..."
           icon={<Search className="w-4 h-4" />}
         />
-        <Btn variant="outline" size="md" icon={<Filter className="w-4 h-4" />}>
-          Filter
-        </Btn>
         <Btn
           variant="primary"
           size="md"
@@ -3052,7 +3452,6 @@ function SuppliersScreen() {
                   "Phone",
                   "City",
                   "Balance Due",
-                  "Status",
                   "Actions",
                 ].map((h) => (
                   <th
@@ -3082,12 +3481,15 @@ function SuppliersScreen() {
                   <td className="px-5 py-4 font-semibold text-slate-900">
                     {fmt(s.balance)}
                   </td>
-                  <td className="px-5 py-4">{statusBadge(s.status)}</td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Btn
                         variant="ghost"
                         size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewSupplier(s);
+                        }}
                         icon={<Eye className="w-3.5 h-3.5" />}
                       />
                       <Btn
@@ -3481,7 +3883,7 @@ function ProductsScreen() {
             <button
               key={c}
               onClick={() => setCatFilter(c)}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${catFilter === c ? "bg-red-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
+              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${catFilter === c ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
             >
               {c}
             </button>
@@ -3513,7 +3915,6 @@ function ProductsScreen() {
                   "Cost",
                   "Price",
                   "Stock",
-                  "Status",
                   "Actions",
                 ].map((h) => (
                   <th
@@ -3551,7 +3952,7 @@ function ProductsScreen() {
                     </td>
                     <td className="px-5 py-4">
                       <span
-                        className={`font-mono font-semibold text-sm ${p.stock === 0 ? "text-red-500" : lowStock ? "text-amber-600" : "text-slate-900"}`}
+                        className={`font-mono font-semibold text-sm ${p.stock === 0 ? "text-blue-600" : lowStock ? "text-amber-600" : "text-slate-900"}`}
                       >
                         {p.stock}
                       </span>
@@ -3562,7 +3963,6 @@ function ProductsScreen() {
                         </div>
                       )}
                     </td>
-                    <td className="px-5 py-4">{statusBadge(p.status)}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Btn
@@ -3612,7 +4012,7 @@ function ProductsScreen() {
             {[1, 2, 3].map((p) => (
               <button
                 key={p}
-                className={`w-8 h-8 text-xs rounded-lg ${p === 1 ? "bg-red-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`w-8 h-8 text-xs rounded-lg ${p === 1 ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 {p}
               </button>
@@ -3917,11 +4317,169 @@ function POSScreen() {
 
 function PurchaseScreen() {
   const [activeTab, setActiveTab] = useState("entry");
-  const [supplier, setSupplier] = useState(suppliers[0].name);
-  const [items, setItems] = useState([{ product: "", qty: 1, rate: 0 }]);
+  const [supplier, setSupplier] = useState(suppliers[0]?.name ?? "");
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [dueDate, setDueDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("Unpaid");
+  const [notes, setNotes] = useState("");
+  const [items, setItems] = useState([
+    { product: products[0]?.name ?? "", qty: "", rate: "", amount: "" },
+  ]);
+  const [purchaseList, setPurchaseList] = useState([
+    {
+      id: "PO-2024-038",
+      supplier: "TechVision Pvt Ltd",
+      invoiceNo: "SUPP-INV-001",
+      date: "2024-08-10",
+      items: 5,
+      total: 124800,
+      status: "Received",
+    },
+    {
+      id: "PO-2024-037",
+      supplier: "FabWorld Exports",
+      invoiceNo: "SUPP-INV-002",
+      date: "2024-08-07",
+      items: 12,
+      total: 48200,
+      status: "Received",
+    },
+    {
+      id: "PO-2024-036",
+      supplier: "AgriLink Wholesale",
+      invoiceNo: "SUPP-INV-003",
+      date: "2024-08-03",
+      items: 8,
+      total: 32600,
+      status: "Pending",
+    },
+  ]);
+  const [searchHistory, setSearchHistory] = useState("");
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type) => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const subtotal = items.reduce(
+    (sum, item) => sum + Number(item.amount || 0),
+    0,
+  );
+  const gstRate = 18;
+  const gst = subtotal * (gstRate / 100);
+  const discount = 0;
+  const total = subtotal + gst - discount;
+
+  const updateItem = (index, field, value) => {
+    setItems((prev) =>
+      prev.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+
+        const nextItem = { ...item, [field]: value };
+
+        if (field === "qty" || field === "rate") {
+          const qty =
+            field === "qty"
+              ? value === ""
+                ? ""
+                : Number(value)
+              : item.qty === ""
+                ? ""
+                : Number(item.qty);
+          const rate =
+            field === "rate"
+              ? value === ""
+                ? ""
+                : Number(value)
+              : item.rate === ""
+                ? ""
+                : Number(item.rate);
+          nextItem.amount =
+            qty === "" || rate === "" || Number(qty) <= 0 || Number(rate) < 0
+              ? ""
+              : Number(qty) * Number(rate);
+        }
+
+        return nextItem;
+      }),
+    );
+  };
+
+  const handleSavePurchase = () => {
+    const validItems = items.filter(
+      (item) =>
+        item.product &&
+        item.product !== "Select Product" &&
+        Number(item.qty || 0) > 0 &&
+        Number(item.rate || 0) >= 0,
+    );
+
+    if (validItems.length === 0) {
+      showToast("Please add at least one valid product", "error");
+      return;
+    }
+
+    const newPurchase = {
+      id: `PO-${new Date().getFullYear()}-${String(purchaseList.length + 1).padStart(3, "0")}`,
+      supplier,
+      invoiceNo:
+        invoiceNo ||
+        `SUPP-INV-${String(purchaseList.length + 1).padStart(3, "0")}`,
+      date: purchaseDate,
+      items: validItems.length,
+      total,
+      status:
+        paymentStatus === "Paid"
+          ? "Received"
+          : paymentStatus === "Partial"
+            ? "Partial"
+            : "Pending",
+    };
+
+    setPurchaseList((prev) => [newPurchase, ...prev]);
+
+    validItems.forEach((item) => {
+      const foundProduct = products.find((p) => p.name === item.product);
+      if (foundProduct) {
+        foundProduct.stock += Number(item.qty || 0);
+      }
+    });
+
+    setActiveTab("history");
+    setSupplier(suppliers[0]?.name ?? "");
+    setInvoiceNo("");
+    setPurchaseDate(new Date().toISOString().slice(0, 10));
+    setDueDate("");
+    setPaymentStatus("Unpaid");
+    setNotes("");
+    setItems([
+      { product: products[0]?.name ?? "", qty: "", rate: "", amount: "" },
+    ]);
+    showToast("Purchase saved successfully", "success");
+  };
+
+  const filteredPurchases = purchaseList.filter((purchase) => {
+    const query = searchHistory.toLowerCase();
+    return (
+      purchase.id.toLowerCase().includes(query) ||
+      purchase.supplier.toLowerCase().includes(query) ||
+      purchase.invoiceNo.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="space-y-5">
+      {toast && (
+        <Toast
+          message={toast.msg}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="flex border-b border-slate-200 gap-6">
         {[
           ["entry", "New Purchase"],
@@ -3951,13 +4509,24 @@ function PurchaseScreen() {
                   onChange={setSupplier}
                   options={suppliers.map((s) => s.name)}
                 />
-                <Input label="Invoice No." placeholder="SUPP-INV-001" />
+                <Input
+                  label="Invoice No."
+                  placeholder="SUPP-INV-001"
+                  value={invoiceNo}
+                  onChange={setInvoiceNo}
+                />
                 <Input
                   label="Purchase Date"
                   type="date"
-                  value={new Date().toISOString().slice(0, 10)}
+                  value={purchaseDate}
+                  onChange={setPurchaseDate}
                 />
-                <Input label="Due Date" type="date" />
+                <Input
+                  label="Due Date"
+                  type="date"
+                  value={dueDate}
+                  onChange={setDueDate}
+                />
               </div>
             </Card>
 
@@ -3984,30 +4553,71 @@ function PurchaseScreen() {
                   {items.map((item, i) => (
                     <tr key={i} className="border-b border-slate-50">
                       <td className="py-2">
-                        <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500">
-                          <option>Select Product</option>
+                        <select
+                          value={item.product}
+                          onChange={(e) =>
+                            updateItem(i, "product", e.target.value)
+                          }
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Select Product</option>
                           {products.map((p) => (
-                            <option key={p.id}>{p.name}</option>
+                            <option key={p.id} value={p.name}>
+                              {p.name}
+                            </option>
                           ))}
                         </select>
                       </td>
                       <td className="py-2 px-2">
                         <input
                           type="number"
-                          defaultValue={1}
                           min={1}
-                          className="w-full text-center border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                          value={item.qty}
+                          onChange={(e) =>
+                            updateItem(
+                              i,
+                              "qty",
+                              e.target.value === ""
+                                ? ""
+                                : Number(e.target.value),
+                            )
+                          }
+                          className="w-full text-center border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </td>
                       <td className="py-2 px-2">
                         <input
                           type="number"
-                          defaultValue={0}
-                          className="w-full text-right border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                          min={0}
+                          value={item.rate}
+                          onChange={(e) =>
+                            updateItem(
+                              i,
+                              "rate",
+                              e.target.value === ""
+                                ? ""
+                                : Number(e.target.value),
+                            )
+                          }
+                          className="w-full text-right border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </td>
-                      <td className="py-2 text-right font-medium text-slate-900">
-                        ₹0
+                      <td className="py-2 px-2">
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.amount}
+                          onChange={(e) =>
+                            updateItem(
+                              i,
+                              "amount",
+                              e.target.value === ""
+                                ? ""
+                                : Number(e.target.value),
+                            )
+                          }
+                          className="w-full text-right border border-slate-200 rounded-lg px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
                       </td>
                     </tr>
                   ))}
@@ -4017,7 +4627,10 @@ function PurchaseScreen() {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setItems((it) => [...it, { product: "", qty: 1, rate: 0 }])
+                  setItems((it) => [
+                    ...it,
+                    { product: "", qty: "", rate: "", amount: "" },
+                  ])
                 }
                 icon={<Plus className="w-3.5 h-3.5" />}
               >
@@ -4033,10 +4646,10 @@ function PurchaseScreen() {
               </h3>
               <div className="space-y-3">
                 {[
-                  ["Subtotal", "₹0"],
-                  ["GST (18%)", "+ ₹0"],
-                  ["Discount", "- ₹0"],
-                  ["Total", "₹0"],
+                  ["Subtotal", fmt(subtotal)],
+                  ["GST (18%)", `+ ${fmt(gst)}`],
+                  ["Discount", `- ${fmt(discount)}`],
+                  ["Total", fmt(total)],
                 ].map(([l, v], i) => (
                   <div
                     key={l}
@@ -4050,13 +4663,14 @@ function PurchaseScreen() {
               <div className="mt-4 space-y-3">
                 <Select
                   label="Payment Status"
-                  value="Unpaid"
-                  onChange={() => {}}
+                  value={paymentStatus}
+                  onChange={setPaymentStatus}
                   options={["Paid", "Unpaid", "Partial"]}
                 />
                 <Btn
                   variant="primary"
                   className="w-full justify-center"
+                  onClick={handleSavePurchase}
                   icon={<Check className="w-4 h-4" />}
                 >
                   Save Purchase
@@ -4068,6 +4682,8 @@ function PurchaseScreen() {
                 Notes
               </h4>
               <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add notes or terms..."
                 rows={3}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
@@ -4079,6 +4695,8 @@ function PurchaseScreen() {
         <Card>
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <Input
+              value={searchHistory}
+              onChange={setSearchHistory}
               placeholder="Search purchases..."
               icon={<Search className="w-4 h-4" />}
             />
@@ -4115,45 +4733,29 @@ function PurchaseScreen() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {[
-                [
-                  "PO-2024-038",
-                  "TechVision Pvt Ltd",
-                  "2024-08-10",
-                  5,
-                  "₹1,24,800",
-                  "Received",
-                ],
-                [
-                  "PO-2024-037",
-                  "FabWorld Exports",
-                  "2024-08-07",
-                  12,
-                  "₹48,200",
-                  "Received",
-                ],
-                [
-                  "PO-2024-036",
-                  "AgriLink Wholesale",
-                  "2024-08-03",
-                  8,
-                  "₹32,600",
-                  "Pending",
-                ],
-              ].map(([id, sup, date, items, total, status]) => (
-                <tr key={id} className="hover:bg-slate-50 transition-colors">
+              {filteredPurchases.map((purchase) => (
+                <tr
+                  key={purchase.id}
+                  className="hover:bg-slate-50 transition-colors"
+                >
                   <td className="px-5 py-3.5 font-mono text-xs text-blue-600">
-                    {id}
+                    {purchase.id}
                   </td>
-                  <td className="px-5 py-3.5 text-slate-900">{sup}</td>
+                  <td className="px-5 py-3.5 text-slate-900">
+                    {purchase.supplier}
+                  </td>
                   <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
-                    {date}
+                    {purchase.date}
                   </td>
-                  <td className="px-5 py-3.5 text-slate-600">{items}</td>
+                  <td className="px-5 py-3.5 text-slate-600">
+                    {purchase.items}
+                  </td>
                   <td className="px-5 py-3.5 font-semibold text-slate-900">
-                    {total}
+                    {fmt(purchase.total)}
                   </td>
-                  <td className="px-5 py-3.5">{statusBadge(status)}</td>
+                  <td className="px-5 py-3.5">
+                    {statusBadge(purchase.status)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -4776,7 +5378,7 @@ function UsersScreen() {
             </div>
             <Input
               label="Phone"
-              placeholder="+91 98765 43210"
+              placeholder="+91 "
               icon={<Phone className="w-4 h-4" />}
             />
             <Input
@@ -5297,23 +5899,16 @@ function ProfileScreen() {
 
 // ─── APP SHELL ────────────────────────────────────────────────────────────────
 
-function AppShell({ role, onLogout }) {
-  // NOTE: This file is .jsx (not TypeScript). Remove TS-only state typings if any.
-  const [page, setPage] = useState(
-    role === "superadmin" ? "super-dashboard" : "dashboard",
-  );
-
+function AppShell({ role, onLogout, page, onNav }) {
   const [collapsed, setCollapsed] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
-
-  const nav = useCallback((p) => setPage(p), []);
 
   const renderPage = () => {
     switch (page) {
       case "super-dashboard":
         return <SuperAdminDashboard />;
       case "dashboard":
-        return <BusinessDashboard onNav={nav} />;
+        return <BusinessDashboard onNav={onNav} />;
       case "customers":
         return <CustomersScreen />;
       case "suppliers":
@@ -5339,7 +5934,7 @@ function AppShell({ role, onLogout }) {
       case "profile":
         return <ProfileScreen />;
       default:
-        return <BusinessDashboard onNav={nav} />;
+        return <BusinessDashboard onNav={onNav} />;
     }
   };
 
@@ -5350,7 +5945,7 @@ function AppShell({ role, onLogout }) {
     >
       <Sidebar
         page={page}
-        onNav={nav}
+        onNav={onNav}
         role={role}
         collapsed={collapsed}
         onToggle={() => setCollapsed((v) => !v)}
@@ -5359,7 +5954,7 @@ function AppShell({ role, onLogout }) {
         <Topbar
           page={page}
           onLogout={onLogout}
-          onNav={nav}
+          onNav={onNav}
           role={role}
           notifCount={unread}
         />
@@ -5371,22 +5966,128 @@ function AppShell({ role, onLogout }) {
 
 // ─── ROOT ──────────────────────────────────────────────────────────────────────
 
-export default function App() {
-  const [view, setView] = useState("landing");
+const APP_PAGES = [
+  "dashboard",
+  "super-dashboard",
+  "customers",
+  "suppliers",
+  "products",
+  "pos",
+  "purchase",
+  "inventory",
+  "reports",
+  "expenses",
+  "users",
+  "settings",
+  "notifications",
+  "profile",
+];
+
+function getPageFromPath(pathname) {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments[0] !== "app") return null;
+  const pageKey = segments[1];
+  return APP_PAGES.includes(pageKey) ? pageKey : "dashboard";
+}
+
+function AppRoutes() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [role, setRole] = useState("owner");
+  const [page, setPage] = useState(() => {
+    const routePage = getPageFromPath(location.pathname);
+    return (
+      routePage ?? (role === "superadmin" ? "super-dashboard" : "dashboard")
+    );
+  });
+
+  useEffect(() => {
+    const routePage = getPageFromPath(location.pathname);
+    if (routePage) {
+      setPage(routePage);
+    } else if (location.pathname === "/app") {
+      setPage(role === "superadmin" ? "super-dashboard" : "dashboard");
+    }
+  }, [location.pathname, role]);
 
   const handleLogin = (r) => {
     setRole(r);
-    setView("app");
+    setPage(r === "superadmin" ? "super-dashboard" : "dashboard");
+    navigate("/app");
   };
-  const handleLogout = () => setView("landing");
-  // NOTE: This is a .jsx file, so TypeScript annotations (like ": AppView") are invalid.
-  const navAuth = (v) => setView(v);
 
-  if (view === "landing") return <LandingPage onNav={navAuth} />;
-  if (view === "login" || view === "register" || view === "forgot") {
-    return <AuthScreen view={view} onNav={navAuth} onLogin={handleLogin} />;
-  }
-  if (view === "app") return <AppShell role={role} onLogout={handleLogout} />;
-  return null;
+  const handleLogout = () => {
+    setPage("dashboard");
+    navigate("/");
+  };
+
+  const navAuth = useCallback(
+    (v) => {
+      if (v === "landing") navigate("/");
+      else navigate(`/${v}`);
+    },
+    [navigate],
+  );
+
+  const navApp = useCallback(
+    (p) => {
+      setPage(p);
+      if (p === "dashboard" || p === "super-dashboard") navigate("/app");
+      else navigate(`/app/${p}`);
+    },
+    [navigate],
+  );
+
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage onNav={navAuth} />} />
+      <Route
+        path="/login"
+        element={
+          <AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />
+        }
+      />
+      <Route
+        path="/forgot"
+        element={<AuthScreen view="forgot" onNav={navAuth} />}
+      />
+      <Route
+        path="/app"
+        element={
+          <AppShell
+            role={role}
+            onLogout={handleLogout}
+            page={page}
+            onNav={navApp}
+          />
+        }
+      />
+      <Route
+        path="/app/:pageKey"
+        element={
+          <AppShell
+            role={role}
+            onLogout={handleLogout}
+            page={page}
+            onNav={navApp}
+          />
+        }
+      />
+      <Route path="*" element={<LandingPage onNav={navAuth} />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
 }
