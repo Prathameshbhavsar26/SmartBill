@@ -4949,6 +4949,15 @@ function ReportsScreen() {
     { key: "inventory", label: "Inventory Report", icon: Package },
   ];
 
+  const profit = salesData.reduce((s, d) => s + (Number(d.profit) || 0), 0);
+  const sales = salesData.reduce((s, d) => s + (Number(d.sales) || 0), 0);
+  const purchases = salesData.reduce(
+    (s, d) => s + (Number(d.purchases) || 0),
+    0,
+  );
+
+  const gstTotal = invoices.reduce((s, inv) => s + (Number(inv.gst) || 0), 0);
+
   return (
     <div className="space-y-5">
       <div className="flex gap-2 flex-wrap">
