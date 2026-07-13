@@ -5208,6 +5208,7 @@ function AdjustStockModal({
 }
 
 function InventoryScreen() {
+<<<<<<< HEAD
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [adjustModalProductId, setAdjustModalProductId] = useState(null);
   const [stockHistory, setStockHistory] = useState([]);
@@ -5281,6 +5282,8 @@ function InventoryScreen() {
     setHistoryPage(1);
   }, [historySearch, historyType, historyFromDate, historyToDate]);
 
+=======
+>>>>>>> 3f67d654991065f1113a0ab89a80ddf9b54773f7
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -5875,6 +5878,7 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
   const [reference, setReference] = useState("");
   const [status, setStatus] = useState("Paid");
 
+<<<<<<< HEAD
   const resetForm = () => {
     setCategory("Rent");
     setDescription("");
@@ -5903,6 +5907,8 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
     setShowModal(false);
   };
 
+=======
+>>>>>>> 3f67d654991065f1113a0ab89a80ddf9b54773f7
   return (
     <div className="space-y-5">
       {showModal && (
@@ -5910,8 +5916,13 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
           <div className="space-y-4">
             <Select
               label="Category"
+<<<<<<< HEAD
               value={category}
               onChange={setCategory}
+=======
+              value="Rent"
+              onChange={() => {}}
+>>>>>>> 3f67d654991065f1113a0ab89a80ddf9b54773f7
               options={[
                 "Rent",
                 "Utilities",
@@ -5922,6 +5933,7 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
                 "Other",
               ]}
             />
+<<<<<<< HEAD
             <Input
               label="Description"
               placeholder="August rent payment"
@@ -5934,13 +5946,27 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
                 placeholder="45000"
                 value={amount}
                 onChange={setAmount}
+=======
+            <Input label="Description" placeholder="August rent payment" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Amount (₹)" placeholder="45000" />
+              <Input
+                label="Date"
+                type="date"
+                value={new Date().toISOString().slice(0, 10)}
+>>>>>>> 3f67d654991065f1113a0ab89a80ddf9b54773f7
               />
               <Input label="Date" type="date" value={date} onChange={setDate} />
             </div>
             <Select
               label="Payment Mode"
+<<<<<<< HEAD
               value={paymentMode}
               onChange={setPaymentMode}
+=======
+              value="Bank Transfer"
+              onChange={() => {}}
+>>>>>>> 3f67d654991065f1113a0ab89a80ddf9b54773f7
               options={[
                 "Cash",
                 "Bank Transfer",
@@ -5949,6 +5975,7 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
                 "Cheque",
               ]}
             />
+<<<<<<< HEAD
             <Input
               label="Reference / Receipt No."
               placeholder="REF-001"
@@ -5961,6 +5988,9 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
               onChange={setStatus}
               options={["Paid", "Pending", "Overdue"]}
             />
+=======
+            <Input label="Reference / Receipt No." placeholder="REF-001" />
+>>>>>>> 3f67d654991065f1113a0ab89a80ddf9b54773f7
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -5971,7 +6001,7 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={handleSave}
+                onClick={() => setShowModal(false)}
                 className="flex-1 justify-center"
               >
                 Save Expense
