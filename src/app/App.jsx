@@ -92,7 +92,6 @@ import {
   Cell,
 } from "recharts";
 
-
 // NOTE: This file is .jsx, so TypeScript `type ...` declarations must not be used.
 // All state/page types are treated as plain strings in the UI.
 
@@ -4772,6 +4771,66 @@ function PurchaseScreen() {
 // ─── INVENTORY SCREEN ─────────────────────────────────────────────────────────
 
 function InventoryScreen() {
+  // Editable stock list for adjust/reorder interactions
+  // IMPORTANT: inventory adjustments should reflect in the rest of the app,
+  // so we also keep `products` in sync by mutating the shared reference.
+  const [productList, setProductList] = useState(products);
+
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [reorderModalOpen, setReorderModalOpen] = useState(false);
+  const [activeProductId, setActiveProductId] = useState(null);
+
+  const [adjustQty, setAdjustQty] = useState("0");
+  const [adjustType, setAdjustType] = useState("add"); // add | subtract
+
+  const [reorderQty, setReorderQty] = useState("0");
+
+  const activeProduct =
+    productList.find((p) => p.id === activeProductId) || null;
+
+  const closeAllModals = () => {
+    setAdjustModalOpen(false);
+    setReorderModalOpen(false);
+    setActiveProductId(null);
+    setAdjustQty("0");
+    setAdjustType("add");
+    setReorderQty("0");
+  };
+
+  const applyAdjust = () => {
+    const delta = Number(adjustQty || 0);
+    if (!Number.isFinite(delta) || delta <= 0 || !activeProduct) return;
+
+    setProductList((prev) =>
+      prev.map((p) => {
+        if (p.id !== activeProduct.id) return p;
+        const nextStock =
+          adjustType === "add" ? p.stock + delta : p.stock - delta;
+        return { ...p, stock: Math.max(0, nextStock) };
+      }),
+    );
+
+    closeAllModals();
+  };
+
+  const applyReorder = () => {
+    const qty = Number(reorderQty || 0);
+    if (!Number.isFinite(qty) || qty <= 0 || !activeProduct) return;
+
+    setProductList((prev) =>
+      prev.map((p) =>
+        p.id === activeProduct.id
+          ? { ...p, stock: p.stock + qty, status: "Active" }
+          : p,
+      ),
+    );
+
+    closeAllModals();
+  };
+
+  const lowStockProducts = productList.filter((p) => p.stock <= p.minStock);
+  const outOfStockProducts = productList.filter((p) => p.stock === 0);
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -4815,37 +4874,35 @@ function InventoryScreen() {
           Items that need immediate reordering
         </p>
         <div className="space-y-3">
-          {products
-            .filter((p) => p.stock <= p.minStock)
-            .map((p) => (
-              <div
-                key={p.id}
-                className={`flex items-center gap-4 p-4 rounded-xl border ${p.stock === 0 ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}
-              >
-                <AlertTriangle
-                  className={`w-5 h-5 flex-shrink-0 ${p.stock === 0 ? "text-red-500" : "text-amber-500"}`}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-900">{p.name}</p>
-                  <p className="text-xs text-slate-500 font-mono">{p.sku}</p>
-                </div>
-                <div className="text-right">
-                  <p
-                    className={`text-sm font-bold ${p.stock === 0 ? "text-red-500" : "text-amber-600"}`}
-                  >
-                    {p.stock === 0 ? "Out of Stock" : `${p.stock} left`}
-                  </p>
-                  <p className="text-xs text-slate-500">Min: {p.minStock}</p>
-                </div>
-                <Btn
-                  variant={p.stock === 0 ? "danger" : "outline"}
-                  size="sm"
-                  icon={<ShoppingCart className="w-3.5 h-3.5" />}
-                >
-                  Reorder
-                </Btn>
+          {lowStockProducts.map((p) => (
+            <div
+              key={p.id}
+              className={`flex items-center gap-4 p-4 rounded-xl border ${p.stock === 0 ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}
+            >
+              <AlertTriangle
+                className={`w-5 h-5 flex-shrink-0 ${p.stock === 0 ? "text-red-500" : "text-amber-500"}`}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-slate-900">{p.name}</p>
+                <p className="text-xs text-slate-500 font-mono">{p.sku}</p>
               </div>
-            ))}
+              <div className="text-right">
+                <p
+                  className={`text-sm font-bold ${p.stock === 0 ? "text-red-500" : "text-amber-600"}`}
+                >
+                  {p.stock === 0 ? "Out of Stock" : `${p.stock} left`}
+                </p>
+                <p className="text-xs text-slate-500">Min: {p.minStock}</p>
+              </div>
+              <Btn
+                variant={p.stock === 0 ? "danger" : "outline"}
+                size="sm"
+                icon={<ShoppingCart className="w-3.5 h-3.5" />}
+              >
+                Reorder
+              </Btn>
+            </div>
+          ))}
         </div>
       </Card>
 
@@ -4968,10 +5025,12 @@ function ReportsScreen() {
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeReport === r.key ? "bg-red-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeReport === r.key ? "bg-blue-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
           >
-            <r.icon className="w-4 h-4" />
-            {r.label}
+            <div className="flex items-center justify-center gap-2">
+              <r.icon className="w-4 h-4" />
+              <span className="whitespace-nowrap">{r.label}</span>
+            </div>
           </button>
         ))}
         <div className="ml-auto flex gap-2">
@@ -5016,79 +5075,12 @@ function ReportsScreen() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-slate-900">
-              Monthly Revenue Trend
-            </h3>
-            <div className="flex gap-2">
-              {["2024", "2023"].map((y) => (
-                <button
-                  key={y}
-                  className={`text-xs px-2.5 py-1 rounded-lg ${y === "2024" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={salesData}>
-              <defs>
-                <linearGradient id="repSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `₹${v / 1000}K`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-                formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, ""]}
-              />
-              <Area
-                type="monotone"
-                dataKey="sales"
-                stroke="#2563EB"
-                strokeWidth={2.5}
-                fill="url(#repSales)"
-                name="Sales"
-              />
-              <Area
-                type="monotone"
-                dataKey="profit"
-                stroke="#10B981"
-                strokeWidth={2}
-                fill="none"
-                name="Profit"
-                strokeDasharray="4 2"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Card>
-
+      <div className="grid grid-cols-1 gap-5">
         <Card className="p-5">
           <h3 className="font-semibold text-slate-900 mb-5">
             Expenses Breakdown
           </h3>
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart
               data={[
                 { name: "Rent", v: 45000 },
@@ -5214,6 +5206,55 @@ function ReportsScreen() {
 function ExpensesScreen() {
   const [showModal, setShowModal] = useState(false);
 
+  // Local editable list (so added expenses appear in history)
+  const [expenseList, setExpenseList] = useState(expenses);
+
+  const [form, setForm] = useState({
+    category: "Rent",
+    description: "",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    paymentMode: "Bank Transfer",
+    reference: "",
+    status: "Paid",
+  });
+
+  const resetForm = () =>
+    setForm({
+      category: "Rent",
+      description: "",
+      amount: "",
+      date: new Date().toISOString().slice(0, 10),
+      paymentMode: "Bank Transfer",
+      reference: "",
+      status: "Paid",
+    });
+
+  const handleSave = () => {
+    const amountNum = Number(form.amount || 0);
+    if (!form.description.trim()) return;
+    if (!Number.isFinite(amountNum) || amountNum <= 0) return;
+
+    const newId =
+      expenseList.length > 0
+        ? Math.max(...expenseList.map((e) => e.id)) + 1
+        : 1;
+
+    const newExpense = {
+      id: newId,
+      category: form.category,
+      description: form.description,
+      date: form.date,
+      amount: amountNum,
+      paymentMode: form.paymentMode,
+      status: form.status,
+    };
+
+    setExpenseList((prev) => [newExpense, ...prev]);
+    setShowModal(false);
+    resetForm();
+  };
+
   return (
     <div className="space-y-5">
       {showModal && (
@@ -5221,8 +5262,8 @@ function ExpensesScreen() {
           <div className="space-y-4">
             <Select
               label="Category"
-              value="Rent"
-              onChange={() => {}}
+              value={form.category}
+              onChange={(v) => setForm((f) => ({ ...f, category: v }))}
               options={[
                 "Rent",
                 "Utilities",
@@ -5233,19 +5274,33 @@ function ExpensesScreen() {
                 "Other",
               ]}
             />
-            <Input label="Description" placeholder="August rent payment" />
+
+            <Input
+              label="Description"
+              placeholder="August rent payment"
+              value={form.description}
+              onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+            />
+
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Amount (₹)" placeholder="45000" />
+              <Input
+                label="Amount (₹)"
+                placeholder="45000"
+                value={form.amount}
+                onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
+              />
               <Input
                 label="Date"
                 type="date"
-                value={new Date().toISOString().slice(0, 10)}
+                value={form.date}
+                onChange={(v) => setForm((f) => ({ ...f, date: v }))}
               />
             </div>
+
             <Select
               label="Payment Mode"
-              value="Bank Transfer"
-              onChange={() => {}}
+              value={form.paymentMode}
+              onChange={(v) => setForm((f) => ({ ...f, paymentMode: v }))}
               options={[
                 "Cash",
                 "Bank Transfer",
@@ -5254,18 +5309,42 @@ function ExpensesScreen() {
                 "Cheque",
               ]}
             />
-            <Input label="Reference / Receipt No." placeholder="REF-001" />
+
+            <Input
+              label="Reference / Receipt No."
+              placeholder="REF-001"
+              value={form.reference}
+              onChange={(v) => setForm((f) => ({ ...f, reference: v }))}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Status"
+                value={form.status}
+                onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                options={["Paid", "Pending"]}
+              />
+              <div className="flex items-end">
+                <p className="text-xs text-slate-500 pb-2">
+                  (Reference optional)
+                </p>
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  resetForm();
+                }}
                 className="flex-1 justify-center"
               >
                 Cancel
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => setShowModal(false)}
+                onClick={handleSave}
                 className="flex-1 justify-center"
               >
                 Save Expense
@@ -5335,7 +5414,7 @@ function ExpensesScreen() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {expenses.map((e) => (
+            {expenseList.map((e) => (
               <tr
                 key={e.id}
                 className="hover:bg-slate-50 transition-colors group"
@@ -6045,6 +6124,27 @@ function SuperAdminSettingsScreen() {
 
 function SettingsScreen() {
   const [activeTab, setActiveTab] = useState("business");
+ 
+
+  // Custom states for switches
+  const [isComposition, setIsComposition] = useState(false);
+
+
+// Custom states for switches
+const [isComposition, setIsComposition] = useState(false);
+
+
+// GST & Tax toggle states
+const [enableIgst, setEnableIgst] = useState(true);
+const [enableCess, setEnableCess] = useState(false);
+const [enableRcm, setEnableRcm] = useState(false);
+
+// Transaction Settings states
+const [passcodeRequired, setPasscodeRequired] = useState(false);
+const [enableCashDiscount, setEnableCashDiscount] = useState(true);
+const [linkOrders, setLinkOrders] = useState(true);
+
+// Invoice Settings states
   
   // GST & Tax toggle states
   const [enableIgst, setEnableIgst] = useState(true);
@@ -6057,6 +6157,7 @@ function SettingsScreen() {
   const [linkOrders, setLinkOrders] = useState(true);
 
   // Invoice Settings states
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
   const [showHsn, setShowHsn] = useState(true);
   const [showDesc, setShowDesc] = useState(true);
   const [showBank, setShowBank] = useState(false);
@@ -6269,8 +6370,8 @@ function SettingsScreen() {
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === t.key 
-                    ? "bg-blue-50 text-blue-700" 
+                  activeTab === t.key
+                    ? "bg-blue-50 text-blue-700"
                     : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
@@ -6284,11 +6385,12 @@ function SettingsScreen() {
 
       {/* RIGHT SIDE WORKSPACE */}
       <div className="flex-1 space-y-5">
-        
         {/* TAB 1: BUSINESS PROFILE */}
         {activeTab === "business" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">Business Information</h3>
+            <h3 className="font-semibold text-slate-900 mb-5">
+              Business Information
+            </h3>
             <div className="flex items-start gap-6 mb-6">
               <div className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center border-2 border-dashed border-slate-300 cursor-pointer hover:bg-slate-50 flex-shrink-0">
                 <div className="text-center">
@@ -6299,45 +6401,109 @@ function SettingsScreen() {
               <div className="flex-1 grid grid-cols-2 gap-4">
                 <Input label="Business Name" value="Sharma Traders" />
                 <Input label="Owner Name" value="Vikram Sharma" />
-                <Input label="Phone" value="+91 98765 43210" icon={<Phone className="w-4 h-4" />} />
-                <Input label="Email" value="contact@sharmatraders.in" icon={<Mail className="w-4 h-4" />} />
+                <Input
+                  label="Phone"
+                  value="+91 98765 43210"
+                  icon={<Phone className="w-4 h-4" />}
+                />
+                <Input
+                  label="Email"
+                  value="contact@sharmatraders.in"
+                  icon={<Mail className="w-4 h-4" />}
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <Select label="Business Type" value="Retail" options={["Retail", "Wholesale", "Manufacturing", "Services"]} />
-              <Select label="Financial Year Start" value="April (Standard India)" options={["April (Standard India)", "January"]} />
+              <Select
+                label="Business Type"
+                value="Retail"
+                options={["Retail", "Wholesale", "Manufacturing", "Services"]}
+              />
+              <Select
+                label="Financial Year Start"
+                value="April (Standard India)"
+                options={["April (Standard India)", "January"]}
+              />
               <div className="col-span-2">
-                <Input label="Address" value="Shop No. 14, Sadar Bazaar, Nagpur" icon={<MapPin className="w-4 h-4" />} />
+                <Input
+                  label="Address"
+                  value="Shop No. 14, Sadar Bazaar, Nagpur"
+                  icon={<MapPin className="w-4 h-4" />}
+                />
               </div>
               <Input label="City" value="Nagpur" />
               <Input label="State" value="Maharashtra" />
               <Input label="Pincode" value="440001" />
               <Select label="Country" value="India" options={["India"]} />
             </div>
-            <Btn variant="primary" icon={<Check className="w-4 h-4" />}>Save Changes</Btn>
+            <Btn variant="primary" icon={<Check className="w-4 h-4" />}>
+              Save Changes
+            </Btn>
           </div>
         )}
 
         {/* TAB 2: GST & TAX SETTINGS */}
         {activeTab === "gst" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">GST & Tax Settings</h3>
+            <h3 className="font-semibold text-slate-900 mb-5">
+              GST & Tax Settings
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <Input label="GSTIN" value="27AAPCS0510Q1Z6" />
               <Select
                 label="GST Registration Type"
                 value={isComposition ? "Composition" : "Regular"}
-                onChange={(e) => setIsComposition(e.target.value === "Composition")}
+                onChange={(e) =>
+                  setIsComposition(e.target.value === "Composition")
+                }
                 options={["Regular", "Composition", "Unregistered"]}
               />
               <Input label="PAN Number" value="AAPCS0510Q" />
-              <Select label="Default GST Rate %" value="18" options={["0", "5", "12", "18", "28"]} />
+              <Select
+                label="Default GST Rate %"
+                value="18"
+                options={["0", "5", "12", "18", "28"]}
+              />
             </div>
             <div className="mt-4 space-y-3">
+
+              {[
+                [
+                  "Enable IGST",
+                  "Apply IGST for inter-state transactions",
+                  true,
+                ],
+                [
+                  "Enable Cess",
+                  "Apply additional cess on specific products",
+                  false,
+                ],
+                [
+                  "Reverse Charge Mechanism (RCM)",
+                  "Enable reverse charge options in purchase invoices",
+                  false,
+                ],
+              ].map(([l, d, active]) => (
+                <div
+                  key={l}
+                  className="flex items-start justify-between py-3 border-b border-slate-100"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{l}</p>
+                    <p className="text-xs text-slate-500">{d}</p>
+                  </div>
+                  <button
+                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${active ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${active ? "right-1" : "left-1"}`}
+                    />
+                  </button>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
                   <p className="text-sm font-medium text-slate-900">Enable IGST</p>
                   <p className="text-xs text-slate-500">Apply IGST for inter-state transactions</p>
+
                 </div>
                 <button onClick={() => setEnableIgst(!enableIgst)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableIgst ? "bg-blue-600" : "bg-slate-200"}`}>
                   <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableIgst ? "right-1" : "left-1"}`} />
@@ -6362,23 +6528,82 @@ function SettingsScreen() {
                 </button>
               </div>
             </div>
+<<<<<<< HEAD
+            <Btn
+              variant="primary"
+              className="mt-5"
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save GST Settings
+            </Btn>
+=======
             <Btn variant="primary" className="mt-5" onClick={handleSaveGstSettings} icon={<Check className="w-4 h-4" />}>Save GST Settings</Btn>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
         {/* TAB 3: TRANSACTION SETTINGS */}
         {activeTab === "transaction" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">Transaction Settings</h3>
+            <h3 className="font-semibold text-slate-900 mb-5">
+              Transaction Settings
+            </h3>
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <Select label="Default Sale Price" value="Retail Price" options={["Retail Price", "Wholesale Price", "Minimum Sale Price"]} />
-              <Select label="Discount Type" value="Percentage" options={["Percentage", "Flat Amount", "None"]} />
+              <Select
+                label="Default Sale Price"
+                value="Retail Price"
+                options={[
+                  "Retail Price",
+                  "Wholesale Price",
+                  "Minimum Sale Price",
+                ]}
+              />
+              <Select
+                label="Discount Type"
+                value="Percentage"
+                options={["Percentage", "Flat Amount", "None"]}
+              />
             </div>
             <div className="space-y-3">
+<<<<<<< HEAD
+              {[
+                [
+                  "Passcode for Sales Return",
+                  "Ask verification lock passcode on every credit note entry",
+                  false,
+                ],
+                [
+                  "Enable Cash Discount Field",
+                  "Show custom cash discount row inside ledger transactions",
+                  true,
+                ],
+                [
+                  "Link Orders to Invoices",
+                  "Auto-convert approved purchase orders into open bills",
+                  true,
+                ],
+              ].map(([l, d, active]) => (
+                <div
+                  key={l}
+                  className="flex items-start justify-between py-3 border-b border-slate-100"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{l}</p>
+                    <p className="text-xs text-slate-500">{d}</p>
+                  </div>
+                  <button
+                    className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`}
+                    />
+                  </button>
+=======
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
                   <p className="text-sm font-medium text-slate-900">Passcode for Sales Return</p>
                   <p className="text-xs text-slate-500">Ask verification lock passcode on every credit note entry</p>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
                 </div>
                 <button onClick={() => setPasscodeRequired(!passcodeRequired)} className={`w-10 h-6 rounded-full relative ${passcodeRequired ? "bg-blue-600" : "bg-slate-200"}`}>
                   <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${passcodeRequired ? "right-1" : "left-1"}`} />
@@ -6403,50 +6628,98 @@ function SettingsScreen() {
                 </button>
               </div>
             </div>
+<<<<<<< HEAD
+            <Btn
+              variant="primary"
+              className="mt-5"
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save Transaction Rules
+            </Btn>
+=======
             <Btn variant="primary" className="mt-5" onClick={handleSaveTransactionSettings} icon={<Check className="w-4 h-4" />}>Save Transaction Rules</Btn>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
         {/* TAB 4: INVOICE SETTINGS */}
         {activeTab === "invoice" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">Invoice Settings</h3>
+            <h3 className="font-semibold text-slate-900 mb-5">
+              Invoice Settings
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <Input label="Invoice Prefix" value="INV-" />
               <Input label="Starting Number" value="1001" />
-              <Input label="Invoice Footer" value="Thank you for your business!" />
-              <Select label="Invoice Print Paper Size" value="Regular A4" options={["Regular A4", "Compact A5", "3-Inch Thermal Roll"]} />
+              <Input
+                label="Invoice Footer"
+                value="Thank you for your business!"
+              />
+              <Select
+                label="Invoice Print Paper Size"
+                value="Regular A4"
+                options={["Regular A4", "Compact A5", "3-Inch Thermal Roll"]}
+              />
             </div>
 
             <div className="mt-5 border-t pt-4 space-y-3">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Column Display Options</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Column Display Options
+              </p>
               <div className="flex items-center justify-between py-2 border-b border-slate-50">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Show HSN Code Column</p>
-                  <p className="text-xs text-slate-500">Render HSN block inside invoice grids</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Show HSN Code Column
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Render HSN block inside invoice grids
+                  </p>
                 </div>
-                <button onClick={() => setShowHsn(!showHsn)} className={`w-10 h-6 rounded-full relative ${showHsn ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${showHsn ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setShowHsn(!showHsn)}
+                  className={`w-10 h-6 rounded-full relative ${showHsn ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${showHsn ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
 
               <div className="flex items-center justify-between py-2 border-b border-slate-50">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Print Item Specific Description</p>
-                  <p className="text-xs text-slate-500">Show a separate descriptions line row below product</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Print Item Specific Description
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Show a separate descriptions line row below product
+                  </p>
                 </div>
-                <button onClick={() => setShowDesc(!showDesc)} className={`w-10 h-6 rounded-full relative ${showDesc ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${showDesc ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setShowDesc(!showDesc)}
+                  className={`w-10 h-6 rounded-full relative ${showDesc ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${showDesc ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
 
               <div className="flex items-center justify-between py-2">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Include Firm Bank Details</p>
-                  <p className="text-xs text-slate-500">Automatically print bank details at invoice bottom</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Include Firm Bank Details
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Automatically print bank details at invoice bottom
+                  </p>
                 </div>
-                <button onClick={() => setShowBank(!showBank)} className={`w-10 h-6 rounded-full relative ${showBank ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${showBank ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setShowBank(!showBank)}
+                  className={`w-10 h-6 rounded-full relative ${showBank ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${showBank ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
             </div>
@@ -6460,29 +6733,81 @@ function SettingsScreen() {
             )}
 
             <div className="mt-5">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Invoice Template</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                Invoice Template
+              </p>
               <div className="grid grid-cols-3 gap-3">
                 {["Classic", "Modern", "Minimal"].map((t, i) => (
-                  <button key={t} className={`border-2 rounded-xl p-3 text-center transition-all ${i === 1 ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}>
+                  <button
+                    key={t}
+                    className={`border-2 rounded-xl p-3 text-center transition-all ${i === 1 ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}
+                  >
                     <div className="h-16 bg-slate-100 rounded-lg mb-2" />
                     <p className="text-xs font-medium text-slate-700">{t}</p>
                   </button>
                 ))}
               </div>
             </div>
+<<<<<<< HEAD
+            <Btn
+              variant="primary"
+              className="mt-5"
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save Invoice Settings
+            </Btn>
+=======
             <Btn variant="primary" className="mt-5" onClick={handleSaveInvoiceSettings} icon={<Check className="w-4 h-4" />}>Save Invoice Settings</Btn>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
         {/* TAB 5: PARTY MANAGEMENT */}
         {activeTab === "party" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">Party Settings</h3>
+            <h3 className="font-semibold text-slate-900 mb-5">
+              Party Settings
+            </h3>
             <div className="space-y-3">
+<<<<<<< HEAD
+              {[
+                [
+                  "Enable Party Grouping",
+                  "Categorize retailers, wholesalers and suppliers into structural pools",
+                  true,
+                ],
+                [
+                  "Track Party-wise Balance Limits",
+                  "Restrict raw bill allocation if safety credit thresholds cross limit",
+                  false,
+                ],
+                [
+                  "Shipping Address Verification",
+                  "Keep separate shipping and billing text blocks for every party ledger",
+                  true,
+                ],
+              ].map(([l, d, active]) => (
+                <div
+                  key={l}
+                  className="flex items-start justify-between py-3 border-b border-slate-100"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{l}</p>
+                    <p className="text-xs text-slate-500">{d}</p>
+                  </div>
+                  <button
+                    className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`}
+                    />
+                  </button>
+=======
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
                   <p className="text-sm font-medium text-slate-900">Enable Party Grouping</p>
                   <p className="text-xs text-slate-500">Categorize retailers, wholesalers and suppliers into structural pools</p>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
                 </div>
                 <button onClick={() => setEnableGrouping(!enableGrouping)} className={`w-10 h-6 rounded-full relative ${enableGrouping ? "bg-blue-600" : "bg-slate-200"}`}>
                   <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableGrouping ? "right-1" : "left-1"}`} />
@@ -6507,23 +6832,77 @@ function SettingsScreen() {
                 </button>
               </div>
             </div>
+<<<<<<< HEAD
+            <Btn
+              variant="primary"
+              className="mt-5"
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save Party Profiles
+            </Btn>
+=======
             <Btn variant="primary" className="mt-5" onClick={handleSavePartySettings} icon={<Check className="w-4 h-4" />}>Save Party Profiles</Btn>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
         {/* TAB 6: ITEM & INVENTORY */}
         {activeTab === "item" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">Item & Inventory Settings</h3>
+            <h3 className="font-semibold text-slate-900 mb-5">
+              Item & Inventory Settings
+            </h3>
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <Select label="Stock Value Formula" value="FIFO Method" options={["FIFO Method", "Average Base Price Code"]} />
-              <Input label="Low Stock Warning Counter Alert" value="10 Units Remaining" />
+              <Select
+                label="Stock Value Formula"
+                value="FIFO Method"
+                options={["FIFO Method", "Average Base Price Code"]}
+              />
+              <Input
+                label="Low Stock Warning Counter Alert"
+                value="10 Units Remaining"
+              />
             </div>
             <div className="space-y-3">
+<<<<<<< HEAD
+              {[
+                [
+                  "Enable Serial Tracking / Batch Numbers",
+                  "Store dynamic batch indices and expiry timestamps inside database records",
+                  false,
+                ],
+                [
+                  "Multi-unit Measurement Scale",
+                  "Allow dynamic calculation mappings like Box to individual pieces conversion",
+                  true,
+                ],
+                [
+                  "Barcode Scanner Integration Hook",
+                  "Map standard text fields inputs direct via optical barcode readings",
+                  true,
+                ],
+              ].map(([l, d, active]) => (
+                <div
+                  key={l}
+                  className="flex items-start justify-between py-3 border-b border-slate-100"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{l}</p>
+                    <p className="text-xs text-slate-500">{d}</p>
+                  </div>
+                  <button
+                    className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`}
+                    />
+                  </button>
+=======
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
                   <p className="text-sm font-medium text-slate-900">Enable Serial Tracking / Batch Numbers</p>
                   <p className="text-xs text-slate-500">Store dynamic batch indices and expiry timestamps inside database records</p>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
                 </div>
                 <button onClick={() => setEnableSerial(!enableSerial)} className={`w-10 h-6 rounded-full relative ${enableSerial ? "bg-blue-600" : "bg-slate-200"}`}>
                   <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableSerial ? "right-1" : "left-1"}`} />
@@ -6548,19 +6927,66 @@ function SettingsScreen() {
                 </button>
               </div>
             </div>
+<<<<<<< HEAD
+            <Btn
+              variant="primary"
+              className="mt-5"
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save Inventory Parameters
+            </Btn>
+=======
             <Btn variant="primary" className="mt-5" onClick={handleSaveItemSettings} icon={<Check className="w-4 h-4" />}>Save Inventory Parameters</Btn>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
         {/* TAB 7: ACCOUNTING & BOOKS */}
         {activeTab === "accounting" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">Accounting & Book-keeping</h3>
+            <h3 className="font-semibold text-slate-900 mb-5">
+              Accounting & Book-keeping
+            </h3>
             <div className="space-y-3">
+<<<<<<< HEAD
+              {[
+                [
+                  "Enable Trial Balance Reporting",
+                  "Real-time sync sheet layout balancing credits and debits together",
+                  true,
+                ],
+                [
+                  "Auto Bank Statement Imports",
+                  "Enable automated mapping hooks for institutional bank settlement feeds",
+                  false,
+                ],
+                [
+                  "Profit Center Allocation tracking",
+                  "Perform split accounting across multi-location business setups",
+                  false,
+                ],
+              ].map(([l, d, active]) => (
+                <div
+                  key={l}
+                  className="flex items-start justify-between py-3 border-b border-slate-100"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{l}</p>
+                    <p className="text-xs text-slate-500">{d}</p>
+                  </div>
+                  <button
+                    className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`}
+                    />
+                  </button>
+=======
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
                   <p className="text-sm font-medium text-slate-900">Enable Trial Balance Reporting</p>
                   <p className="text-xs text-slate-500">Real-time sync sheet layout balancing credits and debits together</p>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
                 </div>
                 <button onClick={() => setEnableTrialBalance(!enableTrialBalance)} className={`w-10 h-6 rounded-full relative ${enableTrialBalance ? "bg-blue-600" : "bg-slate-200"}`}>
                   <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableTrialBalance ? "right-1" : "left-1"}`} />
@@ -6585,7 +7011,17 @@ function SettingsScreen() {
                 </button>
               </div>
             </div>
+<<<<<<< HEAD
+            <Btn
+              variant="primary"
+              className="mt-5"
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save Accounting Rules
+            </Btn>
+=======
             <Btn variant="primary" className="mt-5" onClick={handleSaveAccountingSettings} icon={<Check className="w-4 h-4" />}>Save Accounting Rules</Btn>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
@@ -6857,18 +7293,56 @@ function SettingsScreen() {
         {/* TAB 12: SECURITY SETTINGS */}
         {activeTab === "users" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">Security Settings</h3>
+            <h3 className="font-semibold text-slate-900 mb-5">
+              Security Settings
+            </h3>
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4">
-                <Input label="Current Password" type="password" placeholder="••••••••" icon={<Lock className="w-4 h-4" />} />
-                <Input label="New Password" type="password" placeholder="Min. 8 characters" icon={<Lock className="w-4 h-4" />} />
-                <Input label="Confirm New Password" type="password" placeholder="Re-enter new password" icon={<Lock className="w-4 h-4" />} />
+                <Input
+                  label="Current Password"
+                  type="password"
+                  placeholder="••••••••"
+                  icon={<Lock className="w-4 h-4" />}
+                />
+                <Input
+                  label="New Password"
+                  type="password"
+                  placeholder="Min. 8 characters"
+                  icon={<Lock className="w-4 h-4" />}
+                />
+                <Input
+                  label="Confirm New Password"
+                  type="password"
+                  placeholder="Re-enter new password"
+                  icon={<Lock className="w-4 h-4" />}
+                />
               </div>
               <div className="space-y-3 pt-2">
+<<<<<<< HEAD
+                {[
+                  ["Two-Factor Authentication", "Require OTP on login"],
+                  [
+                    "Session Timeout",
+                    "Auto-logout after 30 minutes of inactivity",
+                  ],
+                ].map(([l, d]) => (
+                  <div
+                    key={l}
+                    className="flex items-start justify-between py-3 border-b border-slate-100"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{l}</p>
+                      <p className="text-xs text-slate-500">{d}</p>
+                    </div>
+                    <button className="w-10 h-6 bg-slate-200 rounded-full relative flex-shrink-0 ml-4">
+                      <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow" />
+                    </button>
+=======
                 <div className="flex items-start justify-between py-3 border-b border-slate-100">
                   <div>
                     <p className="text-sm font-medium text-slate-900">Two-Factor Authentication</p>
                     <p className="text-xs text-slate-500">Require OTP on login</p>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
                   </div>
                   <button onClick={() => setTwoFactorAuth(!twoFactorAuth)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${twoFactorAuth ? "bg-blue-600" : "bg-slate-200"}`}>
                     <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${twoFactorAuth ? "right-1" : "left-1"}`} />
@@ -6884,7 +7358,13 @@ function SettingsScreen() {
                   </button>
                 </div>
               </div>
+<<<<<<< HEAD
+              <Btn variant="primary" icon={<Lock className="w-4 h-4" />}>
+                Update Password
+              </Btn>
+=======
               <Btn variant="primary" onClick={handleSaveSecuritySettings} icon={<Lock className="w-4 h-4" />}>Update Password</Btn>
+>>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
             </div>
           </div>
         )}
