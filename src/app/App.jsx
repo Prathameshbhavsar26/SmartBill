@@ -73,6 +73,7 @@ import {
   MessageSquare,
   Info,
   LogIn,
+  AlertCircle,
 } from "lucide-react";
 import {
   AreaChart,
@@ -5560,16 +5561,685 @@ function UsersScreen() {
   );
 }
 
+// ─── SUPER ADMIN SETTINGS SCREEN ──────────────────────────────────────────────
+
+function SuperAdminSettingsScreen() {
+  const [activeTab, setActiveTab] = useState("system");
+  
+  // System Settings states
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [autoBackup, setAutoBackup] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [debugMode, setDebugMode] = useState(false);
+  const [backupFrequency, setBackupFrequency] = useState("daily");
+  const [maxLoginAttempts, setMaxLoginAttempts] = useState("5");
+  const [sessionTimeout, setSessionTimeout] = useState("30");
+
+  // Email Template states
+  const [emailTemplates, setEmailTemplates] = useState([
+    { id: 1, name: "Welcome Email", subject: "Welcome to SmartBill", status: "active" },
+    { id: 2, name: "Invoice Email", subject: "Your Invoice - {invoice_no}", status: "active" },
+    { id: 3, name: "Password Reset", subject: "Reset Your Password", status: "active" },
+    { id: 4, name: "Subscription Reminder", subject: "Your subscription expires soon", status: "active" },
+  ]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+
+  // API Settings states
+  const [apiKey, setApiKey] = useState("sk_live_51ABC123XYZ");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [rateLimit, setRateLimit] = useState("1000");
+  const [webhooksEnabled, setWebhooksEnabled] = useState(true);
+  const [ipWhitelist, setIpWhitelist] = useState("");
+
+  // Subscription Plans states
+  const [plans, setPlans] = useState([
+    { id: 1, name: "Starter", price: "₹499/month", users: 5, features: "Basic accounting, GST ready", status: "active" },
+    { id: 2, name: "Professional", price: "₹999/month", users: 15, features: "Advanced reports, multi-user", status: "active" },
+    { id: 3, name: "Enterprise", price: "Custom", users: "Unlimited", features: "API access, custom domain", status: "active" },
+  ]);
+  const [newPlanName, setNewPlanName] = useState("");
+  const [newPlanPrice, setNewPlanPrice] = useState("");
+
+  // Payment Gateway states
+  const [paymentGateway, setPaymentGateway] = useState("razorpay");
+  const [razorpayKey, setRazorpayKey] = useState("rzp_test_123ABC");
+  const [stripeKey, setStripeKey] = useState("sk_test_123ABC");
+  const [enablePaypal, setEnablePaypal] = useState(false);
+  const [enableStripe, setEnableStripe] = useState(false);
+
+  // User Management states
+  const [adminUsers, setAdminUsers] = useState([
+    { id: 1, name: "System Admin", email: "admin@smartbill.com", role: "super-admin", status: "active", lastLogin: "2 hours ago" },
+    { id: 2, name: "Support Lead", email: "support@smartbill.com", role: "admin", status: "active", lastLogin: "1 day ago" },
+  ]);
+
+  // Audit Log states
+  const [auditLogs, setAuditLogs] = useState([
+    { id: 1, action: "User Login", user: "admin@smartbill.com", timestamp: "2024-01-15 10:30 AM", status: "success" },
+    { id: 2, action: "Settings Updated", user: "admin@smartbill.com", timestamp: "2024-01-15 10:25 AM", status: "success" },
+    { id: 3, action: "Backup Completed", user: "System", timestamp: "2024-01-15 09:00 AM", status: "success" },
+    { id: 4, action: "User Deleted", user: "admin@smartbill.com", timestamp: "2024-01-14 04:15 PM", status: "warning" },
+  ]);
+
+  // Support Settings states
+  const [supportEmail, setSupportEmail] = useState("support@smartbill.com");
+  const [supportPhone, setSupportPhone] = useState("+91-1800-123-4567");
+  const [ticketSystem, setTicketSystem] = useState(true);
+  const [liveChat, setLiveChat] = useState(true);
+  const [knowledgeBase, setKnowledgeBase] = useState(true);
+
+  // Save handlers
+  const handleSaveSystemSettings = () => {
+    localStorage.setItem("superAdminSystemSettings", JSON.stringify({
+      maintenanceMode, autoBackup, emailNotifications, debugMode, backupFrequency, maxLoginAttempts, sessionTimeout
+    }));
+    alert("✓ System settings saved successfully!");
+  };
+
+  const handleSaveEmailSettings = () => {
+    localStorage.setItem("superAdminEmailSettings", JSON.stringify({ emailTemplates }));
+    alert("✓ Email templates updated successfully!");
+  };
+
+  const handleSaveApiSettings = () => {
+    localStorage.setItem("superAdminApiSettings", JSON.stringify({
+      rateLimit, webhooksEnabled, ipWhitelist
+    }));
+    alert("✓ API settings saved successfully!");
+  };
+
+  const handleAddPlan = () => {
+    if (newPlanName && newPlanPrice) {
+      const newPlan = {
+        id: plans.length + 1,
+        name: newPlanName,
+        price: newPlanPrice,
+        users: "10",
+        features: "Standard features",
+        status: "active"
+      };
+      setPlans([...plans, newPlan]);
+      setNewPlanName("");
+      setNewPlanPrice("");
+      alert("✓ New plan added successfully!");
+    }
+  };
+
+  const handleDeletePlan = (id) => {
+    setPlans(plans.filter(p => p.id !== id));
+    alert("✓ Plan deleted successfully!");
+  };
+
+  const handleSavePaymentSettings = () => {
+    localStorage.setItem("superAdminPaymentSettings", JSON.stringify({
+      paymentGateway, razorpayKey, stripeKey, enablePaypal, enableStripe
+    }));
+    alert("✓ Payment gateway settings saved!");
+  };
+
+  const handleSaveSupportSettings = () => {
+    localStorage.setItem("superAdminSupportSettings", JSON.stringify({
+      supportEmail, supportPhone, ticketSystem, liveChat, knowledgeBase
+    }));
+    alert("✓ Support settings saved successfully!");
+  };
+
+  const handleRemoveAdmin = (id) => {
+    setAdminUsers(adminUsers.filter(u => u.id !== id));
+    alert("✓ Admin user removed successfully!");
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {[
+          { key: "system", label: "System Settings", icon: Settings },
+          { key: "plans", label: "Subscription Plans", icon: Package },
+          { key: "email", label: "Email Templates", icon: Mail },
+          { key: "api", label: "API Settings", icon: Zap },
+          { key: "payment", label: "Payment Gateway", icon: CreditCard },
+          { key: "users", label: "Admin Users", icon: Shield },
+          { key: "logs", label: "Audit Logs", icon: BarChart2 },
+          { key: "support", label: "Support Settings", icon: MessageSquare },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
+              activeTab === key
+                ? "bg-blue-600 text-white shadow-md"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* TAB 1: SYSTEM SETTINGS */}
+      {activeTab === "system" && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900 mb-5">System Settings</h3>
+          <div className="space-y-4">
+            {/* Maintenance Mode */}
+            <div className="flex items-start justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Maintenance Mode</p>
+                <p className="text-xs text-slate-500">Temporarily disable user access for maintenance</p>
+              </div>
+              <button onClick={() => setMaintenanceMode(!maintenanceMode)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${maintenanceMode ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${maintenanceMode ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            {/* Auto Backup */}
+            <div className="flex items-start justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Auto Backup</p>
+                <p className="text-xs text-slate-500">Automatically backup database</p>
+              </div>
+              <button onClick={() => setAutoBackup(!autoBackup)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${autoBackup ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${autoBackup ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            {/* Email Notifications */}
+            <div className="flex items-start justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Email Notifications</p>
+                <p className="text-xs text-slate-500">Send system notifications via email</p>
+              </div>
+              <button onClick={() => setEmailNotifications(!emailNotifications)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${emailNotifications ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${emailNotifications ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            {/* Debug Mode */}
+            <div className="flex items-start justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Debug Mode</p>
+                <p className="text-xs text-slate-500">Enable detailed error logging</p>
+              </div>
+              <button onClick={() => setDebugMode(!debugMode)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${debugMode ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${debugMode ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            {/* Backup Frequency */}
+            <div className="py-3 border-b border-slate-100">
+              <p className="text-sm font-medium text-slate-900 mb-2">Backup Frequency</p>
+              <select value={backupFrequency} onChange={(e) => setBackupFrequency(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+
+            {/* Max Login Attempts */}
+            <div className="py-3 border-b border-slate-100">
+              <p className="text-sm font-medium text-slate-900 mb-2">Max Login Attempts</p>
+              <input type="number" value={maxLoginAttempts} onChange={(e) => setMaxLoginAttempts(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="5" />
+            </div>
+
+            {/* Session Timeout */}
+            <div className="py-3">
+              <p className="text-sm font-medium text-slate-900 mb-2">Session Timeout (minutes)</p>
+              <input type="number" value={sessionTimeout} onChange={(e) => setSessionTimeout(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="30" />
+            </div>
+
+            <Btn variant="primary" onClick={handleSaveSystemSettings} icon={<Lock className="w-4 h-4" />}>Save System Settings</Btn>
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 2: SUBSCRIPTION PLANS */}
+      {activeTab === "plans" && (
+        <div className="space-y-4">
+          <Card className="p-6">
+            <h3 className="font-semibold text-slate-900 mb-5">Manage Subscription Plans</h3>
+            <div className="grid grid-cols-3 gap-4 mb-5">
+              {plans.map((plan) => (
+                <div key={plan.id} className="border border-slate-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-slate-900">{plan.name}</h4>
+                  <p className="text-lg font-bold text-blue-600 mt-2">{plan.price}</p>
+                  <p className="text-xs text-slate-500 mt-1">Users: {plan.users}</p>
+                  <p className="text-xs text-slate-600 mt-2">{plan.features}</p>
+                  <div className="flex gap-2 mt-3">
+                    <Btn variant="outline" size="sm" onClick={() => handleDeletePlan(plan.id)}>Delete</Btn>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-slate-100 pt-5">
+              <h4 className="font-medium text-slate-900 mb-3">Add New Plan</h4>
+              <div className="space-y-3">
+                <input type="text" value={newPlanName} onChange={(e) => setNewPlanName(e.target.value)} placeholder="Plan Name" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+                <input type="text" value={newPlanPrice} onChange={(e) => setNewPlanPrice(e.target.value)} placeholder="Price (e.g., ₹499/month)" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+                <Btn variant="primary" onClick={handleAddPlan} icon={<Plus className="w-4 h-4" />}>Add Plan</Btn>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB 3: EMAIL TEMPLATES */}
+      {activeTab === "email" && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900 mb-5">Email Templates</h3>
+          <div className="space-y-3">
+            {emailTemplates.map((template) => (
+              <div key={template.id} className="border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-slate-900">{template.name}</p>
+                  <p className="text-xs text-slate-500">{template.subject}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge label={template.status} variant={template.status === "active" ? "green" : "gray"} />
+                  <Btn variant="outline" size="sm" onClick={() => setSelectedTemplate(template)}>Edit</Btn>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Btn variant="primary" onClick={handleSaveEmailSettings} icon={<Mail className="w-4 h-4" />} className="mt-5">Save Email Templates</Btn>
+        </Card>
+      )}
+
+      {/* TAB 4: API SETTINGS */}
+      {activeTab === "api" && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900 mb-5">API Settings</h3>
+          <div className="space-y-4">
+            <div className="py-3 border-b border-slate-100">
+              <p className="text-sm font-medium text-slate-900 mb-2">API Key</p>
+              <div className="flex gap-2">
+                <input type={showApiKey ? "text" : "password"} value={apiKey} readOnly className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50" />
+                <Btn variant="outline" size="sm" onClick={() => setShowApiKey(!showApiKey)}>
+                  {showApiKey ? "Hide" : "Show"}
+                </Btn>
+              </div>
+            </div>
+
+            <div className="py-3 border-b border-slate-100">
+              <p className="text-sm font-medium text-slate-900 mb-2">Rate Limit (requests/hour)</p>
+              <input type="number" value={rateLimit} onChange={(e) => setRateLimit(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+            </div>
+
+            <div className="flex items-start justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Enable Webhooks</p>
+                <p className="text-xs text-slate-500">Allow webhooks for external integrations</p>
+              </div>
+              <button onClick={() => setWebhooksEnabled(!webhooksEnabled)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${webhooksEnabled ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${webhooksEnabled ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            <div className="py-3">
+              <p className="text-sm font-medium text-slate-900 mb-2">IP Whitelist (comma-separated)</p>
+              <input type="text" value={ipWhitelist} onChange={(e) => setIpWhitelist(e.target.value)} placeholder="192.168.1.1, 10.0.0.1" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+            </div>
+
+            <Btn variant="primary" onClick={handleSaveApiSettings} icon={<Zap className="w-4 h-4" />}>Save API Settings</Btn>
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 5: PAYMENT GATEWAY */}
+      {activeTab === "payment" && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900 mb-5">Payment Gateway Configuration</h3>
+          <div className="space-y-4">
+            <div className="py-3 border-b border-slate-100">
+              <p className="text-sm font-medium text-slate-900 mb-2">Default Payment Gateway</p>
+              <select value={paymentGateway} onChange={(e) => setPaymentGateway(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
+                <option value="razorpay">Razorpay</option>
+                <option value="stripe">Stripe</option>
+                <option value="paypal">PayPal</option>
+              </select>
+            </div>
+
+            <div className="py-3 border-b border-slate-100">
+              <p className="text-sm font-medium text-slate-900 mb-2">Razorpay Key ID</p>
+              <input type="password" value={razorpayKey} onChange={(e) => setRazorpayKey(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+            </div>
+
+            <div className="py-3 border-b border-slate-100">
+              <p className="text-sm font-medium text-slate-900 mb-2">Stripe Key</p>
+              <input type="password" value={stripeKey} onChange={(e) => setStripeKey(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+            </div>
+
+            <div className="flex items-start justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Enable PayPal</p>
+                <p className="text-xs text-slate-500">Allow PayPal payments</p>
+              </div>
+              <button onClick={() => setEnablePaypal(!enablePaypal)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${enablePaypal ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enablePaypal ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            <div className="flex items-start justify-between py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Enable Stripe</p>
+                <p className="text-xs text-slate-500">Allow Stripe payments</p>
+              </div>
+              <button onClick={() => setEnableStripe(!enableStripe)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${enableStripe ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableStripe ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            <Btn variant="primary" onClick={handleSavePaymentSettings} icon={<CreditCard className="w-4 h-4" />}>Save Payment Settings</Btn>
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 6: ADMIN USERS */}
+      {activeTab === "users" && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900 mb-5">Admin Users</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  {["Name", "Email", "Role", "Status", "Last Login", "Action"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {adminUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-medium text-slate-900">{user.name}</td>
+                    <td className="px-4 py-3 text-slate-600">{user.email}</td>
+                    <td className="px-4 py-3"><Badge label={user.role === "super-admin" ? "Super Admin" : "Admin"} variant="blue" /></td>
+                    <td className="px-4 py-3"><Badge label={user.status} variant="green" /></td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">{user.lastLogin}</td>
+                    <td className="px-4 py-3">
+                      <Btn variant="outline" size="sm" onClick={() => handleRemoveAdmin(user.id)}>Remove</Btn>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 7: AUDIT LOGS */}
+      {activeTab === "logs" && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900 mb-5">Audit Logs</h3>
+          <div className="space-y-2">
+            {auditLogs.map((log) => (
+              <div key={log.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{log.action}</p>
+                  <p className="text-xs text-slate-500">by {log.user} • {log.timestamp}</p>
+                </div>
+                <Badge label={log.status} variant={log.status === "success" ? "green" : "yellow"} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 8: SUPPORT SETTINGS */}
+      {activeTab === "support" && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900 mb-5">Support Settings</h3>
+          <div className="space-y-4">
+            <div className="py-3 border-b border-slate-100">
+              <p className="text-sm font-medium text-slate-900 mb-2">Support Email</p>
+              <input type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+            </div>
+
+            <div className="py-3 border-b border-slate-100">
+              <p className="text-sm font-medium text-slate-900 mb-2">Support Phone</p>
+              <input type="tel" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+            </div>
+
+            <div className="flex items-start justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Support Ticket System</p>
+                <p className="text-xs text-slate-500">Enable ticket system for users</p>
+              </div>
+              <button onClick={() => setTicketSystem(!ticketSystem)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${ticketSystem ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${ticketSystem ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            <div className="flex items-start justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Live Chat</p>
+                <p className="text-xs text-slate-500">Enable live chat support</p>
+              </div>
+              <button onClick={() => setLiveChat(!liveChat)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${liveChat ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${liveChat ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            <div className="flex items-start justify-between py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Knowledge Base</p>
+                <p className="text-xs text-slate-500">Enable public knowledge base</p>
+              </div>
+              <button onClick={() => setKnowledgeBase(!knowledgeBase)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${knowledgeBase ? "bg-blue-600" : "bg-slate-200"}`}>
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${knowledgeBase ? "right-1" : "left-1"}`} />
+              </button>
+            </div>
+
+            <Btn variant="primary" onClick={handleSaveSupportSettings} icon={<MessageSquare className="w-4 h-4" />}>Save Support Settings</Btn>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ─── SETTINGS SCREEN ──────────────────────────────────────────────────────────
 
 function SettingsScreen() {
   const [activeTab, setActiveTab] = useState("business");
   
-  // Custom states for switches
-  const [isComposition, setIsComposition] = useState(false);
+  // GST & Tax toggle states
+  const [enableIgst, setEnableIgst] = useState(true);
+  const [enableCess, setEnableCess] = useState(false);
+  const [enableRcm, setEnableRcm] = useState(false);
+
+  // Transaction Settings states
+  const [passcodeRequired, setPasscodeRequired] = useState(false);
+  const [enableCashDiscount, setEnableCashDiscount] = useState(true);
+  const [linkOrders, setLinkOrders] = useState(true);
+
+  // Invoice Settings states
   const [showHsn, setShowHsn] = useState(true);
   const [showDesc, setShowDesc] = useState(true);
   const [showBank, setShowBank] = useState(false);
+
+  // Party Management states
+  const [enableGrouping, setEnableGrouping] = useState(true);
+  const [trackBalance, setTrackBalance] = useState(false);
+  const [shippingAddress, setShippingAddress] = useState(true);
+
+  // Item & Inventory states
+  const [enableSerial, setEnableSerial] = useState(false);
+  const [enableMultiUnit, setEnableMultiUnit] = useState(true);
+  const [enableBarcode, setEnableBarcode] = useState(true);
+
+  // Accounting & Books states
+  const [enableTrialBalance, setEnableTrialBalance] = useState(true);
+  const [autoBankImport, setAutoBankImport] = useState(false);
+  const [profitCenter, setProfitCenter] = useState(false);
+
+  // GST Registration state
+  const [isComposition, setIsComposition] = useState(false);
+
+  // Customization states
+  const [theme, setTheme] = useState("light");
+  const [accentColor, setAccentColor] = useState("#3b82f6");
+  const [sidebarStyle, setSidebarStyle] = useState("expanded");
+  const [fontSize, setFontSize] = useState("medium");
+  const [language, setLanguage] = useState("English");
+  const [dateFormat, setDateFormat] = useState("DD-MM-YYYY");
+  const [timeFormat, setTimeFormat] = useState("24-hour");
+  const [currencyFormat, setCurrencyFormat] = useState("Indian");
+
+  // Low Stock Alert states
+  const [lowStockThreshold, setLowStockThreshold] = useState("10");
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [inAppAlerts, setInAppAlerts] = useState(true);
+  const [smsAlerts, setSmsAlerts] = useState(false);
+
+  // Users Permissions states
+  const [employees, setEmployees] = useState([
+    { id: 1, name: "HR Manager", department: "HR", permissions: { sales: true, purchase: true, inventory: true, accounting: true, settings: false } },
+    { id: 2, name: "Sales Staff", department: "Sales", permissions: { sales: true, purchase: false, inventory: true, accounting: false, settings: false } },
+  ]);
+
+  // Payment Methods states
+  const [paymentMethods, setPaymentMethods] = useState({
+    sales: ["Cash", "Card", "UPI"],
+    purchase: ["Cash", "Cheque", "Bank Transfer"],
+    expenses: ["Cash", "Card"]
+  });
+  const [availablePaymentMethods] = useState(["Cash", "Card", "UPI", "Cheque", "Bank Transfer", "Online", "Wallet"]);
+
+  // Security states
+  const [twoFactorAuth, setTwoFactorAuth] = useState(false);
+  const [sessionTimeout, setSessionTimeout] = useState(true);
+
+  // Apply theme to document - FIXED: No longer inverted
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.body.style.backgroundColor = "#0f172a";
+      document.body.style.color = "#f8fafc";
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.body.style.backgroundColor = "#ffffff";
+      document.body.style.color = "#000000";
+    }
+  }, [theme]);
+
+  // Apply accent color to CSS
+  useEffect(() => {
+    document.documentElement.style.setProperty("--accent-color", accentColor);
+  }, [accentColor]);
+
+  // Apply font size
+  useEffect(() => {
+    const sizeMap = { small: "14px", medium: "16px", large: "18px" };
+    document.documentElement.style.fontSize = sizeMap[fontSize];
+  }, [fontSize]);
+
+  // Handle theme save
+  const handleSaveCustomization = () => {
+    localStorage.setItem("appSettings", JSON.stringify({
+      theme, accentColor, sidebarStyle, fontSize, language, dateFormat, timeFormat, currencyFormat
+    }));
+    alert("✓ Customization settings saved successfully!");
+  };
+
+  // Handle GST settings save
+  const handleSaveGstSettings = () => {
+    localStorage.setItem("gstSettings", JSON.stringify({
+      isComposition, enableIgst, enableCess, enableRcm
+    }));
+    alert("✓ GST settings saved successfully!");
+  };
+
+  // Handle transaction settings save
+  const handleSaveTransactionSettings = () => {
+    localStorage.setItem("transactionSettings", JSON.stringify({
+      passcodeRequired, enableCashDiscount, linkOrders
+    }));
+    alert("✓ Transaction settings saved successfully!");
+  };
+
+  // Handle invoice settings save
+  const handleSaveInvoiceSettings = () => {
+    localStorage.setItem("invoiceSettings", JSON.stringify({
+      showHsn, showDesc, showBank
+    }));
+    alert("✓ Invoice settings saved successfully!");
+  };
+
+  // Handle party settings save
+  const handleSavePartySettings = () => {
+    localStorage.setItem("partySettings", JSON.stringify({
+      enableGrouping, trackBalance, shippingAddress
+    }));
+    alert("✓ Party settings saved successfully!");
+  };
+
+  // Handle item settings save
+  const handleSaveItemSettings = () => {
+    localStorage.setItem("itemSettings", JSON.stringify({
+      enableSerial, enableMultiUnit, enableBarcode
+    }));
+    alert("✓ Item settings saved successfully!");
+  };
+
+  // Handle accounting settings save
+  const handleSaveAccountingSettings = () => {
+    localStorage.setItem("accountingSettings", JSON.stringify({
+      enableTrialBalance, autoBankImport, profitCenter
+    }));
+    alert("✓ Accounting settings saved successfully!");
+  };
+
+  // Handle low stock save
+  const handleSaveLowStockSettings = () => {
+    localStorage.setItem("lowStockSettings", JSON.stringify({
+      threshold: lowStockThreshold,
+      emailAlerts, inAppAlerts, smsAlerts
+    }));
+    alert("✓ Low stock alert settings saved successfully!");
+  };
+
+  // Handle permission update
+  const handlePermissionToggle = (empId, module) => {
+    setEmployees(employees.map(emp => 
+      emp.id === empId 
+        ? { ...emp, permissions: { ...emp.permissions, [module]: !emp.permissions[module] } }
+        : emp
+    ));
+  };
+
+  // Handle permissions save
+  const handleSavePermissions = () => {
+    localStorage.setItem("employeePermissions", JSON.stringify(employees));
+    alert("✓ Users permissions saved successfully!");
+  };
+
+  // Handle payment method toggle
+  const handlePaymentMethodToggle = (type, method) => {
+    setPaymentMethods(prev => ({
+      ...prev,
+      [type]: prev[type].includes(method)
+        ? prev[type].filter(m => m !== method)
+        : [...prev[type], method]
+    }));
+  };
+
+  // Handle payment methods save
+  const handleSavePaymentMethods = () => {
+    localStorage.setItem("paymentMethods", JSON.stringify(paymentMethods));
+    alert("✓ Payment methods saved successfully!");
+  };
+
+  // Handle security settings save
+  const handleSaveSecuritySettings = () => {
+    localStorage.setItem("securitySettings", JSON.stringify({
+      twoFactorAuth, sessionTimeout
+    }));
+    alert("✓ Security settings saved successfully!");
+  };
 
   // Navin safe tabs configuration
   const tabs = [
@@ -5580,6 +6250,10 @@ function SettingsScreen() {
     { key: "party", label: "Party Management", icon: Users },
     { key: "item", label: "Item & Inventory", icon: Package2 }, // Fixed here!
     { key: "accounting", label: "Accounting & Books", icon: Landmark },
+    { key: "customization", label: "Customization", icon: Settings },
+    { key: "stockalert", label: "Low Stock Alert Numbers", icon: AlertCircle },
+    { key: "permissions", label: "Users Permissions", icon: Shield },
+    { key: "payment", label: "Payment Methods", icon: CreditCard },
     { key: "users", label: "Security & Access", icon: Lock },
   ];
 
@@ -5660,23 +6334,35 @@ function SettingsScreen() {
               <Select label="Default GST Rate %" value="18" options={["0", "5", "12", "18", "28"]} />
             </div>
             <div className="mt-4 space-y-3">
-              {[
-                ["Enable IGST", "Apply IGST for inter-state transactions", true],
-                ["Enable Cess", "Apply additional cess on specific products", false],
-                ["Reverse Charge Mechanism (RCM)", "Enable reverse charge options in purchase invoices", false],
-              ].map(([l, d, active]) => (
-                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${active ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${active ? "right-1" : "left-1"}`} />
-                  </button>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Enable IGST</p>
+                  <p className="text-xs text-slate-500">Apply IGST for inter-state transactions</p>
                 </div>
-              ))}
+                <button onClick={() => setEnableIgst(!enableIgst)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableIgst ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableIgst ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Enable Cess</p>
+                  <p className="text-xs text-slate-500">Apply additional cess on specific products</p>
+                </div>
+                <button onClick={() => setEnableCess(!enableCess)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableCess ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableCess ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Reverse Charge Mechanism (RCM)</p>
+                  <p className="text-xs text-slate-500">Enable reverse charge options in purchase invoices</p>
+                </div>
+                <button onClick={() => setEnableRcm(!enableRcm)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableRcm ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableRcm ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
             </div>
-            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save GST Settings</Btn>
+            <Btn variant="primary" className="mt-5" onClick={handleSaveGstSettings} icon={<Check className="w-4 h-4" />}>Save GST Settings</Btn>
           </div>
         )}
 
@@ -5689,23 +6375,35 @@ function SettingsScreen() {
               <Select label="Discount Type" value="Percentage" options={["Percentage", "Flat Amount", "None"]} />
             </div>
             <div className="space-y-3">
-              {[
-                ["Passcode for Sales Return", "Ask verification lock passcode on every credit note entry", false],
-                ["Enable Cash Discount Field", "Show custom cash discount row inside ledger transactions", true],
-                ["Link Orders to Invoices", "Auto-convert approved purchase orders into open bills", true],
-              ].map(([l, d, active]) => (
-                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`} />
-                  </button>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Passcode for Sales Return</p>
+                  <p className="text-xs text-slate-500">Ask verification lock passcode on every credit note entry</p>
                 </div>
-              ))}
+                <button onClick={() => setPasscodeRequired(!passcodeRequired)} className={`w-10 h-6 rounded-full relative ${passcodeRequired ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${passcodeRequired ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Enable Cash Discount Field</p>
+                  <p className="text-xs text-slate-500">Show custom cash discount row inside ledger transactions</p>
+                </div>
+                <button onClick={() => setEnableCashDiscount(!enableCashDiscount)} className={`w-10 h-6 rounded-full relative ${enableCashDiscount ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableCashDiscount ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Link Orders to Invoices</p>
+                  <p className="text-xs text-slate-500">Auto-convert approved purchase orders into open bills</p>
+                </div>
+                <button onClick={() => setLinkOrders(!linkOrders)} className={`w-10 h-6 rounded-full relative ${linkOrders ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${linkOrders ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
             </div>
-            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Transaction Rules</Btn>
+            <Btn variant="primary" className="mt-5" onClick={handleSaveTransactionSettings} icon={<Check className="w-4 h-4" />}>Save Transaction Rules</Btn>
           </div>
         )}
 
@@ -5772,7 +6470,7 @@ function SettingsScreen() {
                 ))}
               </div>
             </div>
-            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Invoice Settings</Btn>
+            <Btn variant="primary" className="mt-5" onClick={handleSaveInvoiceSettings} icon={<Check className="w-4 h-4" />}>Save Invoice Settings</Btn>
           </div>
         )}
 
@@ -5781,23 +6479,35 @@ function SettingsScreen() {
           <div className="bg-white border rounded-xl p-6 shadow-sm">
             <h3 className="font-semibold text-slate-900 mb-5">Party Settings</h3>
             <div className="space-y-3">
-              {[
-                ["Enable Party Grouping", "Categorize retailers, wholesalers and suppliers into structural pools", true],
-                ["Track Party-wise Balance Limits", "Restrict raw bill allocation if safety credit thresholds cross limit", false],
-                ["Shipping Address Verification", "Keep separate shipping and billing text blocks for every party ledger", true],
-              ].map(([l, d, active]) => (
-                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`} />
-                  </button>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Enable Party Grouping</p>
+                  <p className="text-xs text-slate-500">Categorize retailers, wholesalers and suppliers into structural pools</p>
                 </div>
-              ))}
+                <button onClick={() => setEnableGrouping(!enableGrouping)} className={`w-10 h-6 rounded-full relative ${enableGrouping ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableGrouping ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Track Party-wise Balance Limits</p>
+                  <p className="text-xs text-slate-500">Restrict raw bill allocation if safety credit thresholds cross limit</p>
+                </div>
+                <button onClick={() => setTrackBalance(!trackBalance)} className={`w-10 h-6 rounded-full relative ${trackBalance ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${trackBalance ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Shipping Address Verification</p>
+                  <p className="text-xs text-slate-500">Keep separate shipping and billing text blocks for every party ledger</p>
+                </div>
+                <button onClick={() => setShippingAddress(!shippingAddress)} className={`w-10 h-6 rounded-full relative ${shippingAddress ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${shippingAddress ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
             </div>
-            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Party Profiles</Btn>
+            <Btn variant="primary" className="mt-5" onClick={handleSavePartySettings} icon={<Check className="w-4 h-4" />}>Save Party Profiles</Btn>
           </div>
         )}
 
@@ -5810,23 +6520,35 @@ function SettingsScreen() {
               <Input label="Low Stock Warning Counter Alert" value="10 Units Remaining" />
             </div>
             <div className="space-y-3">
-              {[
-                ["Enable Serial Tracking / Batch Numbers", "Store dynamic batch indices and expiry timestamps inside database records", false],
-                ["Multi-unit Measurement Scale", "Allow dynamic calculation mappings like Box to individual pieces conversion", true],
-                ["Barcode Scanner Integration Hook", "Map standard text fields inputs direct via optical barcode readings", true],
-              ].map(([l, d, active]) => (
-                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`} />
-                  </button>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Enable Serial Tracking / Batch Numbers</p>
+                  <p className="text-xs text-slate-500">Store dynamic batch indices and expiry timestamps inside database records</p>
                 </div>
-              ))}
+                <button onClick={() => setEnableSerial(!enableSerial)} className={`w-10 h-6 rounded-full relative ${enableSerial ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableSerial ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Multi-unit Measurement Scale</p>
+                  <p className="text-xs text-slate-500">Allow dynamic calculation mappings like Box to individual pieces conversion</p>
+                </div>
+                <button onClick={() => setEnableMultiUnit(!enableMultiUnit)} className={`w-10 h-6 rounded-full relative ${enableMultiUnit ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableMultiUnit ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Barcode Scanner Integration Hook</p>
+                  <p className="text-xs text-slate-500">Map standard text fields inputs direct via optical barcode readings</p>
+                </div>
+                <button onClick={() => setEnableBarcode(!enableBarcode)} className={`w-10 h-6 rounded-full relative ${enableBarcode ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableBarcode ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
             </div>
-            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Inventory Parameters</Btn>
+            <Btn variant="primary" className="mt-5" onClick={handleSaveItemSettings} icon={<Check className="w-4 h-4" />}>Save Inventory Parameters</Btn>
           </div>
         )}
 
@@ -5835,27 +6557,304 @@ function SettingsScreen() {
           <div className="bg-white border rounded-xl p-6 shadow-sm">
             <h3 className="font-semibold text-slate-900 mb-5">Accounting & Book-keeping</h3>
             <div className="space-y-3">
-              {[
-                ["Enable Trial Balance Reporting", "Real-time sync sheet layout balancing credits and debits together", true],
-                ["Auto Bank Statement Imports", "Enable automated mapping hooks for institutional bank settlement feeds", false],
-                ["Profit Center Allocation tracking", "Perform split accounting across multi-location business setups", false],
-              ].map(([l, d, active]) => (
-                <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`} />
-                  </button>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Enable Trial Balance Reporting</p>
+                  <p className="text-xs text-slate-500">Real-time sync sheet layout balancing credits and debits together</p>
                 </div>
-              ))}
+                <button onClick={() => setEnableTrialBalance(!enableTrialBalance)} className={`w-10 h-6 rounded-full relative ${enableTrialBalance ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableTrialBalance ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Auto Bank Statement Imports</p>
+                  <p className="text-xs text-slate-500">Enable automated mapping hooks for institutional bank settlement feeds</p>
+                </div>
+                <button onClick={() => setAutoBankImport(!autoBankImport)} className={`w-10 h-6 rounded-full relative ${autoBankImport ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${autoBankImport ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Profit Center Allocation tracking</p>
+                  <p className="text-xs text-slate-500">Perform split accounting across multi-location business setups</p>
+                </div>
+                <button onClick={() => setProfitCenter(!profitCenter)} className={`w-10 h-6 rounded-full relative ${profitCenter ? "bg-blue-600" : "bg-slate-200"}`}>
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${profitCenter ? "right-1" : "left-1"}`} />
+                </button>
+              </div>
             </div>
-            <Btn variant="primary" className="mt-5" icon={<Check className="w-4 h-4" />}>Save Accounting Rules</Btn>
+            <Btn variant="primary" className="mt-5" onClick={handleSaveAccountingSettings} icon={<Check className="w-4 h-4" />}>Save Accounting Rules</Btn>
           </div>
         )}
 
-        {/* TAB 8: SECURITY SETTINGS */}
+        {/* TAB 8: CUSTOMIZATION */}
+        {activeTab === "customization" && (
+          <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
+            <h3 className="font-semibold text-slate-900">Customization Settings</h3>
+            
+            {/* Visual & Appearance Settings */}
+            <div className="border-t pt-6">
+              <h4 className="text-sm font-semibold text-slate-700 mb-4">Visual & Appearance Settings</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Theme & Mode</label>
+                  <select value={theme} onChange={(e) => setTheme(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <option value="light">Light Mode</option>
+                    <option value="dark">Dark Mode</option>
+                    <option value="system">System Default</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Accent Color</label>
+                  <div className="flex gap-2">
+                    <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="w-10 h-10 rounded border border-slate-300 cursor-pointer" />
+                    <input type="text" value={accentColor} readOnly className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Sidebar Style</label>
+                  <select value={sidebarStyle} onChange={(e) => setSidebarStyle(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <option value="expanded">Expanded (Text + Icon)</option>
+                    <option value="compact">Compact (Icons Only)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Font Size</label>
+                  <select value={fontSize} onChange={(e) => setFontSize(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="large">Large</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Localization & Regional Formats */}
+            <div className="border-t pt-6">
+              <h4 className="text-sm font-semibold text-slate-700 mb-4">Localization & Regional Formats</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Language Selection</label>
+                  <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi (हिंदी)</option>
+                    <option value="Marathi">Marathi (मराठी)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Date Format</label>
+                  <select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Time Format</label>
+                  <select value={timeFormat} onChange={(e) => setTimeFormat(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <option value="12-hour">12-Hour (AM/PM)</option>
+                    <option value="24-hour">24-Hour Format</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Number & Currency Formatting</label>
+                  <select value={currencyFormat} onChange={(e) => setCurrencyFormat(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <option value="Indian">Indian Style (1,00,000)</option>
+                    <option value="International">International Style (100,000)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <Btn variant="primary" onClick={handleSaveCustomization} icon={<Check className="w-4 h-4" />}>Save Customization Settings</Btn>
+          </div>
+        )}
+
+        {/* TAB 9: LOW STOCK ALERT NUMBERS */}
+        {activeTab === "stockalert" && (
+          <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
+            <div>
+              <h3 className="font-semibold text-slate-900 mb-5">Low Stock Alert Numbers</h3>
+              <p className="text-sm text-slate-600 mb-6">Set the minimum stock level threshold. When inventory drops to or below this number, you'll receive low stock notifications.</p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-slate-900 mb-2">Default Low Stock Alert Threshold</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="number" 
+                      value={lowStockThreshold} 
+                      onChange={(e) => setLowStockThreshold(e.target.value)}
+                      className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm"
+                      placeholder="Enter minimum stock units"
+                    />
+                    <span className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-600">Units</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">When stock equals or falls below this number, alert will trigger</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-6">
+              <h4 className="text-sm font-semibold text-slate-700 mb-4">Alert Notification Options</h4>
+              <div className="space-y-3">
+                <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Email Notifications</p>
+                    <p className="text-xs text-slate-500">Receive email alerts when stock falls below threshold</p>
+                  </div>
+                  <button onClick={() => setEmailAlerts(!emailAlerts)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ${emailAlerts ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${emailAlerts ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+                <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">In-App Notifications</p>
+                    <p className="text-xs text-slate-500">See notifications in the dashboard</p>
+                  </div>
+                  <button onClick={() => setInAppAlerts(!inAppAlerts)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ${inAppAlerts ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${inAppAlerts ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+                <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">SMS Alerts</p>
+                    <p className="text-xs text-slate-500">Receive SMS alerts on your phone</p>
+                  </div>
+                  <button onClick={() => setSmsAlerts(!smsAlerts)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ${smsAlerts ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${smsAlerts ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <Btn variant="primary" onClick={handleSaveLowStockSettings} icon={<Check className="w-4 h-4" />}>Save Low Stock Settings</Btn>
+          </div>
+        )}
+
+        {/* TAB 10: USERS PERMISSIONS */}
+        {activeTab === "permissions" && (
+          <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
+            <div>
+              <h3 className="font-semibold text-slate-900 mb-5">Users Permissions Management</h3>
+              <p className="text-sm text-slate-600 mb-6">Manage staff and employee access to different modules. Control which features each employee can access.</p>
+            </div>
+
+            <div className="space-y-4">
+              {employees.map((emp) => (
+                <div key={emp.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="font-semibold text-slate-900">{emp.name}</h4>
+                      <p className="text-xs text-slate-500">{emp.department} Department</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-5 gap-2">
+                    {Object.keys(emp.permissions).map((module) => (
+                      <div key={module} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200">
+                        <input 
+                          type="checkbox" 
+                          checked={emp.permissions[module]}
+                          onChange={() => handlePermissionToggle(emp.id, module)}
+                          className="w-4 h-4 rounded cursor-pointer"
+                        />
+                        <label className="text-xs font-medium text-slate-700 capitalize cursor-pointer">{module}</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t pt-6">
+              <h4 className="text-sm font-semibold text-slate-700 mb-4">Available Modules</h4>
+              <div className="grid grid-cols-5 gap-3">
+                {["Sales", "Purchase", "Inventory", "Accounting", "Settings"].map((mod) => (
+                  <div key={mod} className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-center">
+                    <p className="text-xs font-medium text-slate-700">{mod}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Btn variant="primary" onClick={handleSavePermissions} icon={<Check className="w-4 h-4" />}>Save Permissions</Btn>
+          </div>
+        )}
+
+        {/* TAB 11: PAYMENT METHODS */}
+        {activeTab === "payment" && (
+          <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
+            <div>
+              <h3 className="font-semibold text-slate-900 mb-5">Payment Methods Configuration</h3>
+              <p className="text-sm text-slate-600 mb-6">Select which payment methods are available for each transaction type (Sales, Purchase, Expenses).</p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Sales Payment Methods */}
+              <div className="border border-slate-200 rounded-xl p-4">
+                <h4 className="font-semibold text-slate-900 mb-3">Sales Transactions</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  {availablePaymentMethods.map((method) => (
+                    <label key={method} className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50">
+                      <input 
+                        type="checkbox" 
+                        checked={paymentMethods.sales.includes(method)}
+                        onChange={() => handlePaymentMethodToggle("sales", method)}
+                        className="w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="text-sm font-medium text-slate-700">{method}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Purchase Payment Methods */}
+              <div className="border border-slate-200 rounded-xl p-4">
+                <h4 className="font-semibold text-slate-900 mb-3">Purchase Transactions</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  {availablePaymentMethods.map((method) => (
+                    <label key={method} className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50">
+                      <input 
+                        type="checkbox" 
+                        checked={paymentMethods.purchase.includes(method)}
+                        onChange={() => handlePaymentMethodToggle("purchase", method)}
+                        className="w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="text-sm font-medium text-slate-700">{method}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Expenses Payment Methods */}
+              <div className="border border-slate-200 rounded-xl p-4">
+                <h4 className="font-semibold text-slate-900 mb-3">Expenses (e.g., Light Bill, Internet, etc.)</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  {availablePaymentMethods.map((method) => (
+                    <label key={method} className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50">
+                      <input 
+                        type="checkbox" 
+                        checked={paymentMethods.expenses.includes(method)}
+                        onChange={() => handlePaymentMethodToggle("expenses", method)}
+                        className="w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="text-sm font-medium text-slate-700">{method}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <Btn variant="primary" onClick={handleSavePaymentMethods} icon={<Check className="w-4 h-4" />}>Save Payment Methods</Btn>
+          </div>
+        )}
+
+        {/* TAB 12: SECURITY SETTINGS */}
         {activeTab === "users" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
             <h3 className="font-semibold text-slate-900 mb-5">Security Settings</h3>
@@ -5866,22 +6865,26 @@ function SettingsScreen() {
                 <Input label="Confirm New Password" type="password" placeholder="Re-enter new password" icon={<Lock className="w-4 h-4" />} />
               </div>
               <div className="space-y-3 pt-2">
-                {[
-                  ["Two-Factor Authentication", "Require OTP on login"],
-                  ["Session Timeout", "Auto-logout after 30 minutes of inactivity"],
-                ].map(([l, d]) => (
-                  <div key={l} className="flex items-start justify-between py-3 border-b border-slate-100">
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{l}</p>
-                      <p className="text-xs text-slate-500">{d}</p>
-                    </div>
-                    <button className="w-10 h-6 bg-slate-200 rounded-full relative flex-shrink-0 ml-4">
-                      <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow" />
-                    </button>
+                <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Two-Factor Authentication</p>
+                    <p className="text-xs text-slate-500">Require OTP on login</p>
                   </div>
-                ))}
+                  <button onClick={() => setTwoFactorAuth(!twoFactorAuth)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${twoFactorAuth ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${twoFactorAuth ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+                <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Session Timeout</p>
+                    <p className="text-xs text-slate-500">Auto-logout after 30 minutes of inactivity</p>
+                  </div>
+                  <button onClick={() => setSessionTimeout(!sessionTimeout)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${sessionTimeout ? "bg-blue-600" : "bg-slate-200"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${sessionTimeout ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
               </div>
-              <Btn variant="primary" icon={<Lock className="w-4 h-4" />}>Update Password</Btn>
+              <Btn variant="primary" onClick={handleSaveSecuritySettings} icon={<Lock className="w-4 h-4" />}>Update Password</Btn>
             </div>
           </div>
         )}
@@ -6035,7 +7038,7 @@ function AppShell({ role, onLogout, page, onNav }) {
       case "users":
         return <UsersScreen />;
       case "settings":
-        return <SettingsScreen />;
+        return role === "superadmin" ? <SuperAdminSettingsScreen /> : <SettingsScreen />;
       case "notifications":
         return <NotificationsScreen />;
       case "profile":
