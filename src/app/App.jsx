@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -385,7 +385,7 @@ const invoices = [
   },
 ];
 
-const expenses = [
+let expenses = [
   {
     id: 1,
     category: "Rent",
@@ -983,7 +983,9 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
             <AlertTriangle className="w-6 h-6 text-red-500" />
           </div>
           <h3 className="font-semibold text-slate-900 mb-2">Are you sure?</h3>
-          <p className="text-sm text-slate-500 mb-5">{message}</p>
+          <p className="text-sm text-slate-500 mb-5 whitespace-pre-line">
+            {message}
+          </p>
           <div className="flex gap-3">
             <Btn variant="outline" onClick={onCancel} className="flex-1">
               Cancel
@@ -993,7 +995,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
               onClick={onConfirm}
               className="flex-1 bg-red-600 text-white hover:bg-red-700 border-0"
             >
-              Delete
+              Confirm
             </Btn>
           </div>
         </div>
@@ -4769,67 +4771,515 @@ function PurchaseScreen() {
 }
 
 // ─── INVENTORY SCREEN ─────────────────────────────────────────────────────────
+// Adjust Stock Modal component (kept inside App.jsx to reuse existing UI)
+function AdjustStockModal({
+  products,
+  initialProductId = null,
+  onClose,
+  onSave,
+}) {
+  const productOptions = products.map((p) => ({
+    label: p.name + ` — ${p.sku}`,
+    value: p.id,
+  }));
+  const warehouseOptions = ["Main Warehouse", "Store - Nashik", "Store - Pune"];
+
+  const [productId, setProductId] = useState(
+    initialProductId ?? products[0]?.id ?? null,
+  );
+  const product = products.find((p) => p.id === productId) ??
+    products[0] ?? { stock: 0, minStock: 0, price: 0 };
+
+  const adjustmentTypes = [
+    "Stock In",
+    "Stock Out",
+    "Stock Correction",
+    "Damaged",
+    "Returned",
+    "Expired",
+    "Purchase Received",
+    "Manual Adjustment",
+  ];
+
+  const increaseTypes = new Set(["Stock In", "Returned", "Purchase Received"]);
+  const decreaseTypes = new Set(["Stock Out", "Damaged", "Expired"]);
+
+  const [warehouse, setWarehouse] = useState(warehouseOptions[0]);
+  const [adjustmentType, setAdjustmentType] = useState("Stock In");
+  const [adjustmentQuantity, setAdjustmentQuantity] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState(
+    new Date().toLocaleTimeString("en-GB", { hour12: false }).slice(0, 5),
+  );
+  const [reason, setReason] = useState("Manual Correction");
+  const [notes, setNotes] = useState("");
+  const [files, setFiles] = useState([]);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const curr = Number(product.stock || 0);
+
+  const parseQty = (v) => {
+    if (v === "" || v === null || v === undefined) return NaN;
+    return Number(String(v).replace(/[,\s₹]/g, ""));
+  };
+
+  const computeNew = () => {
+    const adj = parseQty(adjustmentQuantity);
+    if (Number.isNaN(adj)) return curr;
+
+    if (increaseTypes.has(adjustmentType)) return curr + Math.abs(adj);
+    if (decreaseTypes.has(adjustmentType))
+      return Math.max(0, curr - Math.abs(adj));
+    // Stock Correction / Manual Adjustment: treat as delta (can be negative or positive)
+    return Math.max(0, curr + adj);
+  };
+
+  const newQty = computeNew();
+  const adjustmentDelta = newQty - curr;
+  const stockValueImpact = adjustmentDelta * (product.price || 0);
+
+  useEffect(() => {
+    // clear inline errors when inputs change
+    setErrors((e) => (Object.keys(e).length ? {} : e));
+  }, [productId, adjustmentQuantity, adjustmentType, date, time]);
+
+  const onFileChange = (e) => {
+    const list = Array.from(e.target.files || []);
+    setFiles((f) => [...f, ...list]);
+  };
+
+  const removeFile = (i) => setFiles((f) => f.filter((_, idx) => idx !== i));
+
+  const validate = () => {
+    const next = {};
+    if (!productId) next.product = "Select product.";
+    const adj = parseQty(adjustmentQuantity);
+    if (adjustmentQuantity === "" || Number.isNaN(adj))
+      next.adjustmentQuantity = "Enter a valid quantity.";
+    if (
+      adj < 0 &&
+      !["Stock Correction", "Manual Adjustment"].includes(adjustmentType)
+    )
+      next.adjustmentQuantity =
+        "Quantity must be positive for this adjustment type.";
+    if (decreaseTypes.has(adjustmentType) && Math.abs(adj) > curr)
+      next.adjustmentQuantity = "Adjustment cannot exceed current stock.";
+    if (newQty < 0) next.newQty = "Resulting stock cannot be negative.";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const handleSave = () => {
+    if (!validate()) return;
+    setShowConfirm(true);
+  };
+
+  const confirmSave = () => {
+    const entry = {
+      id: Date.now(),
+      date: `${date} ${time}`,
+      productId: product.id,
+      productName: product.name,
+      sku: product.sku,
+      adjustmentType,
+      quantity: adjustmentDelta,
+      previousStock: curr,
+      newStock: newQty,
+      reason,
+      warehouse,
+      notes,
+      files,
+      adjustedBy: "Admin User",
+    };
+    onSave(entry);
+    setShowConfirm(false);
+    onClose();
+  };
+
+  return (
+    <Modal title="Adjust Stock" onClose={onClose}>
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+        <div className="space-y-5">
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <h3 className="text-sm font-semibold text-slate-900 mb-4">
+              Product Information
+            </h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Product
+                  </label>
+                  <select
+                    value={productId}
+                    onChange={(e) => setProductId(Number(e.target.value))}
+                    className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                  >
+                    {productOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.product && (
+                    <p className="text-xs text-red-600 mt-1">
+                      {errors.product}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Warehouse / Store
+                  </label>
+                  <select
+                    value={warehouse}
+                    onChange={(e) => setWarehouse(e.target.value)}
+                    className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                  >
+                    {warehouseOptions.map((w) => (
+                      <option key={w}>{w}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Product Name
+                  </label>
+                  <div className="mt-1 text-sm text-slate-900">
+                    {product.name}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Product Code / SKU
+                  </label>
+                  <div className="mt-1 text-sm font-mono text-slate-600">
+                    {product.sku}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Category
+                  </label>
+                  <div className="mt-1 text-sm text-slate-600">
+                    {product.category}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Adjustment Type
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+              {adjustmentTypes.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setAdjustmentType(t)}
+                  className={`text-sm px-3 py-2 rounded-lg border ${adjustmentType === t ? "bg-blue-600 text-white border-blue-600" : "bg-white border-slate-200 text-slate-700"}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 items-end">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Current Quantity
+              </label>
+              <div className="mt-1 font-mono text-slate-900 text-lg">
+                {curr}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Adjustment Quantity
+              </label>
+              <Input
+                value={adjustmentQuantity}
+                onChange={setAdjustmentQuantity}
+                placeholder="e.g. 10"
+              />
+              {errors.adjustmentQuantity && (
+                <p className="text-xs text-red-600 mt-1">
+                  {errors.adjustmentQuantity}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                New Quantity
+              </label>
+              <div
+                className={`mt-1 font-mono text-lg ${newQty < product.minStock ? "text-amber-600" : "text-slate-900"}`}
+              >
+                {newQty}
+              </div>
+              {errors.newQty && (
+                <p className="text-xs text-red-600 mt-1">{errors.newQty}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Reason
+              </label>
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+              >
+                {[
+                  "Purchase",
+                  "Sale",
+                  "Damage",
+                  "Expired",
+                  "Returned",
+                  "Theft",
+                  "Manual Correction",
+                  "Physical Count",
+                  "Other",
+                ].map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Date
+              </label>
+              <Input type="date" value={date} onChange={setDate} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Time
+              </label>
+              <Input type="time" value={time} onChange={setTime} />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Notes
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Enter reason for stock adjustment..."
+              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm min-h-[80px]"
+            ></textarea>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Attachment
+            </label>
+            <input
+              type="file"
+              multiple
+              onChange={onFileChange}
+              className="mt-2"
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {files.map((f, i) => (
+                <div
+                  key={i}
+                  className="border border-slate-200 rounded-lg p-2 text-xs flex items-center gap-2"
+                >
+                  {f.type.startsWith("image/") ? (
+                    <img
+                      src={URL.createObjectURL(f)}
+                      alt={f.name}
+                      className="w-12 h-8 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-12 h-8 flex items-center justify-center bg-slate-100 rounded text-slate-500">
+                      DOC
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="font-medium text-xs">{f.name}</div>
+                    <div className="text-xs text-slate-500">
+                      {(f.size / 1024).toFixed(1)} KB
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="text-xs text-red-600 ml-2"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Confirmation dialog */}
+          {showConfirm && (
+            <ConfirmDialog
+              message={`Are you sure you want to update this stock?\n\nProduct: ${product.name}\nCurrent Stock: ${curr}\nAdjustment: ${adjustmentDelta > 0 ? "+" : ""}${adjustmentDelta}\nFinal Stock: ${newQty}`}
+              onConfirm={confirmSave}
+              onCancel={() => setShowConfirm(false)}
+            />
+          )}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end pt-3">
+            <Btn
+              variant="outline"
+              onClick={onClose}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Btn>
+            <Btn
+              variant="outline"
+              onClick={() => {
+                setAdjustmentQuantity("");
+                setNotes("");
+                setFiles([]);
+              }}
+              className="w-full sm:w-auto"
+            >
+              Reset
+            </Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSave}
+              disabled={!adjustmentQuantity || Object.keys(errors).length > 0}
+              className="w-full sm:w-auto"
+            >
+              Save Adjustment
+            </Btn>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+            <h4 className="text-sm font-semibold text-slate-800">
+              Live Summary
+            </h4>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div className="text-slate-500">Current Stock</div>
+              <div className="font-medium text-slate-900 text-right">
+                {curr}
+              </div>
+              <div className="text-slate-500">Adjustment</div>
+              <div
+                className={`font-medium text-right ${adjustmentDelta > 0 ? "text-emerald-600" : adjustmentDelta < 0 ? "text-red-500" : "text-slate-900"}`}
+              >
+                {adjustmentDelta > 0 ? "+" : ""}
+                {adjustmentDelta}
+              </div>
+              <div className="text-slate-500">Final Stock</div>
+              <div
+                className={`font-medium text-right ${newQty < product.minStock ? "text-amber-600" : "text-slate-900"}`}
+              >
+                {newQty}
+              </div>
+              <div className="text-slate-500">Stock Value Impact</div>
+              <div
+                className={`font-medium text-right ${stockValueImpact >= 0 ? "text-emerald-600" : "text-red-500"}`}
+              >
+                ₹{Math.abs(stockValueImpact).toLocaleString("en-IN")}
+              </div>
+            </div>
+            {newQty < product.minStock && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded text-amber-700 text-sm">
+                ⚠ This adjustment will make the stock lower than the minimum
+                stock level.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 function InventoryScreen() {
-  // Editable stock list for adjust/reorder interactions
-  // IMPORTANT: inventory adjustments should reflect in the rest of the app,
-  // so we also keep `products` in sync by mutating the shared reference.
-  const [productList, setProductList] = useState(products);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjustModalProductId, setAdjustModalProductId] = useState(null);
+  const [stockHistory, setStockHistory] = useState([]);
+  const [toast, setToast] = useState(null);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyType, setHistoryType] = useState("All Types");
+  const [historyFromDate, setHistoryFromDate] = useState("");
+  const [historyToDate, setHistoryToDate] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
 
-  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
-  const [reorderModalOpen, setReorderModalOpen] = useState(false);
-  const [activeProductId, setActiveProductId] = useState(null);
+  const historyTypes = [
+    "All Types",
+    "Stock In",
+    "Stock Out",
+    "Stock Correction",
+    "Damaged",
+    "Returned",
+    "Expired",
+    "Purchase Received",
+    "Manual Adjustment",
+  ];
 
-  const [adjustQty, setAdjustQty] = useState("0");
-  const [adjustType, setAdjustType] = useState("add"); // add | subtract
+  const historyPageSize = 6;
 
-  const [reorderQty, setReorderQty] = useState("0");
+  const filteredStockHistory = useMemo(() => {
+    return stockHistory.filter((entry) => {
+      const matchesSearch =
+        historySearch === "" ||
+        [
+          entry.productName,
+          entry.sku,
+          entry.adjustmentType,
+          entry.reason,
+          entry.adjustedBy,
+        ].some((value) =>
+          value.toLowerCase().includes(historySearch.toLowerCase()),
+        );
+      const matchesType =
+        historyType === "All Types" || entry.adjustmentType === historyType;
+      const entryDate = new Date(entry.date.split(" ")[0]);
+      const fromOk = !historyFromDate || entryDate >= new Date(historyFromDate);
+      const toOk = !historyToDate || entryDate <= new Date(historyToDate);
+      return matchesSearch && matchesType && fromOk && toOk;
+    });
+  }, [
+    stockHistory,
+    historySearch,
+    historyType,
+    historyFromDate,
+    historyToDate,
+  ]);
 
-  const activeProduct =
-    productList.find((p) => p.id === activeProductId) || null;
+  const totalHistoryPages = Math.max(
+    1,
+    Math.ceil(filteredStockHistory.length / historyPageSize),
+  );
+  const pagedStockHistory = filteredStockHistory.slice(
+    (historyPage - 1) * historyPageSize,
+    historyPage * historyPageSize,
+  );
 
-  const closeAllModals = () => {
-    setAdjustModalOpen(false);
-    setReorderModalOpen(false);
-    setActiveProductId(null);
-    setAdjustQty("0");
-    setAdjustType("add");
-    setReorderQty("0");
+  const handleSaveAdjustment = (entry) => {
+    const p = products.find((x) => x.id === entry.productId);
+    if (p) p.stock = entry.newStock;
+    setStockHistory((s) => [entry, ...s]);
+    setToast({ message: "Stock adjusted successfully.", type: "success" });
+    setTimeout(() => setToast(null), 2500);
   };
 
-  const applyAdjust = () => {
-    const delta = Number(adjustQty || 0);
-    if (!Number.isFinite(delta) || delta <= 0 || !activeProduct) return;
-
-    setProductList((prev) =>
-      prev.map((p) => {
-        if (p.id !== activeProduct.id) return p;
-        const nextStock =
-          adjustType === "add" ? p.stock + delta : p.stock - delta;
-        return { ...p, stock: Math.max(0, nextStock) };
-      }),
-    );
-
-    closeAllModals();
-  };
-
-  const applyReorder = () => {
-    const qty = Number(reorderQty || 0);
-    if (!Number.isFinite(qty) || qty <= 0 || !activeProduct) return;
-
-    setProductList((prev) =>
-      prev.map((p) =>
-        p.id === activeProduct.id
-          ? { ...p, stock: p.stock + qty, status: "Active" }
-          : p,
-      ),
-    );
-
-    closeAllModals();
-  };
-
-  const lowStockProducts = productList.filter((p) => p.stock <= p.minStock);
-  const outOfStockProducts = productList.filter((p) => p.stock === 0);
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historySearch, historyType, historyFromDate, historyToDate]);
 
   return (
     <div className="space-y-5">
@@ -4874,35 +5324,37 @@ function InventoryScreen() {
           Items that need immediate reordering
         </p>
         <div className="space-y-3">
-          {lowStockProducts.map((p) => (
-            <div
-              key={p.id}
-              className={`flex items-center gap-4 p-4 rounded-xl border ${p.stock === 0 ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}
-            >
-              <AlertTriangle
-                className={`w-5 h-5 flex-shrink-0 ${p.stock === 0 ? "text-red-500" : "text-amber-500"}`}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-slate-900">{p.name}</p>
-                <p className="text-xs text-slate-500 font-mono">{p.sku}</p>
-              </div>
-              <div className="text-right">
-                <p
-                  className={`text-sm font-bold ${p.stock === 0 ? "text-red-500" : "text-amber-600"}`}
-                >
-                  {p.stock === 0 ? "Out of Stock" : `${p.stock} left`}
-                </p>
-                <p className="text-xs text-slate-500">Min: {p.minStock}</p>
-              </div>
-              <Btn
-                variant={p.stock === 0 ? "danger" : "outline"}
-                size="sm"
-                icon={<ShoppingCart className="w-3.5 h-3.5" />}
+          {products
+            .filter((p) => p.stock <= p.minStock)
+            .map((p) => (
+              <div
+                key={p.id}
+                className={`flex items-center gap-4 p-4 rounded-xl border ${p.stock === 0 ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}
               >
-                Reorder
-              </Btn>
-            </div>
-          ))}
+                <AlertTriangle
+                  className={`w-5 h-5 flex-shrink-0 ${p.stock === 0 ? "text-red-500" : "text-amber-500"}`}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-slate-900">{p.name}</p>
+                  <p className="text-xs text-slate-500 font-mono">{p.sku}</p>
+                </div>
+                <div className="text-right">
+                  <p
+                    className={`text-sm font-bold ${p.stock === 0 ? "text-red-500" : "text-amber-600"}`}
+                  >
+                    {p.stock === 0 ? "Out of Stock" : `${p.stock} left`}
+                  </p>
+                  <p className="text-xs text-slate-500">Min: {p.minStock}</p>
+                </div>
+                <Btn
+                  variant={p.stock === 0 ? "danger" : "outline"}
+                  size="sm"
+                  icon={<ShoppingCart className="w-3.5 h-3.5" />}
+                >
+                  Reorder
+                </Btn>
+              </div>
+            ))}
         </div>
       </Card>
 
@@ -4914,6 +5366,7 @@ function InventoryScreen() {
               variant="outline"
               size="sm"
               icon={<RefreshCw className="w-3.5 h-3.5" />}
+              onClick={() => setShowAdjustModal(true)}
             >
               Adjust Stock
             </Btn>
@@ -4926,72 +5379,225 @@ function InventoryScreen() {
             </Btn>
           </div>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100">
-              {[
-                "Product",
-                "Category",
-                "In Stock",
-                "Min Level",
-                "Value",
-                "Status",
-              ].map((h) => (
-                <th
-                  key={h}
-                  className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {products.map((p) => (
-              <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-5 py-3.5">
-                  <p className="font-medium text-slate-900">{p.name}</p>
-                  <p className="text-xs text-slate-400 font-mono">{p.sku}</p>
-                </td>
-                <td className="px-5 py-3.5">
-                  <Badge label={p.category} variant="blue" />
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`font-bold font-mono ${p.stock === 0 ? "text-red-500" : p.stock <= p.minStock ? "text-amber-600" : "text-slate-900"}`}
-                    >
-                      {p.stock}
-                    </span>
-                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.min(100, (p.stock / 50) * 100)}%`,
-                          backgroundColor:
-                            p.stock === 0
-                              ? "#EF4444"
-                              : p.stock <= p.minStock
-                                ? "#F59E0B"
-                                : "#10B981",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-slate-600 font-mono">
-                  {p.minStock}
-                </td>
-                <td className="px-5 py-3.5 font-medium text-slate-900">
-                  {fmt(p.price * p.stock)}
-                </td>
-                <td className="px-5 py-3.5">
-                  {statusBadge(p.stock === 0 ? "Inactive" : p.status)}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[980px]">
+            <thead>
+              <tr className="border-b border-slate-100">
+                {[
+                  "Product",
+                  "Category",
+                  "In Stock",
+                  "Min Level",
+                  "Value",
+                  "Status",
+                  "Actions",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {products.map((p) => (
+                <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-5 py-3.5">
+                    <p className="font-medium text-slate-900">{p.name}</p>
+                    <p className="text-xs text-slate-400 font-mono">{p.sku}</p>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <Badge label={p.category} variant="blue" />
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`font-bold font-mono ${p.stock === 0 ? "text-red-500" : p.stock <= p.minStock ? "text-amber-600" : "text-slate-900"}`}
+                      >
+                        {p.stock}
+                      </span>
+                      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${Math.min(100, (p.stock / 50) * 100)}%`,
+                            backgroundColor:
+                              p.stock === 0
+                                ? "#EF4444"
+                                : p.stock <= p.minStock
+                                  ? "#F59E0B"
+                                  : "#10B981",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-slate-600 font-mono">
+                    {p.minStock}
+                  </td>
+                  <td className="px-5 py-3.5 font-medium text-slate-900">
+                    {fmt(p.price * p.stock)}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {statusBadge(p.stock === 0 ? "Inactive" : p.status)}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <Btn
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setAdjustModalProductId(p.id);
+                        setShowAdjustModal(true);
+                      }}
+                    >
+                      Adjust
+                    </Btn>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      {/* Stock History + modal + toast */}
+      {showAdjustModal && (
+        <AdjustStockModal
+          products={products}
+          initialProductId={adjustModalProductId}
+          onClose={() => setShowAdjustModal(false)}
+          onSave={handleSaveAdjustment}
+        />
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <Card>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between px-5 py-4 border-b border-slate-100">
+          <div>
+            <h3 className="font-semibold text-slate-900">Stock History</h3>
+            <p className="text-xs text-slate-500">
+              Recent inventory adjustments with search and filters.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 w-full sm:w-auto">
+            <Input
+              placeholder="Search history..."
+              value={historySearch}
+              onChange={setHistorySearch}
+            />
+            <select
+              value={historyType}
+              onChange={(e) => setHistoryType(e.target.value)}
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            >
+              {historyTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <Input
+              type="date"
+              value={historyFromDate}
+              onChange={setHistoryFromDate}
+            />
+            <Input
+              type="date"
+              value={historyToDate}
+              onChange={setHistoryToDate}
+            />
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[980px]">
+            <thead>
+              <tr className="border-b border-slate-100">
+                {[
+                  "Date",
+                  "Product",
+                  "Adjustment Type",
+                  "Quantity",
+                  "Previous Stock",
+                  "New Stock",
+                  "Reason",
+                  "Adjusted By",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {pagedStockHistory.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-5 py-6 text-center text-slate-500"
+                  >
+                    No adjustments match the filters.
+                  </td>
+                </tr>
+              ) : (
+                pagedStockHistory.map((h) => (
+                  <tr
+                    key={h.id}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="px-5 py-3.5 text-xs font-mono">{h.date}</td>
+                    <td className="px-5 py-3.5">{h.productName}</td>
+                    <td className="px-5 py-3.5">{h.adjustmentType}</td>
+                    <td className="px-5 py-3.5 font-mono">
+                      {h.quantity > 0 ? `+${h.quantity}` : h.quantity}
+                    </td>
+                    <td className="px-5 py-3.5 font-mono">{h.previousStock}</td>
+                    <td className="px-5 py-3.5 font-mono">{h.newStock}</td>
+                    <td className="px-5 py-3.5">{h.reason}</td>
+                    <td className="px-5 py-3.5">{h.adjustedBy}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-5 py-4">
+          <p className="text-xs text-slate-500">
+            Showing {pagedStockHistory.length} of {filteredStockHistory.length}{" "}
+            adjustments.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={historyPage === 1}
+              onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-slate-600">
+              Page {historyPage} of {totalHistoryPages}
+            </span>
+            <button
+              disabled={historyPage === totalHistoryPages}
+              onClick={() =>
+                setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))
+              }
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </Card>
     </div>
   );
@@ -5009,39 +5615,6 @@ function ReportsScreen() {
     { key: "inventory", label: "Inventory Report", icon: Package },
   ];
 
-  // NOTE: Purchase report data currently comes from PurchaseScreen's purchaseList.
-  // Here we show a lightweight mirror table using the same PO list shape.
-  // If you later want this to stay in sync with PurchaseScreen, we can lift state up.
-  const purchaseReportList = [
-    {
-      id: "PO-2024-038",
-      supplier: "TechVision Pvt Ltd",
-      invoiceNo: "SUPP-INV-001",
-      date: "2024-08-10",
-      items: 5,
-      total: 124800,
-      status: "Received",
-    },
-    {
-      id: "PO-2024-037",
-      supplier: "FabWorld Exports",
-      invoiceNo: "SUPP-INV-002",
-      date: "2024-08-07",
-      items: 12,
-      total: 48200,
-      status: "Received",
-    },
-    {
-      id: "PO-2024-036",
-      supplier: "AgriLink Wholesale",
-      invoiceNo: "SUPP-INV-003",
-      date: "2024-08-03",
-      items: 8,
-      total: 32600,
-      status: "Pending",
-    },
-  ];
-
   return (
     <div className="space-y-5">
       <div className="flex gap-2 flex-wrap">
@@ -5049,12 +5622,10 @@ function ReportsScreen() {
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeReport === r.key ? "bg-blue-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeReport === r.key ? "bg-red-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
           >
-            <div className="flex items-center justify-center gap-2">
-              <r.icon className="w-4 h-4" />
-              <span className="whitespace-nowrap">{r.label}</span>
-            </div>
+            <r.icon className="w-4 h-4" />
+            {r.label}
           </button>
         ))}
         <div className="ml-auto flex gap-2">
@@ -5099,12 +5670,79 @@ function ReportsScreen() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-semibold text-slate-900">
+              Monthly Revenue Trend
+            </h3>
+            <div className="flex gap-2">
+              {["2024", "2023"].map((y) => (
+                <button
+                  key={y}
+                  className={`text-xs px-2.5 py-1 rounded-lg ${y === "2024" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={salesData}>
+              <defs>
+                <linearGradient id="repSales" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+              <XAxis
+                dataKey="month"
+                tick={{ fill: "#94A3B8", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: "#94A3B8", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `₹${v / 1000}K`}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 10,
+                  fontSize: 12,
+                }}
+                formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, ""]}
+              />
+              <Area
+                type="monotone"
+                dataKey="sales"
+                stroke="#2563EB"
+                strokeWidth={2.5}
+                fill="url(#repSales)"
+                name="Sales"
+              />
+              <Area
+                type="monotone"
+                dataKey="profit"
+                stroke="#10B981"
+                strokeWidth={2}
+                fill="none"
+                name="Profit"
+                strokeDasharray="4 2"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+
         <Card className="p-5">
           <h3 className="font-semibold text-slate-900 mb-5">
             Expenses Breakdown
           </h3>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={180}>
             <BarChart
               data={[
                 { name: "Rent", v: 45000 },
@@ -5227,56 +5865,42 @@ function ReportsScreen() {
 
 // ─── EXPENSES SCREEN ──────────────────────────────────────────────────────────
 
-function ExpensesScreen() {
+function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
   const [showModal, setShowModal] = useState(false);
+  const [category, setCategory] = useState("Rent");
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [paymentMode, setPaymentMode] = useState("Bank Transfer");
+  const [reference, setReference] = useState("");
+  const [status, setStatus] = useState("Paid");
 
-  // Local editable list (so added expenses appear in history)
-  const [expenseList, setExpenseList] = useState(expenses);
-
-  const [form, setForm] = useState({
-    category: "Rent",
-    description: "",
-    amount: "",
-    date: new Date().toISOString().slice(0, 10),
-    paymentMode: "Bank Transfer",
-    reference: "",
-    status: "Paid",
-  });
-
-  const resetForm = () =>
-    setForm({
-      category: "Rent",
-      description: "",
-      amount: "",
-      date: new Date().toISOString().slice(0, 10),
-      paymentMode: "Bank Transfer",
-      reference: "",
-      status: "Paid",
-    });
+  const resetForm = () => {
+    setCategory("Rent");
+    setDescription("");
+    setAmount("");
+    setDate(new Date().toISOString().slice(0, 10));
+    setPaymentMode("Bank Transfer");
+    setReference("");
+    setStatus("Paid");
+  };
 
   const handleSave = () => {
-    const amountNum = Number(form.amount || 0);
-    if (!form.description.trim()) return;
-    if (!Number.isFinite(amountNum) || amountNum <= 0) return;
-
-    const newId =
-      expenseList.length > 0
-        ? Math.max(...expenseList.map((e) => e.id)) + 1
-        : 1;
-
+    const id = Date.now();
+    const amt = Number(String(amount).replace(/[,\s₹]/g, "")) || 0;
     const newExpense = {
-      id: newId,
-      category: form.category,
-      description: form.description,
-      date: form.date,
-      amount: amountNum,
-      paymentMode: form.paymentMode,
-      status: form.status,
+      id,
+      category,
+      description,
+      date,
+      amount: amt,
+      paymentMode,
+      reference,
+      status,
     };
-
-    setExpenseList((prev) => [newExpense, ...prev]);
-    setShowModal(false);
+    onAddExpense(newExpense);
     resetForm();
+    setShowModal(false);
   };
 
   return (
@@ -5286,8 +5910,8 @@ function ExpensesScreen() {
           <div className="space-y-4">
             <Select
               label="Category"
-              value={form.category}
-              onChange={(v) => setForm((f) => ({ ...f, category: v }))}
+              value={category}
+              onChange={setCategory}
               options={[
                 "Rent",
                 "Utilities",
@@ -5298,33 +5922,25 @@ function ExpensesScreen() {
                 "Other",
               ]}
             />
-
             <Input
               label="Description"
               placeholder="August rent payment"
-              value={form.description}
-              onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+              value={description}
+              onChange={setDescription}
             />
-
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Amount (₹)"
                 placeholder="45000"
-                value={form.amount}
-                onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
+                value={amount}
+                onChange={setAmount}
               />
-              <Input
-                label="Date"
-                type="date"
-                value={form.date}
-                onChange={(v) => setForm((f) => ({ ...f, date: v }))}
-              />
+              <Input label="Date" type="date" value={date} onChange={setDate} />
             </div>
-
             <Select
               label="Payment Mode"
-              value={form.paymentMode}
-              onChange={(v) => setForm((f) => ({ ...f, paymentMode: v }))}
+              value={paymentMode}
+              onChange={setPaymentMode}
               options={[
                 "Cash",
                 "Bank Transfer",
@@ -5333,35 +5949,22 @@ function ExpensesScreen() {
                 "Cheque",
               ]}
             />
-
             <Input
               label="Reference / Receipt No."
               placeholder="REF-001"
-              value={form.reference}
-              onChange={(v) => setForm((f) => ({ ...f, reference: v }))}
+              value={reference}
+              onChange={setReference}
             />
-
-            <div className="grid grid-cols-2 gap-3">
-              <Select
-                label="Status"
-                value={form.status}
-                onChange={(v) => setForm((f) => ({ ...f, status: v }))}
-                options={["Paid", "Pending"]}
-              />
-              <div className="flex items-end">
-                <p className="text-xs text-slate-500 pb-2">
-                  (Reference optional)
-                </p>
-              </div>
-            </div>
-
+            <Select
+              label="Status"
+              value={status}
+              onChange={setStatus}
+              options={["Paid", "Pending", "Overdue"]}
+            />
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
+                onClick={() => setShowModal(false)}
                 className="flex-1 justify-center"
               >
                 Cancel
@@ -5438,7 +6041,7 @@ function ExpensesScreen() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {expenseList.map((e) => (
+            {expenses.map((e) => (
               <tr
                 key={e.id}
                 className="hover:bg-slate-50 transition-colors group"
@@ -5668,7 +6271,7 @@ function UsersScreen() {
 
 function SuperAdminSettingsScreen() {
   const [activeTab, setActiveTab] = useState("system");
-  
+
   // System Settings states
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [autoBackup, setAutoBackup] = useState(true);
@@ -5680,10 +6283,30 @@ function SuperAdminSettingsScreen() {
 
   // Email Template states
   const [emailTemplates, setEmailTemplates] = useState([
-    { id: 1, name: "Welcome Email", subject: "Welcome to SmartBill", status: "active" },
-    { id: 2, name: "Invoice Email", subject: "Your Invoice - {invoice_no}", status: "active" },
-    { id: 3, name: "Password Reset", subject: "Reset Your Password", status: "active" },
-    { id: 4, name: "Subscription Reminder", subject: "Your subscription expires soon", status: "active" },
+    {
+      id: 1,
+      name: "Welcome Email",
+      subject: "Welcome to SmartBill",
+      status: "active",
+    },
+    {
+      id: 2,
+      name: "Invoice Email",
+      subject: "Your Invoice - {invoice_no}",
+      status: "active",
+    },
+    {
+      id: 3,
+      name: "Password Reset",
+      subject: "Reset Your Password",
+      status: "active",
+    },
+    {
+      id: 4,
+      name: "Subscription Reminder",
+      subject: "Your subscription expires soon",
+      status: "active",
+    },
   ]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
@@ -5696,9 +6319,30 @@ function SuperAdminSettingsScreen() {
 
   // Subscription Plans states
   const [plans, setPlans] = useState([
-    { id: 1, name: "Starter", price: "₹499/month", users: 5, features: "Basic accounting, GST ready", status: "active" },
-    { id: 2, name: "Professional", price: "₹999/month", users: 15, features: "Advanced reports, multi-user", status: "active" },
-    { id: 3, name: "Enterprise", price: "Custom", users: "Unlimited", features: "API access, custom domain", status: "active" },
+    {
+      id: 1,
+      name: "Starter",
+      price: "₹499/month",
+      users: 5,
+      features: "Basic accounting, GST ready",
+      status: "active",
+    },
+    {
+      id: 2,
+      name: "Professional",
+      price: "₹999/month",
+      users: 15,
+      features: "Advanced reports, multi-user",
+      status: "active",
+    },
+    {
+      id: 3,
+      name: "Enterprise",
+      price: "Custom",
+      users: "Unlimited",
+      features: "API access, custom domain",
+      status: "active",
+    },
   ]);
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanPrice, setNewPlanPrice] = useState("");
@@ -5712,16 +6356,54 @@ function SuperAdminSettingsScreen() {
 
   // User Management states
   const [adminUsers, setAdminUsers] = useState([
-    { id: 1, name: "System Admin", email: "admin@smartbill.com", role: "super-admin", status: "active", lastLogin: "2 hours ago" },
-    { id: 2, name: "Support Lead", email: "support@smartbill.com", role: "admin", status: "active", lastLogin: "1 day ago" },
+    {
+      id: 1,
+      name: "System Admin",
+      email: "admin@smartbill.com",
+      role: "super-admin",
+      status: "active",
+      lastLogin: "2 hours ago",
+    },
+    {
+      id: 2,
+      name: "Support Lead",
+      email: "support@smartbill.com",
+      role: "admin",
+      status: "active",
+      lastLogin: "1 day ago",
+    },
   ]);
 
   // Audit Log states
   const [auditLogs, setAuditLogs] = useState([
-    { id: 1, action: "User Login", user: "admin@smartbill.com", timestamp: "2024-01-15 10:30 AM", status: "success" },
-    { id: 2, action: "Settings Updated", user: "admin@smartbill.com", timestamp: "2024-01-15 10:25 AM", status: "success" },
-    { id: 3, action: "Backup Completed", user: "System", timestamp: "2024-01-15 09:00 AM", status: "success" },
-    { id: 4, action: "User Deleted", user: "admin@smartbill.com", timestamp: "2024-01-14 04:15 PM", status: "warning" },
+    {
+      id: 1,
+      action: "User Login",
+      user: "admin@smartbill.com",
+      timestamp: "2024-01-15 10:30 AM",
+      status: "success",
+    },
+    {
+      id: 2,
+      action: "Settings Updated",
+      user: "admin@smartbill.com",
+      timestamp: "2024-01-15 10:25 AM",
+      status: "success",
+    },
+    {
+      id: 3,
+      action: "Backup Completed",
+      user: "System",
+      timestamp: "2024-01-15 09:00 AM",
+      status: "success",
+    },
+    {
+      id: 4,
+      action: "User Deleted",
+      user: "admin@smartbill.com",
+      timestamp: "2024-01-14 04:15 PM",
+      status: "warning",
+    },
   ]);
 
   // Support Settings states
@@ -5733,21 +6415,38 @@ function SuperAdminSettingsScreen() {
 
   // Save handlers
   const handleSaveSystemSettings = () => {
-    localStorage.setItem("superAdminSystemSettings", JSON.stringify({
-      maintenanceMode, autoBackup, emailNotifications, debugMode, backupFrequency, maxLoginAttempts, sessionTimeout
-    }));
+    localStorage.setItem(
+      "superAdminSystemSettings",
+      JSON.stringify({
+        maintenanceMode,
+        autoBackup,
+        emailNotifications,
+        debugMode,
+        backupFrequency,
+        maxLoginAttempts,
+        sessionTimeout,
+      }),
+    );
     alert("✓ System settings saved successfully!");
   };
 
   const handleSaveEmailSettings = () => {
-    localStorage.setItem("superAdminEmailSettings", JSON.stringify({ emailTemplates }));
+    localStorage.setItem(
+      "superAdminEmailSettings",
+      JSON.stringify({ emailTemplates }),
+    );
     alert("✓ Email templates updated successfully!");
   };
 
   const handleSaveApiSettings = () => {
-    localStorage.setItem("superAdminApiSettings", JSON.stringify({
-      rateLimit, webhooksEnabled, ipWhitelist
-    }));
+    localStorage.setItem(
+      "superAdminApiSettings",
+      JSON.stringify({
+        rateLimit,
+        webhooksEnabled,
+        ipWhitelist,
+      }),
+    );
     alert("✓ API settings saved successfully!");
   };
 
@@ -5759,7 +6458,7 @@ function SuperAdminSettingsScreen() {
         price: newPlanPrice,
         users: "10",
         features: "Standard features",
-        status: "active"
+        status: "active",
       };
       setPlans([...plans, newPlan]);
       setNewPlanName("");
@@ -5769,26 +6468,40 @@ function SuperAdminSettingsScreen() {
   };
 
   const handleDeletePlan = (id) => {
-    setPlans(plans.filter(p => p.id !== id));
+    setPlans(plans.filter((p) => p.id !== id));
     alert("✓ Plan deleted successfully!");
   };
 
   const handleSavePaymentSettings = () => {
-    localStorage.setItem("superAdminPaymentSettings", JSON.stringify({
-      paymentGateway, razorpayKey, stripeKey, enablePaypal, enableStripe
-    }));
+    localStorage.setItem(
+      "superAdminPaymentSettings",
+      JSON.stringify({
+        paymentGateway,
+        razorpayKey,
+        stripeKey,
+        enablePaypal,
+        enableStripe,
+      }),
+    );
     alert("✓ Payment gateway settings saved!");
   };
 
   const handleSaveSupportSettings = () => {
-    localStorage.setItem("superAdminSupportSettings", JSON.stringify({
-      supportEmail, supportPhone, ticketSystem, liveChat, knowledgeBase
-    }));
+    localStorage.setItem(
+      "superAdminSupportSettings",
+      JSON.stringify({
+        supportEmail,
+        supportPhone,
+        ticketSystem,
+        liveChat,
+        knowledgeBase,
+      }),
+    );
     alert("✓ Support settings saved successfully!");
   };
 
   const handleRemoveAdmin = (id) => {
-    setAdminUsers(adminUsers.filter(u => u.id !== id));
+    setAdminUsers(adminUsers.filter((u) => u.id !== id));
     alert("✓ Admin user removed successfully!");
   };
 
@@ -5828,33 +6541,60 @@ function SuperAdminSettingsScreen() {
             {/* Maintenance Mode */}
             <div className="flex items-start justify-between py-3 border-b border-slate-100">
               <div>
-                <p className="text-sm font-medium text-slate-900">Maintenance Mode</p>
-                <p className="text-xs text-slate-500">Temporarily disable user access for maintenance</p>
+                <p className="text-sm font-medium text-slate-900">
+                  Maintenance Mode
+                </p>
+                <p className="text-xs text-slate-500">
+                  Temporarily disable user access for maintenance
+                </p>
               </div>
-              <button onClick={() => setMaintenanceMode(!maintenanceMode)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${maintenanceMode ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${maintenanceMode ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setMaintenanceMode(!maintenanceMode)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${maintenanceMode ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${maintenanceMode ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
             {/* Auto Backup */}
             <div className="flex items-start justify-between py-3 border-b border-slate-100">
               <div>
-                <p className="text-sm font-medium text-slate-900">Auto Backup</p>
-                <p className="text-xs text-slate-500">Automatically backup database</p>
+                <p className="text-sm font-medium text-slate-900">
+                  Auto Backup
+                </p>
+                <p className="text-xs text-slate-500">
+                  Automatically backup database
+                </p>
               </div>
-              <button onClick={() => setAutoBackup(!autoBackup)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${autoBackup ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${autoBackup ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setAutoBackup(!autoBackup)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${autoBackup ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${autoBackup ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
             {/* Email Notifications */}
             <div className="flex items-start justify-between py-3 border-b border-slate-100">
               <div>
-                <p className="text-sm font-medium text-slate-900">Email Notifications</p>
-                <p className="text-xs text-slate-500">Send system notifications via email</p>
+                <p className="text-sm font-medium text-slate-900">
+                  Email Notifications
+                </p>
+                <p className="text-xs text-slate-500">
+                  Send system notifications via email
+                </p>
               </div>
-              <button onClick={() => setEmailNotifications(!emailNotifications)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${emailNotifications ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${emailNotifications ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setEmailNotifications(!emailNotifications)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${emailNotifications ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${emailNotifications ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
@@ -5862,17 +6602,30 @@ function SuperAdminSettingsScreen() {
             <div className="flex items-start justify-between py-3 border-b border-slate-100">
               <div>
                 <p className="text-sm font-medium text-slate-900">Debug Mode</p>
-                <p className="text-xs text-slate-500">Enable detailed error logging</p>
+                <p className="text-xs text-slate-500">
+                  Enable detailed error logging
+                </p>
               </div>
-              <button onClick={() => setDebugMode(!debugMode)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${debugMode ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${debugMode ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setDebugMode(!debugMode)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${debugMode ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${debugMode ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
             {/* Backup Frequency */}
             <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">Backup Frequency</p>
-              <select value={backupFrequency} onChange={(e) => setBackupFrequency(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Backup Frequency
+              </p>
+              <select
+                value={backupFrequency}
+                onChange={(e) => setBackupFrequency(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              >
                 <option value="hourly">Hourly</option>
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
@@ -5882,17 +6635,39 @@ function SuperAdminSettingsScreen() {
 
             {/* Max Login Attempts */}
             <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">Max Login Attempts</p>
-              <input type="number" value={maxLoginAttempts} onChange={(e) => setMaxLoginAttempts(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="5" />
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Max Login Attempts
+              </p>
+              <input
+                type="number"
+                value={maxLoginAttempts}
+                onChange={(e) => setMaxLoginAttempts(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                placeholder="5"
+              />
             </div>
 
             {/* Session Timeout */}
             <div className="py-3">
-              <p className="text-sm font-medium text-slate-900 mb-2">Session Timeout (minutes)</p>
-              <input type="number" value={sessionTimeout} onChange={(e) => setSessionTimeout(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="30" />
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Session Timeout (minutes)
+              </p>
+              <input
+                type="number"
+                value={sessionTimeout}
+                onChange={(e) => setSessionTimeout(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                placeholder="30"
+              />
             </div>
 
-            <Btn variant="primary" onClick={handleSaveSystemSettings} icon={<Lock className="w-4 h-4" />}>Save System Settings</Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSaveSystemSettings}
+              icon={<Lock className="w-4 h-4" />}
+            >
+              Save System Settings
+            </Btn>
           </div>
         </Card>
       )}
@@ -5901,16 +6676,31 @@ function SuperAdminSettingsScreen() {
       {activeTab === "plans" && (
         <div className="space-y-4">
           <Card className="p-6">
-            <h3 className="font-semibold text-slate-900 mb-5">Manage Subscription Plans</h3>
+            <h3 className="font-semibold text-slate-900 mb-5">
+              Manage Subscription Plans
+            </h3>
             <div className="grid grid-cols-3 gap-4 mb-5">
               {plans.map((plan) => (
-                <div key={plan.id} className="border border-slate-200 rounded-lg p-4">
+                <div
+                  key={plan.id}
+                  className="border border-slate-200 rounded-lg p-4"
+                >
                   <h4 className="font-semibold text-slate-900">{plan.name}</h4>
-                  <p className="text-lg font-bold text-blue-600 mt-2">{plan.price}</p>
-                  <p className="text-xs text-slate-500 mt-1">Users: {plan.users}</p>
+                  <p className="text-lg font-bold text-blue-600 mt-2">
+                    {plan.price}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Users: {plan.users}
+                  </p>
                   <p className="text-xs text-slate-600 mt-2">{plan.features}</p>
                   <div className="flex gap-2 mt-3">
-                    <Btn variant="outline" size="sm" onClick={() => handleDeletePlan(plan.id)}>Delete</Btn>
+                    <Btn
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeletePlan(plan.id)}
+                    >
+                      Delete
+                    </Btn>
                   </div>
                 </div>
               ))}
@@ -5919,9 +6709,27 @@ function SuperAdminSettingsScreen() {
             <div className="border-t border-slate-100 pt-5">
               <h4 className="font-medium text-slate-900 mb-3">Add New Plan</h4>
               <div className="space-y-3">
-                <input type="text" value={newPlanName} onChange={(e) => setNewPlanName(e.target.value)} placeholder="Plan Name" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
-                <input type="text" value={newPlanPrice} onChange={(e) => setNewPlanPrice(e.target.value)} placeholder="Price (e.g., ₹499/month)" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
-                <Btn variant="primary" onClick={handleAddPlan} icon={<Plus className="w-4 h-4" />}>Add Plan</Btn>
+                <input
+                  type="text"
+                  value={newPlanName}
+                  onChange={(e) => setNewPlanName(e.target.value)}
+                  placeholder="Plan Name"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+                <input
+                  type="text"
+                  value={newPlanPrice}
+                  onChange={(e) => setNewPlanPrice(e.target.value)}
+                  placeholder="Price (e.g., ₹499/month)"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+                <Btn
+                  variant="primary"
+                  onClick={handleAddPlan}
+                  icon={<Plus className="w-4 h-4" />}
+                >
+                  Add Plan
+                </Btn>
               </div>
             </div>
           </Card>
@@ -5934,19 +6742,38 @@ function SuperAdminSettingsScreen() {
           <h3 className="font-semibold text-slate-900 mb-5">Email Templates</h3>
           <div className="space-y-3">
             {emailTemplates.map((template) => (
-              <div key={template.id} className="border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+              <div
+                key={template.id}
+                className="border border-slate-200 rounded-lg p-3 flex items-center justify-between"
+              >
                 <div>
                   <p className="font-medium text-slate-900">{template.name}</p>
                   <p className="text-xs text-slate-500">{template.subject}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge label={template.status} variant={template.status === "active" ? "green" : "gray"} />
-                  <Btn variant="outline" size="sm" onClick={() => setSelectedTemplate(template)}>Edit</Btn>
+                  <Badge
+                    label={template.status}
+                    variant={template.status === "active" ? "green" : "gray"}
+                  />
+                  <Btn
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedTemplate(template)}
+                  >
+                    Edit
+                  </Btn>
                 </div>
               </div>
             ))}
           </div>
-          <Btn variant="primary" onClick={handleSaveEmailSettings} icon={<Mail className="w-4 h-4" />} className="mt-5">Save Email Templates</Btn>
+          <Btn
+            variant="primary"
+            onClick={handleSaveEmailSettings}
+            icon={<Mail className="w-4 h-4" />}
+            className="mt-5"
+          >
+            Save Email Templates
+          </Btn>
         </Card>
       )}
 
@@ -5958,34 +6785,73 @@ function SuperAdminSettingsScreen() {
             <div className="py-3 border-b border-slate-100">
               <p className="text-sm font-medium text-slate-900 mb-2">API Key</p>
               <div className="flex gap-2">
-                <input type={showApiKey ? "text" : "password"} value={apiKey} readOnly className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50" />
-                <Btn variant="outline" size="sm" onClick={() => setShowApiKey(!showApiKey)}>
+                <input
+                  type={showApiKey ? "text" : "password"}
+                  value={apiKey}
+                  readOnly
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50"
+                />
+                <Btn
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                >
                   {showApiKey ? "Hide" : "Show"}
                 </Btn>
               </div>
             </div>
 
             <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">Rate Limit (requests/hour)</p>
-              <input type="number" value={rateLimit} onChange={(e) => setRateLimit(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Rate Limit (requests/hour)
+              </p>
+              <input
+                type="number"
+                value={rateLimit}
+                onChange={(e) => setRateLimit(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
             </div>
 
             <div className="flex items-start justify-between py-3 border-b border-slate-100">
               <div>
-                <p className="text-sm font-medium text-slate-900">Enable Webhooks</p>
-                <p className="text-xs text-slate-500">Allow webhooks for external integrations</p>
+                <p className="text-sm font-medium text-slate-900">
+                  Enable Webhooks
+                </p>
+                <p className="text-xs text-slate-500">
+                  Allow webhooks for external integrations
+                </p>
               </div>
-              <button onClick={() => setWebhooksEnabled(!webhooksEnabled)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${webhooksEnabled ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${webhooksEnabled ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setWebhooksEnabled(!webhooksEnabled)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${webhooksEnabled ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${webhooksEnabled ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
             <div className="py-3">
-              <p className="text-sm font-medium text-slate-900 mb-2">IP Whitelist (comma-separated)</p>
-              <input type="text" value={ipWhitelist} onChange={(e) => setIpWhitelist(e.target.value)} placeholder="192.168.1.1, 10.0.0.1" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                IP Whitelist (comma-separated)
+              </p>
+              <input
+                type="text"
+                value={ipWhitelist}
+                onChange={(e) => setIpWhitelist(e.target.value)}
+                placeholder="192.168.1.1, 10.0.0.1"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
             </div>
 
-            <Btn variant="primary" onClick={handleSaveApiSettings} icon={<Zap className="w-4 h-4" />}>Save API Settings</Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSaveApiSettings}
+              icon={<Zap className="w-4 h-4" />}
+            >
+              Save API Settings
+            </Btn>
           </div>
         </Card>
       )}
@@ -5993,11 +6859,19 @@ function SuperAdminSettingsScreen() {
       {/* TAB 5: PAYMENT GATEWAY */}
       {activeTab === "payment" && (
         <Card className="p-6">
-          <h3 className="font-semibold text-slate-900 mb-5">Payment Gateway Configuration</h3>
+          <h3 className="font-semibold text-slate-900 mb-5">
+            Payment Gateway Configuration
+          </h3>
           <div className="space-y-4">
             <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">Default Payment Gateway</p>
-              <select value={paymentGateway} onChange={(e) => setPaymentGateway(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Default Payment Gateway
+              </p>
+              <select
+                value={paymentGateway}
+                onChange={(e) => setPaymentGateway(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              >
                 <option value="razorpay">Razorpay</option>
                 <option value="stripe">Stripe</option>
                 <option value="paypal">PayPal</option>
@@ -6005,36 +6879,70 @@ function SuperAdminSettingsScreen() {
             </div>
 
             <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">Razorpay Key ID</p>
-              <input type="password" value={razorpayKey} onChange={(e) => setRazorpayKey(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Razorpay Key ID
+              </p>
+              <input
+                type="password"
+                value={razorpayKey}
+                onChange={(e) => setRazorpayKey(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
             </div>
 
             <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">Stripe Key</p>
-              <input type="password" value={stripeKey} onChange={(e) => setStripeKey(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Stripe Key
+              </p>
+              <input
+                type="password"
+                value={stripeKey}
+                onChange={(e) => setStripeKey(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
             </div>
 
             <div className="flex items-start justify-between py-3 border-b border-slate-100">
               <div>
-                <p className="text-sm font-medium text-slate-900">Enable PayPal</p>
+                <p className="text-sm font-medium text-slate-900">
+                  Enable PayPal
+                </p>
                 <p className="text-xs text-slate-500">Allow PayPal payments</p>
               </div>
-              <button onClick={() => setEnablePaypal(!enablePaypal)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${enablePaypal ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enablePaypal ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setEnablePaypal(!enablePaypal)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${enablePaypal ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enablePaypal ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
             <div className="flex items-start justify-between py-3">
               <div>
-                <p className="text-sm font-medium text-slate-900">Enable Stripe</p>
+                <p className="text-sm font-medium text-slate-900">
+                  Enable Stripe
+                </p>
                 <p className="text-xs text-slate-500">Allow Stripe payments</p>
               </div>
-              <button onClick={() => setEnableStripe(!enableStripe)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${enableStripe ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableStripe ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setEnableStripe(!enableStripe)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${enableStripe ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableStripe ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
-            <Btn variant="primary" onClick={handleSavePaymentSettings} icon={<CreditCard className="w-4 h-4" />}>Save Payment Settings</Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSavePaymentSettings}
+              icon={<CreditCard className="w-4 h-4" />}
+            >
+              Save Payment Settings
+            </Btn>
           </div>
         </Card>
       )}
@@ -6047,8 +6955,18 @@ function SuperAdminSettingsScreen() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  {["Name", "Email", "Role", "Status", "Last Login", "Action"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
+                  {[
+                    "Name",
+                    "Email",
+                    "Role",
+                    "Status",
+                    "Last Login",
+                    "Action",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase"
+                    >
                       {h}
                     </th>
                   ))}
@@ -6057,13 +6975,32 @@ function SuperAdminSettingsScreen() {
               <tbody className="divide-y divide-slate-50">
                 {adminUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-900">{user.name}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {user.name}
+                    </td>
                     <td className="px-4 py-3 text-slate-600">{user.email}</td>
-                    <td className="px-4 py-3"><Badge label={user.role === "super-admin" ? "Super Admin" : "Admin"} variant="blue" /></td>
-                    <td className="px-4 py-3"><Badge label={user.status} variant="green" /></td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{user.lastLogin}</td>
                     <td className="px-4 py-3">
-                      <Btn variant="outline" size="sm" onClick={() => handleRemoveAdmin(user.id)}>Remove</Btn>
+                      <Badge
+                        label={
+                          user.role === "super-admin" ? "Super Admin" : "Admin"
+                        }
+                        variant="blue"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge label={user.status} variant="green" />
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">
+                      {user.lastLogin}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Btn
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRemoveAdmin(user.id)}
+                      >
+                        Remove
+                      </Btn>
                     </td>
                   </tr>
                 ))}
@@ -6079,12 +7016,22 @@ function SuperAdminSettingsScreen() {
           <h3 className="font-semibold text-slate-900 mb-5">Audit Logs</h3>
           <div className="space-y-2">
             {auditLogs.map((log) => (
-              <div key={log.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <div
+                key={log.id}
+                className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100"
+              >
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{log.action}</p>
-                  <p className="text-xs text-slate-500">by {log.user} • {log.timestamp}</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {log.action}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    by {log.user} • {log.timestamp}
+                  </p>
                 </div>
-                <Badge label={log.status} variant={log.status === "success" ? "green" : "yellow"} />
+                <Badge
+                  label={log.status}
+                  variant={log.status === "success" ? "green" : "yellow"}
+                />
               </div>
             ))}
           </div>
@@ -6094,49 +7041,96 @@ function SuperAdminSettingsScreen() {
       {/* TAB 8: SUPPORT SETTINGS */}
       {activeTab === "support" && (
         <Card className="p-6">
-          <h3 className="font-semibold text-slate-900 mb-5">Support Settings</h3>
+          <h3 className="font-semibold text-slate-900 mb-5">
+            Support Settings
+          </h3>
           <div className="space-y-4">
             <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">Support Email</p>
-              <input type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Support Email
+              </p>
+              <input
+                type="email"
+                value={supportEmail}
+                onChange={(e) => setSupportEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
             </div>
 
             <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">Support Phone</p>
-              <input type="tel" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Support Phone
+              </p>
+              <input
+                type="tel"
+                value={supportPhone}
+                onChange={(e) => setSupportPhone(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
             </div>
 
             <div className="flex items-start justify-between py-3 border-b border-slate-100">
               <div>
-                <p className="text-sm font-medium text-slate-900">Support Ticket System</p>
-                <p className="text-xs text-slate-500">Enable ticket system for users</p>
+                <p className="text-sm font-medium text-slate-900">
+                  Support Ticket System
+                </p>
+                <p className="text-xs text-slate-500">
+                  Enable ticket system for users
+                </p>
               </div>
-              <button onClick={() => setTicketSystem(!ticketSystem)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${ticketSystem ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${ticketSystem ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setTicketSystem(!ticketSystem)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${ticketSystem ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${ticketSystem ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
             <div className="flex items-start justify-between py-3 border-b border-slate-100">
               <div>
                 <p className="text-sm font-medium text-slate-900">Live Chat</p>
-                <p className="text-xs text-slate-500">Enable live chat support</p>
+                <p className="text-xs text-slate-500">
+                  Enable live chat support
+                </p>
               </div>
-              <button onClick={() => setLiveChat(!liveChat)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${liveChat ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${liveChat ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setLiveChat(!liveChat)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${liveChat ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${liveChat ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
             <div className="flex items-start justify-between py-3">
               <div>
-                <p className="text-sm font-medium text-slate-900">Knowledge Base</p>
-                <p className="text-xs text-slate-500">Enable public knowledge base</p>
+                <p className="text-sm font-medium text-slate-900">
+                  Knowledge Base
+                </p>
+                <p className="text-xs text-slate-500">
+                  Enable public knowledge base
+                </p>
               </div>
-              <button onClick={() => setKnowledgeBase(!knowledgeBase)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${knowledgeBase ? "bg-blue-600" : "bg-slate-200"}`}>
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${knowledgeBase ? "right-1" : "left-1"}`} />
+              <button
+                onClick={() => setKnowledgeBase(!knowledgeBase)}
+                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${knowledgeBase ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${knowledgeBase ? "right-1" : "left-1"}`}
+                />
               </button>
             </div>
 
-            <Btn variant="primary" onClick={handleSaveSupportSettings} icon={<MessageSquare className="w-4 h-4" />}>Save Support Settings</Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSaveSupportSettings}
+              icon={<MessageSquare className="w-4 h-4" />}
+            >
+              Save Support Settings
+            </Btn>
           </div>
         </Card>
       )}
@@ -6148,12 +7142,7 @@ function SuperAdminSettingsScreen() {
 
 function SettingsScreen() {
   const [activeTab, setActiveTab] = useState("business");
-<<<<<<< HEAD
 
-  // Custom states for switches
-  const [isComposition, setIsComposition] = useState(false);
-=======
-  
   // GST & Tax toggle states
   const [enableIgst, setEnableIgst] = useState(true);
   const [enableCess, setEnableCess] = useState(false);
@@ -6165,7 +7154,6 @@ function SettingsScreen() {
   const [linkOrders, setLinkOrders] = useState(true);
 
   // Invoice Settings states
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
   const [showHsn, setShowHsn] = useState(true);
   const [showDesc, setShowDesc] = useState(true);
   const [showBank, setShowBank] = useState(false);
@@ -6206,17 +7194,47 @@ function SettingsScreen() {
 
   // Users Permissions states
   const [employees, setEmployees] = useState([
-    { id: 1, name: "HR Manager", department: "HR", permissions: { sales: true, purchase: true, inventory: true, accounting: true, settings: false } },
-    { id: 2, name: "Sales Staff", department: "Sales", permissions: { sales: true, purchase: false, inventory: true, accounting: false, settings: false } },
+    {
+      id: 1,
+      name: "HR Manager",
+      department: "HR",
+      permissions: {
+        sales: true,
+        purchase: true,
+        inventory: true,
+        accounting: true,
+        settings: false,
+      },
+    },
+    {
+      id: 2,
+      name: "Sales Staff",
+      department: "Sales",
+      permissions: {
+        sales: true,
+        purchase: false,
+        inventory: true,
+        accounting: false,
+        settings: false,
+      },
+    },
   ]);
 
   // Payment Methods states
   const [paymentMethods, setPaymentMethods] = useState({
     sales: ["Cash", "Card", "UPI"],
     purchase: ["Cash", "Cheque", "Bank Transfer"],
-    expenses: ["Cash", "Card"]
+    expenses: ["Cash", "Card"],
   });
-  const [availablePaymentMethods] = useState(["Cash", "Card", "UPI", "Cheque", "Bank Transfer", "Online", "Wallet"]);
+  const [availablePaymentMethods] = useState([
+    "Cash",
+    "Card",
+    "UPI",
+    "Cheque",
+    "Bank Transfer",
+    "Online",
+    "Wallet",
+  ]);
 
   // Security states
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
@@ -6248,76 +7266,130 @@ function SettingsScreen() {
 
   // Handle theme save
   const handleSaveCustomization = () => {
-    localStorage.setItem("appSettings", JSON.stringify({
-      theme, accentColor, sidebarStyle, fontSize, language, dateFormat, timeFormat, currencyFormat
-    }));
+    localStorage.setItem(
+      "appSettings",
+      JSON.stringify({
+        theme,
+        accentColor,
+        sidebarStyle,
+        fontSize,
+        language,
+        dateFormat,
+        timeFormat,
+        currencyFormat,
+      }),
+    );
     alert("✓ Customization settings saved successfully!");
   };
 
   // Handle GST settings save
   const handleSaveGstSettings = () => {
-    localStorage.setItem("gstSettings", JSON.stringify({
-      isComposition, enableIgst, enableCess, enableRcm
-    }));
+    localStorage.setItem(
+      "gstSettings",
+      JSON.stringify({
+        isComposition,
+        enableIgst,
+        enableCess,
+        enableRcm,
+      }),
+    );
     alert("✓ GST settings saved successfully!");
   };
 
   // Handle transaction settings save
   const handleSaveTransactionSettings = () => {
-    localStorage.setItem("transactionSettings", JSON.stringify({
-      passcodeRequired, enableCashDiscount, linkOrders
-    }));
+    localStorage.setItem(
+      "transactionSettings",
+      JSON.stringify({
+        passcodeRequired,
+        enableCashDiscount,
+        linkOrders,
+      }),
+    );
     alert("✓ Transaction settings saved successfully!");
   };
 
   // Handle invoice settings save
   const handleSaveInvoiceSettings = () => {
-    localStorage.setItem("invoiceSettings", JSON.stringify({
-      showHsn, showDesc, showBank
-    }));
+    localStorage.setItem(
+      "invoiceSettings",
+      JSON.stringify({
+        showHsn,
+        showDesc,
+        showBank,
+      }),
+    );
     alert("✓ Invoice settings saved successfully!");
   };
 
   // Handle party settings save
   const handleSavePartySettings = () => {
-    localStorage.setItem("partySettings", JSON.stringify({
-      enableGrouping, trackBalance, shippingAddress
-    }));
+    localStorage.setItem(
+      "partySettings",
+      JSON.stringify({
+        enableGrouping,
+        trackBalance,
+        shippingAddress,
+      }),
+    );
     alert("✓ Party settings saved successfully!");
   };
 
   // Handle item settings save
   const handleSaveItemSettings = () => {
-    localStorage.setItem("itemSettings", JSON.stringify({
-      enableSerial, enableMultiUnit, enableBarcode
-    }));
+    localStorage.setItem(
+      "itemSettings",
+      JSON.stringify({
+        enableSerial,
+        enableMultiUnit,
+        enableBarcode,
+      }),
+    );
     alert("✓ Item settings saved successfully!");
   };
 
   // Handle accounting settings save
   const handleSaveAccountingSettings = () => {
-    localStorage.setItem("accountingSettings", JSON.stringify({
-      enableTrialBalance, autoBankImport, profitCenter
-    }));
+    localStorage.setItem(
+      "accountingSettings",
+      JSON.stringify({
+        enableTrialBalance,
+        autoBankImport,
+        profitCenter,
+      }),
+    );
     alert("✓ Accounting settings saved successfully!");
   };
 
   // Handle low stock save
   const handleSaveLowStockSettings = () => {
-    localStorage.setItem("lowStockSettings", JSON.stringify({
-      threshold: lowStockThreshold,
-      emailAlerts, inAppAlerts, smsAlerts
-    }));
+    localStorage.setItem(
+      "lowStockSettings",
+      JSON.stringify({
+        threshold: lowStockThreshold,
+        emailAlerts,
+        inAppAlerts,
+        smsAlerts,
+      }),
+    );
     alert("✓ Low stock alert settings saved successfully!");
   };
 
   // Handle permission update
   const handlePermissionToggle = (empId, module) => {
-    setEmployees(employees.map(emp => 
-      emp.id === empId 
-        ? { ...emp, permissions: { ...emp.permissions, [module]: !emp.permissions[module] } }
-        : emp
-    ));
+    setEmployees(
+      employees.map((emp) =>
+        emp.id === empId
+          ? {
+              ...emp,
+              permissions: {
+                ...emp.permissions,
+                [module]: !emp.permissions[module],
+              },
+            }
+          : emp,
+      ),
+    );
   };
 
   // Handle permissions save
@@ -6328,11 +7400,11 @@ function SettingsScreen() {
 
   // Handle payment method toggle
   const handlePaymentMethodToggle = (type, method) => {
-    setPaymentMethods(prev => ({
+    setPaymentMethods((prev) => ({
       ...prev,
       [type]: prev[type].includes(method)
-        ? prev[type].filter(m => m !== method)
-        : [...prev[type], method]
+        ? prev[type].filter((m) => m !== method)
+        : [...prev[type], method],
     }));
   };
 
@@ -6344,9 +7416,13 @@ function SettingsScreen() {
 
   // Handle security settings save
   const handleSaveSecuritySettings = () => {
-    localStorage.setItem("securitySettings", JSON.stringify({
-      twoFactorAuth, sessionTimeout
-    }));
+    localStorage.setItem(
+      "securitySettings",
+      JSON.stringify({
+        twoFactorAuth,
+        sessionTimeout,
+      }),
+    );
     alert("✓ Security settings saved successfully!");
   };
 
@@ -6474,80 +7550,69 @@ function SettingsScreen() {
               />
             </div>
             <div className="mt-4 space-y-3">
-<<<<<<< HEAD
-              {[
-                [
-                  "Enable IGST",
-                  "Apply IGST for inter-state transactions",
-                  true,
-                ],
-                [
-                  "Enable Cess",
-                  "Apply additional cess on specific products",
-                  false,
-                ],
-                [
-                  "Reverse Charge Mechanism (RCM)",
-                  "Enable reverse charge options in purchase invoices",
-                  false,
-                ],
-              ].map(([l, d, active]) => (
-                <div
-                  key={l}
-                  className="flex items-start justify-between py-3 border-b border-slate-100"
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    Enable IGST
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Apply IGST for inter-state transactions
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEnableIgst(!enableIgst)}
+                  className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableIgst ? "bg-blue-600" : "bg-slate-200"}`}
                 >
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button
-                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${active ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${active ? "right-1" : "left-1"}`}
-                    />
-                  </button>
-=======
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Enable IGST</p>
-                  <p className="text-xs text-slate-500">Apply IGST for inter-state transactions</p>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
-                </div>
-                <button onClick={() => setEnableIgst(!enableIgst)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableIgst ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableIgst ? "right-1" : "left-1"}`} />
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableIgst ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Enable Cess</p>
-                  <p className="text-xs text-slate-500">Apply additional cess on specific products</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Enable Cess
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Apply additional cess on specific products
+                  </p>
                 </div>
-                <button onClick={() => setEnableCess(!enableCess)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableCess ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableCess ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setEnableCess(!enableCess)}
+                  className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableCess ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableCess ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Reverse Charge Mechanism (RCM)</p>
-                  <p className="text-xs text-slate-500">Enable reverse charge options in purchase invoices</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Reverse Charge Mechanism (RCM)
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Enable reverse charge options in purchase invoices
+                  </p>
                 </div>
-                <button onClick={() => setEnableRcm(!enableRcm)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableRcm ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableRcm ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setEnableRcm(!enableRcm)}
+                  className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableRcm ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableRcm ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
             </div>
-<<<<<<< HEAD
             <Btn
               variant="primary"
               className="mt-5"
+              onClick={handleSaveGstSettings}
               icon={<Check className="w-4 h-4" />}
             >
               Save GST Settings
             </Btn>
-=======
-            <Btn variant="primary" className="mt-5" onClick={handleSaveGstSettings} icon={<Check className="w-4 h-4" />}>Save GST Settings</Btn>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
@@ -6574,80 +7639,69 @@ function SettingsScreen() {
               />
             </div>
             <div className="space-y-3">
-<<<<<<< HEAD
-              {[
-                [
-                  "Passcode for Sales Return",
-                  "Ask verification lock passcode on every credit note entry",
-                  false,
-                ],
-                [
-                  "Enable Cash Discount Field",
-                  "Show custom cash discount row inside ledger transactions",
-                  true,
-                ],
-                [
-                  "Link Orders to Invoices",
-                  "Auto-convert approved purchase orders into open bills",
-                  true,
-                ],
-              ].map(([l, d, active]) => (
-                <div
-                  key={l}
-                  className="flex items-start justify-between py-3 border-b border-slate-100"
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    Passcode for Sales Return
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Ask verification lock passcode on every credit note entry
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPasscodeRequired(!passcodeRequired)}
+                  className={`w-10 h-6 rounded-full relative ${passcodeRequired ? "bg-blue-600" : "bg-slate-200"}`}
                 >
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button
-                    className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`}
-                    />
-                  </button>
-=======
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Passcode for Sales Return</p>
-                  <p className="text-xs text-slate-500">Ask verification lock passcode on every credit note entry</p>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
-                </div>
-                <button onClick={() => setPasscodeRequired(!passcodeRequired)} className={`w-10 h-6 rounded-full relative ${passcodeRequired ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${passcodeRequired ? "right-1" : "left-1"}`} />
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${passcodeRequired ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Enable Cash Discount Field</p>
-                  <p className="text-xs text-slate-500">Show custom cash discount row inside ledger transactions</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Enable Cash Discount Field
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Show custom cash discount row inside ledger transactions
+                  </p>
                 </div>
-                <button onClick={() => setEnableCashDiscount(!enableCashDiscount)} className={`w-10 h-6 rounded-full relative ${enableCashDiscount ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableCashDiscount ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setEnableCashDiscount(!enableCashDiscount)}
+                  className={`w-10 h-6 rounded-full relative ${enableCashDiscount ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableCashDiscount ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Link Orders to Invoices</p>
-                  <p className="text-xs text-slate-500">Auto-convert approved purchase orders into open bills</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Link Orders to Invoices
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Auto-convert approved purchase orders into open bills
+                  </p>
                 </div>
-                <button onClick={() => setLinkOrders(!linkOrders)} className={`w-10 h-6 rounded-full relative ${linkOrders ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${linkOrders ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setLinkOrders(!linkOrders)}
+                  className={`w-10 h-6 rounded-full relative ${linkOrders ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${linkOrders ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
             </div>
-<<<<<<< HEAD
             <Btn
               variant="primary"
               className="mt-5"
+              onClick={handleSaveTransactionSettings}
               icon={<Check className="w-4 h-4" />}
             >
               Save Transaction Rules
             </Btn>
-=======
-            <Btn variant="primary" className="mt-5" onClick={handleSaveTransactionSettings} icon={<Check className="w-4 h-4" />}>Save Transaction Rules</Btn>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
@@ -6757,17 +7811,14 @@ function SettingsScreen() {
                 ))}
               </div>
             </div>
-<<<<<<< HEAD
             <Btn
               variant="primary"
               className="mt-5"
+              onClick={handleSaveInvoiceSettings}
               icon={<Check className="w-4 h-4" />}
             >
               Save Invoice Settings
             </Btn>
-=======
-            <Btn variant="primary" className="mt-5" onClick={handleSaveInvoiceSettings} icon={<Check className="w-4 h-4" />}>Save Invoice Settings</Btn>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
@@ -6778,80 +7829,72 @@ function SettingsScreen() {
               Party Settings
             </h3>
             <div className="space-y-3">
-<<<<<<< HEAD
-              {[
-                [
-                  "Enable Party Grouping",
-                  "Categorize retailers, wholesalers and suppliers into structural pools",
-                  true,
-                ],
-                [
-                  "Track Party-wise Balance Limits",
-                  "Restrict raw bill allocation if safety credit thresholds cross limit",
-                  false,
-                ],
-                [
-                  "Shipping Address Verification",
-                  "Keep separate shipping and billing text blocks for every party ledger",
-                  true,
-                ],
-              ].map(([l, d, active]) => (
-                <div
-                  key={l}
-                  className="flex items-start justify-between py-3 border-b border-slate-100"
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    Enable Party Grouping
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Categorize retailers, wholesalers and suppliers into
+                    structural pools
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEnableGrouping(!enableGrouping)}
+                  className={`w-10 h-6 rounded-full relative ${enableGrouping ? "bg-blue-600" : "bg-slate-200"}`}
                 >
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button
-                    className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`}
-                    />
-                  </button>
-=======
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Enable Party Grouping</p>
-                  <p className="text-xs text-slate-500">Categorize retailers, wholesalers and suppliers into structural pools</p>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
-                </div>
-                <button onClick={() => setEnableGrouping(!enableGrouping)} className={`w-10 h-6 rounded-full relative ${enableGrouping ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableGrouping ? "right-1" : "left-1"}`} />
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableGrouping ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Track Party-wise Balance Limits</p>
-                  <p className="text-xs text-slate-500">Restrict raw bill allocation if safety credit thresholds cross limit</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Track Party-wise Balance Limits
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Restrict raw bill allocation if safety credit thresholds
+                    cross limit
+                  </p>
                 </div>
-                <button onClick={() => setTrackBalance(!trackBalance)} className={`w-10 h-6 rounded-full relative ${trackBalance ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${trackBalance ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setTrackBalance(!trackBalance)}
+                  className={`w-10 h-6 rounded-full relative ${trackBalance ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${trackBalance ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Shipping Address Verification</p>
-                  <p className="text-xs text-slate-500">Keep separate shipping and billing text blocks for every party ledger</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Shipping Address Verification
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Keep separate shipping and billing text blocks for every
+                    party ledger
+                  </p>
                 </div>
-                <button onClick={() => setShippingAddress(!shippingAddress)} className={`w-10 h-6 rounded-full relative ${shippingAddress ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${shippingAddress ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setShippingAddress(!shippingAddress)}
+                  className={`w-10 h-6 rounded-full relative ${shippingAddress ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${shippingAddress ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
             </div>
-<<<<<<< HEAD
             <Btn
               variant="primary"
               className="mt-5"
+              onClick={handleSavePartySettings}
               icon={<Check className="w-4 h-4" />}
             >
               Save Party Profiles
             </Btn>
-=======
-            <Btn variant="primary" className="mt-5" onClick={handleSavePartySettings} icon={<Check className="w-4 h-4" />}>Save Party Profiles</Btn>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
@@ -6873,80 +7916,72 @@ function SettingsScreen() {
               />
             </div>
             <div className="space-y-3">
-<<<<<<< HEAD
-              {[
-                [
-                  "Enable Serial Tracking / Batch Numbers",
-                  "Store dynamic batch indices and expiry timestamps inside database records",
-                  false,
-                ],
-                [
-                  "Multi-unit Measurement Scale",
-                  "Allow dynamic calculation mappings like Box to individual pieces conversion",
-                  true,
-                ],
-                [
-                  "Barcode Scanner Integration Hook",
-                  "Map standard text fields inputs direct via optical barcode readings",
-                  true,
-                ],
-              ].map(([l, d, active]) => (
-                <div
-                  key={l}
-                  className="flex items-start justify-between py-3 border-b border-slate-100"
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    Enable Serial Tracking / Batch Numbers
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Store dynamic batch indices and expiry timestamps inside
+                    database records
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEnableSerial(!enableSerial)}
+                  className={`w-10 h-6 rounded-full relative ${enableSerial ? "bg-blue-600" : "bg-slate-200"}`}
                 >
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button
-                    className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`}
-                    />
-                  </button>
-=======
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Enable Serial Tracking / Batch Numbers</p>
-                  <p className="text-xs text-slate-500">Store dynamic batch indices and expiry timestamps inside database records</p>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
-                </div>
-                <button onClick={() => setEnableSerial(!enableSerial)} className={`w-10 h-6 rounded-full relative ${enableSerial ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableSerial ? "right-1" : "left-1"}`} />
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableSerial ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Multi-unit Measurement Scale</p>
-                  <p className="text-xs text-slate-500">Allow dynamic calculation mappings like Box to individual pieces conversion</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Multi-unit Measurement Scale
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Allow dynamic calculation mappings like Box to individual
+                    pieces conversion
+                  </p>
                 </div>
-                <button onClick={() => setEnableMultiUnit(!enableMultiUnit)} className={`w-10 h-6 rounded-full relative ${enableMultiUnit ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableMultiUnit ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setEnableMultiUnit(!enableMultiUnit)}
+                  className={`w-10 h-6 rounded-full relative ${enableMultiUnit ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableMultiUnit ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Barcode Scanner Integration Hook</p>
-                  <p className="text-xs text-slate-500">Map standard text fields inputs direct via optical barcode readings</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Barcode Scanner Integration Hook
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Map standard text fields inputs direct via optical barcode
+                    readings
+                  </p>
                 </div>
-                <button onClick={() => setEnableBarcode(!enableBarcode)} className={`w-10 h-6 rounded-full relative ${enableBarcode ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableBarcode ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setEnableBarcode(!enableBarcode)}
+                  className={`w-10 h-6 rounded-full relative ${enableBarcode ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableBarcode ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
             </div>
-<<<<<<< HEAD
             <Btn
               variant="primary"
               className="mt-5"
+              onClick={handleSaveItemSettings}
               icon={<Check className="w-4 h-4" />}
             >
               Save Inventory Parameters
             </Btn>
-=======
-            <Btn variant="primary" className="mt-5" onClick={handleSaveItemSettings} icon={<Check className="w-4 h-4" />}>Save Inventory Parameters</Btn>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
@@ -6957,117 +7992,143 @@ function SettingsScreen() {
               Accounting & Book-keeping
             </h3>
             <div className="space-y-3">
-<<<<<<< HEAD
-              {[
-                [
-                  "Enable Trial Balance Reporting",
-                  "Real-time sync sheet layout balancing credits and debits together",
-                  true,
-                ],
-                [
-                  "Auto Bank Statement Imports",
-                  "Enable automated mapping hooks for institutional bank settlement feeds",
-                  false,
-                ],
-                [
-                  "Profit Center Allocation tracking",
-                  "Perform split accounting across multi-location business setups",
-                  false,
-                ],
-              ].map(([l, d, active]) => (
-                <div
-                  key={l}
-                  className="flex items-start justify-between py-3 border-b border-slate-100"
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    Enable Trial Balance Reporting
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Real-time sync sheet layout balancing credits and debits
+                    together
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEnableTrialBalance(!enableTrialBalance)}
+                  className={`w-10 h-6 rounded-full relative ${enableTrialBalance ? "bg-blue-600" : "bg-slate-200"}`}
                 >
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{l}</p>
-                    <p className="text-xs text-slate-500">{d}</p>
-                  </div>
-                  <button
-                    className={`w-10 h-6 rounded-full relative ${active ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${active ? "right-1" : "left-1"}`}
-                    />
-                  </button>
-=======
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Enable Trial Balance Reporting</p>
-                  <p className="text-xs text-slate-500">Real-time sync sheet layout balancing credits and debits together</p>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
-                </div>
-                <button onClick={() => setEnableTrialBalance(!enableTrialBalance)} className={`w-10 h-6 rounded-full relative ${enableTrialBalance ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableTrialBalance ? "right-1" : "left-1"}`} />
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableTrialBalance ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Auto Bank Statement Imports</p>
-                  <p className="text-xs text-slate-500">Enable automated mapping hooks for institutional bank settlement feeds</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Auto Bank Statement Imports
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Enable automated mapping hooks for institutional bank
+                    settlement feeds
+                  </p>
                 </div>
-                <button onClick={() => setAutoBankImport(!autoBankImport)} className={`w-10 h-6 rounded-full relative ${autoBankImport ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${autoBankImport ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setAutoBankImport(!autoBankImport)}
+                  className={`w-10 h-6 rounded-full relative ${autoBankImport ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${autoBankImport ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Profit Center Allocation tracking</p>
-                  <p className="text-xs text-slate-500">Perform split accounting across multi-location business setups</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    Profit Center Allocation tracking
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Perform split accounting across multi-location business
+                    setups
+                  </p>
                 </div>
-                <button onClick={() => setProfitCenter(!profitCenter)} className={`w-10 h-6 rounded-full relative ${profitCenter ? "bg-blue-600" : "bg-slate-200"}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${profitCenter ? "right-1" : "left-1"}`} />
+                <button
+                  onClick={() => setProfitCenter(!profitCenter)}
+                  className={`w-10 h-6 rounded-full relative ${profitCenter ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${profitCenter ? "right-1" : "left-1"}`}
+                  />
                 </button>
               </div>
             </div>
-<<<<<<< HEAD
             <Btn
               variant="primary"
               className="mt-5"
+              onClick={handleSaveAccountingSettings}
               icon={<Check className="w-4 h-4" />}
             >
               Save Accounting Rules
             </Btn>
-=======
-            <Btn variant="primary" className="mt-5" onClick={handleSaveAccountingSettings} icon={<Check className="w-4 h-4" />}>Save Accounting Rules</Btn>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
           </div>
         )}
 
         {/* TAB 8: CUSTOMIZATION */}
         {activeTab === "customization" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
-            <h3 className="font-semibold text-slate-900">Customization Settings</h3>
-            
+            <h3 className="font-semibold text-slate-900">
+              Customization Settings
+            </h3>
+
             {/* Visual & Appearance Settings */}
             <div className="border-t pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-4">Visual & Appearance Settings</h4>
+              <h4 className="text-sm font-semibold text-slate-700 mb-4">
+                Visual & Appearance Settings
+              </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Theme & Mode</label>
-                  <select value={theme} onChange={(e) => setTheme(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Theme & Mode
+                  </label>
+                  <select
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
                     <option value="light">Light Mode</option>
                     <option value="dark">Dark Mode</option>
                     <option value="system">System Default</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Accent Color</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Accent Color
+                  </label>
                   <div className="flex gap-2">
-                    <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="w-10 h-10 rounded border border-slate-300 cursor-pointer" />
-                    <input type="text" value={accentColor} readOnly className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50" />
+                    <input
+                      type="color"
+                      value={accentColor}
+                      onChange={(e) => setAccentColor(e.target.value)}
+                      className="w-10 h-10 rounded border border-slate-300 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={accentColor}
+                      readOnly
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50"
+                    />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Sidebar Style</label>
-                  <select value={sidebarStyle} onChange={(e) => setSidebarStyle(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Sidebar Style
+                  </label>
+                  <select
+                    value={sidebarStyle}
+                    onChange={(e) => setSidebarStyle(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
                     <option value="expanded">Expanded (Text + Icon)</option>
                     <option value="compact">Compact (Icons Only)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Font Size</label>
-                  <select value={fontSize} onChange={(e) => setFontSize(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Font Size
+                  </label>
+                  <select
+                    value={fontSize}
+                    onChange={(e) => setFontSize(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
                     <option value="small">Small</option>
                     <option value="medium">Medium</option>
                     <option value="large">Large</option>
@@ -7078,42 +8139,76 @@ function SettingsScreen() {
 
             {/* Localization & Regional Formats */}
             <div className="border-t pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-4">Localization & Regional Formats</h4>
+              <h4 className="text-sm font-semibold text-slate-700 mb-4">
+                Localization & Regional Formats
+              </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Language Selection</label>
-                  <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Language Selection
+                  </label>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
                     <option value="English">English</option>
                     <option value="Hindi">Hindi (हिंदी)</option>
                     <option value="Marathi">Marathi (मराठी)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Date Format</label>
-                  <select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Date Format
+                  </label>
+                  <select
+                    value={dateFormat}
+                    onChange={(e) => setDateFormat(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
                     <option value="DD-MM-YYYY">DD-MM-YYYY</option>
                     <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                     <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Time Format</label>
-                  <select value={timeFormat} onChange={(e) => setTimeFormat(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Time Format
+                  </label>
+                  <select
+                    value={timeFormat}
+                    onChange={(e) => setTimeFormat(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
                     <option value="12-hour">12-Hour (AM/PM)</option>
                     <option value="24-hour">24-Hour Format</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Number & Currency Formatting</label>
-                  <select value={currencyFormat} onChange={(e) => setCurrencyFormat(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Number & Currency Formatting
+                  </label>
+                  <select
+                    value={currencyFormat}
+                    onChange={(e) => setCurrencyFormat(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
                     <option value="Indian">Indian Style (1,00,000)</option>
-                    <option value="International">International Style (100,000)</option>
+                    <option value="International">
+                      International Style (100,000)
+                    </option>
                   </select>
                 </div>
               </div>
             </div>
 
-            <Btn variant="primary" onClick={handleSaveCustomization} icon={<Check className="w-4 h-4" />}>Save Customization Settings</Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSaveCustomization}
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save Customization Settings
+            </Btn>
           </div>
         )}
 
@@ -7121,63 +8216,110 @@ function SettingsScreen() {
         {activeTab === "stockalert" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
             <div>
-              <h3 className="font-semibold text-slate-900 mb-5">Low Stock Alert Numbers</h3>
-              <p className="text-sm text-slate-600 mb-6">Set the minimum stock level threshold. When inventory drops to or below this number, you'll receive low stock notifications.</p>
+              <h3 className="font-semibold text-slate-900 mb-5">
+                Low Stock Alert Numbers
+              </h3>
+              <p className="text-sm text-slate-600 mb-6">
+                Set the minimum stock level threshold. When inventory drops to
+                or below this number, you'll receive low stock notifications.
+              </p>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-slate-900 mb-2">Default Low Stock Alert Threshold</label>
+                  <label className="block text-sm font-medium text-slate-900 mb-2">
+                    Default Low Stock Alert Threshold
+                  </label>
                   <div className="flex gap-2">
-                    <input 
-                      type="number" 
-                      value={lowStockThreshold} 
+                    <input
+                      type="number"
+                      value={lowStockThreshold}
                       onChange={(e) => setLowStockThreshold(e.target.value)}
                       className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm"
                       placeholder="Enter minimum stock units"
                     />
-                    <span className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-600">Units</span>
+                    <span className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-600">
+                      Units
+                    </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">When stock equals or falls below this number, alert will trigger</p>
+                  <p className="text-xs text-slate-500 mt-2">
+                    When stock equals or falls below this number, alert will
+                    trigger
+                  </p>
                 </div>
               </div>
             </div>
 
             <div className="border-t pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-4">Alert Notification Options</h4>
+              <h4 className="text-sm font-semibold text-slate-700 mb-4">
+                Alert Notification Options
+              </h4>
               <div className="space-y-3">
                 <div className="flex items-start justify-between py-3 border-b border-slate-100">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">Email Notifications</p>
-                    <p className="text-xs text-slate-500">Receive email alerts when stock falls below threshold</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      Email Notifications
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Receive email alerts when stock falls below threshold
+                    </p>
                   </div>
-                  <button onClick={() => setEmailAlerts(!emailAlerts)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ${emailAlerts ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${emailAlerts ? "right-1" : "left-1"}`} />
+                  <button
+                    onClick={() => setEmailAlerts(!emailAlerts)}
+                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ${emailAlerts ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${emailAlerts ? "right-1" : "left-1"}`}
+                    />
                   </button>
                 </div>
                 <div className="flex items-start justify-between py-3 border-b border-slate-100">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">In-App Notifications</p>
-                    <p className="text-xs text-slate-500">See notifications in the dashboard</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      In-App Notifications
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      See notifications in the dashboard
+                    </p>
                   </div>
-                  <button onClick={() => setInAppAlerts(!inAppAlerts)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ${inAppAlerts ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${inAppAlerts ? "right-1" : "left-1"}`} />
+                  <button
+                    onClick={() => setInAppAlerts(!inAppAlerts)}
+                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ${inAppAlerts ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${inAppAlerts ? "right-1" : "left-1"}`}
+                    />
                   </button>
                 </div>
                 <div className="flex items-start justify-between py-3 border-b border-slate-100">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">SMS Alerts</p>
-                    <p className="text-xs text-slate-500">Receive SMS alerts on your phone</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      SMS Alerts
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Receive SMS alerts on your phone
+                    </p>
                   </div>
-                  <button onClick={() => setSmsAlerts(!smsAlerts)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ${smsAlerts ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${smsAlerts ? "right-1" : "left-1"}`} />
+                  <button
+                    onClick={() => setSmsAlerts(!smsAlerts)}
+                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ${smsAlerts ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${smsAlerts ? "right-1" : "left-1"}`}
+                    />
                   </button>
                 </div>
               </div>
             </div>
 
-            <Btn variant="primary" onClick={handleSaveLowStockSettings} icon={<Check className="w-4 h-4" />}>Save Low Stock Settings</Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSaveLowStockSettings}
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save Low Stock Settings
+            </Btn>
           </div>
         )}
 
@@ -7185,30 +8327,49 @@ function SettingsScreen() {
         {activeTab === "permissions" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
             <div>
-              <h3 className="font-semibold text-slate-900 mb-5">Users Permissions Management</h3>
-              <p className="text-sm text-slate-600 mb-6">Manage staff and employee access to different modules. Control which features each employee can access.</p>
+              <h3 className="font-semibold text-slate-900 mb-5">
+                Users Permissions Management
+              </h3>
+              <p className="text-sm text-slate-600 mb-6">
+                Manage staff and employee access to different modules. Control
+                which features each employee can access.
+              </p>
             </div>
 
             <div className="space-y-4">
               {employees.map((emp) => (
-                <div key={emp.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                <div
+                  key={emp.id}
+                  className="border border-slate-200 rounded-xl p-4 bg-slate-50"
+                >
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h4 className="font-semibold text-slate-900">{emp.name}</h4>
-                      <p className="text-xs text-slate-500">{emp.department} Department</p>
+                      <h4 className="font-semibold text-slate-900">
+                        {emp.name}
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        {emp.department} Department
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-5 gap-2">
                     {Object.keys(emp.permissions).map((module) => (
-                      <div key={module} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200">
-                        <input 
-                          type="checkbox" 
+                      <div
+                        key={module}
+                        className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200"
+                      >
+                        <input
+                          type="checkbox"
                           checked={emp.permissions[module]}
-                          onChange={() => handlePermissionToggle(emp.id, module)}
+                          onChange={() =>
+                            handlePermissionToggle(emp.id, module)
+                          }
                           className="w-4 h-4 rounded cursor-pointer"
                         />
-                        <label className="text-xs font-medium text-slate-700 capitalize cursor-pointer">{module}</label>
+                        <label className="text-xs font-medium text-slate-700 capitalize cursor-pointer">
+                          {module}
+                        </label>
                       </div>
                     ))}
                   </div>
@@ -7217,17 +8378,34 @@ function SettingsScreen() {
             </div>
 
             <div className="border-t pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-4">Available Modules</h4>
+              <h4 className="text-sm font-semibold text-slate-700 mb-4">
+                Available Modules
+              </h4>
               <div className="grid grid-cols-5 gap-3">
-                {["Sales", "Purchase", "Inventory", "Accounting", "Settings"].map((mod) => (
-                  <div key={mod} className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-center">
+                {[
+                  "Sales",
+                  "Purchase",
+                  "Inventory",
+                  "Accounting",
+                  "Settings",
+                ].map((mod) => (
+                  <div
+                    key={mod}
+                    className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-center"
+                  >
                     <p className="text-xs font-medium text-slate-700">{mod}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <Btn variant="primary" onClick={handleSavePermissions} icon={<Check className="w-4 h-4" />}>Save Permissions</Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSavePermissions}
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save Permissions
+            </Btn>
           </div>
         )}
 
@@ -7235,24 +8413,38 @@ function SettingsScreen() {
         {activeTab === "payment" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
             <div>
-              <h3 className="font-semibold text-slate-900 mb-5">Payment Methods Configuration</h3>
-              <p className="text-sm text-slate-600 mb-6">Select which payment methods are available for each transaction type (Sales, Purchase, Expenses).</p>
+              <h3 className="font-semibold text-slate-900 mb-5">
+                Payment Methods Configuration
+              </h3>
+              <p className="text-sm text-slate-600 mb-6">
+                Select which payment methods are available for each transaction
+                type (Sales, Purchase, Expenses).
+              </p>
             </div>
 
             <div className="space-y-6">
               {/* Sales Payment Methods */}
               <div className="border border-slate-200 rounded-xl p-4">
-                <h4 className="font-semibold text-slate-900 mb-3">Sales Transactions</h4>
+                <h4 className="font-semibold text-slate-900 mb-3">
+                  Sales Transactions
+                </h4>
                 <div className="grid grid-cols-3 gap-3">
                   {availablePaymentMethods.map((method) => (
-                    <label key={method} className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50">
-                      <input 
-                        type="checkbox" 
+                    <label
+                      key={method}
+                      className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50"
+                    >
+                      <input
+                        type="checkbox"
                         checked={paymentMethods.sales.includes(method)}
-                        onChange={() => handlePaymentMethodToggle("sales", method)}
+                        onChange={() =>
+                          handlePaymentMethodToggle("sales", method)
+                        }
                         className="w-4 h-4 rounded cursor-pointer"
                       />
-                      <span className="text-sm font-medium text-slate-700">{method}</span>
+                      <span className="text-sm font-medium text-slate-700">
+                        {method}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -7260,17 +8452,26 @@ function SettingsScreen() {
 
               {/* Purchase Payment Methods */}
               <div className="border border-slate-200 rounded-xl p-4">
-                <h4 className="font-semibold text-slate-900 mb-3">Purchase Transactions</h4>
+                <h4 className="font-semibold text-slate-900 mb-3">
+                  Purchase Transactions
+                </h4>
                 <div className="grid grid-cols-3 gap-3">
                   {availablePaymentMethods.map((method) => (
-                    <label key={method} className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50">
-                      <input 
-                        type="checkbox" 
+                    <label
+                      key={method}
+                      className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50"
+                    >
+                      <input
+                        type="checkbox"
                         checked={paymentMethods.purchase.includes(method)}
-                        onChange={() => handlePaymentMethodToggle("purchase", method)}
+                        onChange={() =>
+                          handlePaymentMethodToggle("purchase", method)
+                        }
                         className="w-4 h-4 rounded cursor-pointer"
                       />
-                      <span className="text-sm font-medium text-slate-700">{method}</span>
+                      <span className="text-sm font-medium text-slate-700">
+                        {method}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -7278,24 +8479,39 @@ function SettingsScreen() {
 
               {/* Expenses Payment Methods */}
               <div className="border border-slate-200 rounded-xl p-4">
-                <h4 className="font-semibold text-slate-900 mb-3">Expenses (e.g., Light Bill, Internet, etc.)</h4>
+                <h4 className="font-semibold text-slate-900 mb-3">
+                  Expenses (e.g., Light Bill, Internet, etc.)
+                </h4>
                 <div className="grid grid-cols-3 gap-3">
                   {availablePaymentMethods.map((method) => (
-                    <label key={method} className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50">
-                      <input 
-                        type="checkbox" 
+                    <label
+                      key={method}
+                      className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50"
+                    >
+                      <input
+                        type="checkbox"
                         checked={paymentMethods.expenses.includes(method)}
-                        onChange={() => handlePaymentMethodToggle("expenses", method)}
+                        onChange={() =>
+                          handlePaymentMethodToggle("expenses", method)
+                        }
                         className="w-4 h-4 rounded cursor-pointer"
                       />
-                      <span className="text-sm font-medium text-slate-700">{method}</span>
+                      <span className="text-sm font-medium text-slate-700">
+                        {method}
+                      </span>
                     </label>
                   ))}
                 </div>
               </div>
             </div>
 
-            <Btn variant="primary" onClick={handleSavePaymentMethods} icon={<Check className="w-4 h-4" />}>Save Payment Methods</Btn>
+            <Btn
+              variant="primary"
+              onClick={handleSavePaymentMethods}
+              icon={<Check className="w-4 h-4" />}
+            >
+              Save Payment Methods
+            </Btn>
           </div>
         )}
 
@@ -7327,53 +8543,50 @@ function SettingsScreen() {
                 />
               </div>
               <div className="space-y-3 pt-2">
-<<<<<<< HEAD
-                {[
-                  ["Two-Factor Authentication", "Require OTP on login"],
-                  [
-                    "Session Timeout",
-                    "Auto-logout after 30 minutes of inactivity",
-                  ],
-                ].map(([l, d]) => (
-                  <div
-                    key={l}
-                    className="flex items-start justify-between py-3 border-b border-slate-100"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{l}</p>
-                      <p className="text-xs text-slate-500">{d}</p>
-                    </div>
-                    <button className="w-10 h-6 bg-slate-200 rounded-full relative flex-shrink-0 ml-4">
-                      <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow" />
-                    </button>
-=======
                 <div className="flex items-start justify-between py-3 border-b border-slate-100">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">Two-Factor Authentication</p>
-                    <p className="text-xs text-slate-500">Require OTP on login</p>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
+                    <p className="text-sm font-medium text-slate-900">
+                      Two-Factor Authentication
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Require OTP on login
+                    </p>
                   </div>
-                  <button onClick={() => setTwoFactorAuth(!twoFactorAuth)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${twoFactorAuth ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${twoFactorAuth ? "right-1" : "left-1"}`} />
+                  <button
+                    onClick={() => setTwoFactorAuth(!twoFactorAuth)}
+                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${twoFactorAuth ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${twoFactorAuth ? "right-1" : "left-1"}`}
+                    />
                   </button>
                 </div>
                 <div className="flex items-start justify-between py-3 border-b border-slate-100">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">Session Timeout</p>
-                    <p className="text-xs text-slate-500">Auto-logout after 30 minutes of inactivity</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      Session Timeout
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Auto-logout after 30 minutes of inactivity
+                    </p>
                   </div>
-                  <button onClick={() => setSessionTimeout(!sessionTimeout)} className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${sessionTimeout ? "bg-blue-600" : "bg-slate-200"}`}>
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${sessionTimeout ? "right-1" : "left-1"}`} />
+                  <button
+                    onClick={() => setSessionTimeout(!sessionTimeout)}
+                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${sessionTimeout ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${sessionTimeout ? "right-1" : "left-1"}`}
+                    />
                   </button>
                 </div>
               </div>
-<<<<<<< HEAD
-              <Btn variant="primary" icon={<Lock className="w-4 h-4" />}>
+              <Btn
+                variant="primary"
+                onClick={handleSaveSecuritySettings}
+                icon={<Lock className="w-4 h-4" />}
+              >
                 Update Password
               </Btn>
-=======
-              <Btn variant="primary" onClick={handleSaveSecuritySettings} icon={<Lock className="w-4 h-4" />}>Update Password</Btn>
->>>>>>> 2d0a6ec61eb90df6df45a3642427e818c5f3de61
             </div>
           </div>
         )}
@@ -7501,6 +8714,7 @@ function ProfileScreen() {
 function AppShell({ role, onLogout, page, onNav }) {
   const [collapsed, setCollapsed] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
+  const [, setTick] = useState(0);
 
   const renderPage = () => {
     switch (page) {
@@ -7523,11 +8737,23 @@ function AppShell({ role, onLogout, page, onNav }) {
       case "reports":
         return <ReportsScreen />;
       case "expenses":
-        return <ExpensesScreen />;
+        return (
+          <ExpensesScreen
+            expenses={expenses}
+            onAddExpense={(e) => {
+              expenses.push(e);
+              setTick((t) => t + 1);
+            }}
+          />
+        );
       case "users":
         return <UsersScreen />;
       case "settings":
-        return role === "superadmin" ? <SuperAdminSettingsScreen /> : <SettingsScreen />;
+        return role === "superadmin" ? (
+          <SuperAdminSettingsScreen />
+        ) : (
+          <SettingsScreen />
+        );
       case "notifications":
         return <NotificationsScreen />;
       case "profile":
