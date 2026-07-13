@@ -5180,6 +5180,7 @@ function ReportsScreen() {
     { key: "inventory", label: "Inventory Report", icon: Package },
   ];
 
+<<<<<<< HEAD
   const renderActiveReport = () => {
     switch (activeReport) {
       case "sales":
@@ -5197,6 +5198,8 @@ function ReportsScreen() {
     }
   };
 
+=======
+>>>>>>> 5bc0cbdc (Save my local changes)
   return (
     <div className="space-y-5">
       <div className="flex gap-2 flex-wrap">
