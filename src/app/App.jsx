@@ -5009,39 +5009,6 @@ function ReportsScreen() {
     { key: "inventory", label: "Inventory Report", icon: Package },
   ];
 
-  // NOTE: Purchase report data currently comes from PurchaseScreen's purchaseList.
-  // Here we show a lightweight mirror table using the same PO list shape.
-  // If you later want this to stay in sync with PurchaseScreen, we can lift state up.
-  const purchaseReportList = [
-    {
-      id: "PO-2024-038",
-      supplier: "TechVision Pvt Ltd",
-      invoiceNo: "SUPP-INV-001",
-      date: "2024-08-10",
-      items: 5,
-      total: 124800,
-      status: "Received",
-    },
-    {
-      id: "PO-2024-037",
-      supplier: "FabWorld Exports",
-      invoiceNo: "SUPP-INV-002",
-      date: "2024-08-07",
-      items: 12,
-      total: 48200,
-      status: "Received",
-    },
-    {
-      id: "PO-2024-036",
-      supplier: "AgriLink Wholesale",
-      invoiceNo: "SUPP-INV-003",
-      date: "2024-08-03",
-      items: 8,
-      total: 32600,
-      status: "Pending",
-    },
-  ];
-
   return (
     <div className="space-y-5">
       <div className="flex gap-2 flex-wrap">
