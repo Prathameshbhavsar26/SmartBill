@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -385,7 +385,7 @@ const invoices = [
   },
 ];
 
-let expenses = [
+const expenses = [
   {
     id: 1,
     category: "Rent",
@@ -983,9 +983,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
             <AlertTriangle className="w-6 h-6 text-red-500" />
           </div>
           <h3 className="font-semibold text-slate-900 mb-2">Are you sure?</h3>
-          <p className="text-sm text-slate-500 mb-5 whitespace-pre-line">
-            {message}
-          </p>
+          <p className="text-sm text-slate-500 mb-5">{message}</p>
           <div className="flex gap-3">
             <Btn variant="outline" onClick={onCancel} className="flex-1">
               Cancel
@@ -995,7 +993,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }) {
               onClick={onConfirm}
               className="flex-1 bg-red-600 text-white hover:bg-red-700 border-0"
             >
-              Confirm
+              Delete
             </Btn>
           </div>
         </div>
@@ -4771,519 +4769,8 @@ function PurchaseScreen() {
 }
 
 // ─── INVENTORY SCREEN ─────────────────────────────────────────────────────────
-// Adjust Stock Modal component (kept inside App.jsx to reuse existing UI)
-function AdjustStockModal({
-  products,
-  initialProductId = null,
-  onClose,
-  onSave,
-}) {
-  const productOptions = products.map((p) => ({
-    label: p.name + ` — ${p.sku}`,
-    value: p.id,
-  }));
-  const warehouseOptions = ["Main Warehouse", "Store - Nashik", "Store - Pune"];
-
-  const [productId, setProductId] = useState(
-    initialProductId ?? products[0]?.id ?? null,
-  );
-  const product = products.find((p) => p.id === productId) ??
-    products[0] ?? { stock: 0, minStock: 0, price: 0 };
-
-  const adjustmentTypes = [
-    "Stock In",
-    "Stock Out",
-    "Stock Correction",
-    "Damaged",
-    "Returned",
-    "Expired",
-    "Purchase Received",
-    "Manual Adjustment",
-  ];
-
-  const increaseTypes = new Set(["Stock In", "Returned", "Purchase Received"]);
-  const decreaseTypes = new Set(["Stock Out", "Damaged", "Expired"]);
-
-  const [warehouse, setWarehouse] = useState(warehouseOptions[0]);
-  const [adjustmentType, setAdjustmentType] = useState("Stock In");
-  const [adjustmentQuantity, setAdjustmentQuantity] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState(
-    new Date().toLocaleTimeString("en-GB", { hour12: false }).slice(0, 5),
-  );
-  const [reason, setReason] = useState("Manual Correction");
-  const [notes, setNotes] = useState("");
-  const [files, setFiles] = useState([]);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [errors, setErrors] = useState({});
-
-  const curr = Number(product.stock || 0);
-
-  const parseQty = (v) => {
-    if (v === "" || v === null || v === undefined) return NaN;
-    return Number(String(v).replace(/[,\s₹]/g, ""));
-  };
-
-  const computeNew = () => {
-    const adj = parseQty(adjustmentQuantity);
-    if (Number.isNaN(adj)) return curr;
-
-    if (increaseTypes.has(adjustmentType)) return curr + Math.abs(adj);
-    if (decreaseTypes.has(adjustmentType))
-      return Math.max(0, curr - Math.abs(adj));
-    // Stock Correction / Manual Adjustment: treat as delta (can be negative or positive)
-    return Math.max(0, curr + adj);
-  };
-
-  const newQty = computeNew();
-  const adjustmentDelta = newQty - curr;
-  const stockValueImpact = adjustmentDelta * (product.price || 0);
-
-  useEffect(() => {
-    // clear inline errors when inputs change
-    setErrors((e) => (Object.keys(e).length ? {} : e));
-  }, [productId, adjustmentQuantity, adjustmentType, date, time]);
-
-  const onFileChange = (e) => {
-    const list = Array.from(e.target.files || []);
-    setFiles((f) => [...f, ...list]);
-  };
-
-  const removeFile = (i) => setFiles((f) => f.filter((_, idx) => idx !== i));
-
-  const validate = () => {
-    const next = {};
-    if (!productId) next.product = "Select product.";
-    const adj = parseQty(adjustmentQuantity);
-    if (adjustmentQuantity === "" || Number.isNaN(adj))
-      next.adjustmentQuantity = "Enter a valid quantity.";
-    if (
-      adj < 0 &&
-      !["Stock Correction", "Manual Adjustment"].includes(adjustmentType)
-    )
-      next.adjustmentQuantity =
-        "Quantity must be positive for this adjustment type.";
-    if (decreaseTypes.has(adjustmentType) && Math.abs(adj) > curr)
-      next.adjustmentQuantity = "Adjustment cannot exceed current stock.";
-    if (newQty < 0) next.newQty = "Resulting stock cannot be negative.";
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const handleSave = () => {
-    if (!validate()) return;
-    setShowConfirm(true);
-  };
-
-  const confirmSave = () => {
-    const entry = {
-      id: Date.now(),
-      date: `${date} ${time}`,
-      productId: product.id,
-      productName: product.name,
-      sku: product.sku,
-      adjustmentType,
-      quantity: adjustmentDelta,
-      previousStock: curr,
-      newStock: newQty,
-      reason,
-      warehouse,
-      notes,
-      files,
-      adjustedBy: "Admin User",
-    };
-    onSave(entry);
-    setShowConfirm(false);
-    onClose();
-  };
-
-  return (
-    <Modal title="Adjust Stock" onClose={onClose}>
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-        <div className="space-y-5">
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4">
-              Product Information
-            </h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Product
-                  </label>
-                  <select
-                    value={productId}
-                    onChange={(e) => setProductId(Number(e.target.value))}
-                    className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                  >
-                    {productOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.product && (
-                    <p className="text-xs text-red-600 mt-1">
-                      {errors.product}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Warehouse / Store
-                  </label>
-                  <select
-                    value={warehouse}
-                    onChange={(e) => setWarehouse(e.target.value)}
-                    className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                  >
-                    {warehouseOptions.map((w) => (
-                      <option key={w}>{w}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Product Name
-                  </label>
-                  <div className="mt-1 text-sm text-slate-900">
-                    {product.name}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Product Code / SKU
-                  </label>
-                  <div className="mt-1 text-sm font-mono text-slate-600">
-                    {product.sku}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Category
-                  </label>
-                  <div className="mt-1 text-sm text-slate-600">
-                    {product.category}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-2">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Adjustment Type
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-              {adjustmentTypes.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setAdjustmentType(t)}
-                  className={`text-sm px-3 py-2 rounded-lg border ${adjustmentType === t ? "bg-blue-600 text-white border-blue-600" : "bg-white border-slate-200 text-slate-700"}`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 items-end">
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Current Quantity
-              </label>
-              <div className="mt-1 font-mono text-slate-900 text-lg">
-                {curr}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Adjustment Quantity
-              </label>
-              <Input
-                value={adjustmentQuantity}
-                onChange={setAdjustmentQuantity}
-                placeholder="e.g. 10"
-              />
-              {errors.adjustmentQuantity && (
-                <p className="text-xs text-red-600 mt-1">
-                  {errors.adjustmentQuantity}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                New Quantity
-              </label>
-              <div
-                className={`mt-1 font-mono text-lg ${newQty < product.minStock ? "text-amber-600" : "text-slate-900"}`}
-              >
-                {newQty}
-              </div>
-              {errors.newQty && (
-                <p className="text-xs text-red-600 mt-1">{errors.newQty}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Reason
-              </label>
-              <select
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-              >
-                {[
-                  "Purchase",
-                  "Sale",
-                  "Damage",
-                  "Expired",
-                  "Returned",
-                  "Theft",
-                  "Manual Correction",
-                  "Physical Count",
-                  "Other",
-                ].map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Date
-              </label>
-              <Input type="date" value={date} onChange={setDate} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Time
-              </label>
-              <Input type="time" value={time} onChange={setTime} />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Notes
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Enter reason for stock adjustment..."
-              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm min-h-[80px]"
-            ></textarea>
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Attachment
-            </label>
-            <input
-              type="file"
-              multiple
-              onChange={onFileChange}
-              className="mt-2"
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {files.map((f, i) => (
-                <div
-                  key={i}
-                  className="border border-slate-200 rounded-lg p-2 text-xs flex items-center gap-2"
-                >
-                  {f.type.startsWith("image/") ? (
-                    <img
-                      src={URL.createObjectURL(f)}
-                      alt={f.name}
-                      className="w-12 h-8 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-12 h-8 flex items-center justify-center bg-slate-100 rounded text-slate-500">
-                      DOC
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="font-medium text-xs">{f.name}</div>
-                    <div className="text-xs text-slate-500">
-                      {(f.size / 1024).toFixed(1)} KB
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => removeFile(i)}
-                    className="text-xs text-red-600 ml-2"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Confirmation dialog */}
-          {showConfirm && (
-            <ConfirmDialog
-              message={`Are you sure you want to update this stock?\n\nProduct: ${product.name}\nCurrent Stock: ${curr}\nAdjustment: ${adjustmentDelta > 0 ? "+" : ""}${adjustmentDelta}\nFinal Stock: ${newQty}`}
-              onConfirm={confirmSave}
-              onCancel={() => setShowConfirm(false)}
-            />
-          )}
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end pt-3">
-            <Btn
-              variant="outline"
-              onClick={onClose}
-              className="w-full sm:w-auto"
-            >
-              Cancel
-            </Btn>
-            <Btn
-              variant="outline"
-              onClick={() => {
-                setAdjustmentQuantity("");
-                setNotes("");
-                setFiles([]);
-              }}
-              className="w-full sm:w-auto"
-            >
-              Reset
-            </Btn>
-            <Btn
-              variant="primary"
-              onClick={handleSave}
-              disabled={!adjustmentQuantity || Object.keys(errors).length > 0}
-              className="w-full sm:w-auto"
-            >
-              Save Adjustment
-            </Btn>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
-            <h4 className="text-sm font-semibold text-slate-800">
-              Live Summary
-            </h4>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div className="text-slate-500">Current Stock</div>
-              <div className="font-medium text-slate-900 text-right">
-                {curr}
-              </div>
-              <div className="text-slate-500">Adjustment</div>
-              <div
-                className={`font-medium text-right ${adjustmentDelta > 0 ? "text-emerald-600" : adjustmentDelta < 0 ? "text-red-500" : "text-slate-900"}`}
-              >
-                {adjustmentDelta > 0 ? "+" : ""}
-                {adjustmentDelta}
-              </div>
-              <div className="text-slate-500">Final Stock</div>
-              <div
-                className={`font-medium text-right ${newQty < product.minStock ? "text-amber-600" : "text-slate-900"}`}
-              >
-                {newQty}
-              </div>
-              <div className="text-slate-500">Stock Value Impact</div>
-              <div
-                className={`font-medium text-right ${stockValueImpact >= 0 ? "text-emerald-600" : "text-red-500"}`}
-              >
-                ₹{Math.abs(stockValueImpact).toLocaleString("en-IN")}
-              </div>
-            </div>
-            {newQty < product.minStock && (
-              <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded text-amber-700 text-sm">
-                ⚠ This adjustment will make the stock lower than the minimum
-                stock level.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </Modal>
-  );
-}
 
 function InventoryScreen() {
-<<<<<<< Updated upstream
-  const [showAdjustModal, setShowAdjustModal] = useState(false);
-  const [adjustModalProductId, setAdjustModalProductId] = useState(null);
-  const [stockHistory, setStockHistory] = useState([]);
-  const [toast, setToast] = useState(null);
-  const [historySearch, setHistorySearch] = useState("");
-  const [historyType, setHistoryType] = useState("All Types");
-  const [historyFromDate, setHistoryFromDate] = useState("");
-  const [historyToDate, setHistoryToDate] = useState("");
-  const [historyPage, setHistoryPage] = useState(1);
-
-  const historyTypes = [
-    "All Types",
-    "Stock In",
-    "Stock Out",
-    "Stock Correction",
-    "Damaged",
-    "Returned",
-    "Expired",
-    "Purchase Received",
-    "Manual Adjustment",
-  ];
-
-  const historyPageSize = 6;
-
-  const filteredStockHistory = useMemo(() => {
-    return stockHistory.filter((entry) => {
-      const matchesSearch =
-        historySearch === "" ||
-        [
-          entry.productName,
-          entry.sku,
-          entry.adjustmentType,
-          entry.reason,
-          entry.adjustedBy,
-        ].some((value) =>
-          value.toLowerCase().includes(historySearch.toLowerCase()),
-        );
-      const matchesType =
-        historyType === "All Types" || entry.adjustmentType === historyType;
-      const entryDate = new Date(entry.date.split(" ")[0]);
-      const fromOk = !historyFromDate || entryDate >= new Date(historyFromDate);
-      const toOk = !historyToDate || entryDate <= new Date(historyToDate);
-      return matchesSearch && matchesType && fromOk && toOk;
-    });
-  }, [
-    stockHistory,
-    historySearch,
-    historyType,
-    historyFromDate,
-    historyToDate,
-  ]);
-
-  const totalHistoryPages = Math.max(
-    1,
-    Math.ceil(filteredStockHistory.length / historyPageSize),
-  );
-  const pagedStockHistory = filteredStockHistory.slice(
-    (historyPage - 1) * historyPageSize,
-    historyPage * historyPageSize,
-  );
-
-  const handleSaveAdjustment = (entry) => {
-    const p = products.find((x) => x.id === entry.productId);
-    if (p) p.stock = entry.newStock;
-    setStockHistory((s) => [entry, ...s]);
-    setToast({ message: "Stock adjusted successfully.", type: "success" });
-    setTimeout(() => setToast(null), 2500);
-  };
-
-  useEffect(() => {
-    setHistoryPage(1);
-  }, [historySearch, historyType, historyFromDate, historyToDate]);
-
-=======
->>>>>>> Stashed changes
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -5369,7 +4856,6 @@ function InventoryScreen() {
               variant="outline"
               size="sm"
               icon={<RefreshCw className="w-3.5 h-3.5" />}
-              onClick={() => setShowAdjustModal(true)}
             >
               Adjust Stock
             </Btn>
@@ -5382,225 +4868,72 @@ function InventoryScreen() {
             </Btn>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[980px]">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  "Product",
-                  "Category",
-                  "In Stock",
-                  "Min Level",
-                  "Value",
-                  "Status",
-                  "Actions",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {products.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <p className="font-medium text-slate-900">{p.name}</p>
-                    <p className="text-xs text-slate-400 font-mono">{p.sku}</p>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Badge label={p.category} variant="blue" />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`font-bold font-mono ${p.stock === 0 ? "text-red-500" : p.stock <= p.minStock ? "text-amber-600" : "text-slate-900"}`}
-                      >
-                        {p.stock}
-                      </span>
-                      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${Math.min(100, (p.stock / 50) * 100)}%`,
-                            backgroundColor:
-                              p.stock === 0
-                                ? "#EF4444"
-                                : p.stock <= p.minStock
-                                  ? "#F59E0B"
-                                  : "#10B981",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-600 font-mono">
-                    {p.minStock}
-                  </td>
-                  <td className="px-5 py-3.5 font-medium text-slate-900">
-                    {fmt(p.price * p.stock)}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    {statusBadge(p.stock === 0 ? "Inactive" : p.status)}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Btn
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setAdjustModalProductId(p.id);
-                        setShowAdjustModal(true);
-                      }}
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100">
+              {[
+                "Product",
+                "Category",
+                "In Stock",
+                "Min Level",
+                "Value",
+                "Status",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {products.map((p) => (
+              <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-5 py-3.5">
+                  <p className="font-medium text-slate-900">{p.name}</p>
+                  <p className="text-xs text-slate-400 font-mono">{p.sku}</p>
+                </td>
+                <td className="px-5 py-3.5">
+                  <Badge label={p.category} variant="blue" />
+                </td>
+                <td className="px-5 py-3.5">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`font-bold font-mono ${p.stock === 0 ? "text-red-500" : p.stock <= p.minStock ? "text-amber-600" : "text-slate-900"}`}
                     >
-                      Adjust
-                    </Btn>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-      {/* Stock History + modal + toast */}
-      {showAdjustModal && (
-        <AdjustStockModal
-          products={products}
-          initialProductId={adjustModalProductId}
-          onClose={() => setShowAdjustModal(false)}
-          onSave={handleSaveAdjustment}
-        />
-      )}
-
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
-
-      <Card>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between px-5 py-4 border-b border-slate-100">
-          <div>
-            <h3 className="font-semibold text-slate-900">Stock History</h3>
-            <p className="text-xs text-slate-500">
-              Recent inventory adjustments with search and filters.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 w-full sm:w-auto">
-            <Input
-              placeholder="Search history..."
-              value={historySearch}
-              onChange={setHistorySearch}
-            />
-            <select
-              value={historyType}
-              onChange={(e) => setHistoryType(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
-            >
-              {historyTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <Input
-              type="date"
-              value={historyFromDate}
-              onChange={setHistoryFromDate}
-            />
-            <Input
-              type="date"
-              value={historyToDate}
-              onChange={setHistoryToDate}
-            />
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[980px]">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  "Date",
-                  "Product",
-                  "Adjustment Type",
-                  "Quantity",
-                  "Previous Stock",
-                  "New Stock",
-                  "Reason",
-                  "Adjusted By",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                  >
-                    {h}
-                  </th>
-                ))}
+                      {p.stock}
+                    </span>
+                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.min(100, (p.stock / 50) * 100)}%`,
+                          backgroundColor:
+                            p.stock === 0
+                              ? "#EF4444"
+                              : p.stock <= p.minStock
+                                ? "#F59E0B"
+                                : "#10B981",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </td>
+                <td className="px-5 py-3.5 text-slate-600 font-mono">
+                  {p.minStock}
+                </td>
+                <td className="px-5 py-3.5 font-medium text-slate-900">
+                  {fmt(p.price * p.stock)}
+                </td>
+                <td className="px-5 py-3.5">
+                  {statusBadge(p.stock === 0 ? "Inactive" : p.status)}
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {pagedStockHistory.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-5 py-6 text-center text-slate-500"
-                  >
-                    No adjustments match the filters.
-                  </td>
-                </tr>
-              ) : (
-                pagedStockHistory.map((h) => (
-                  <tr
-                    key={h.id}
-                    className="hover:bg-slate-50 transition-colors"
-                  >
-                    <td className="px-5 py-3.5 text-xs font-mono">{h.date}</td>
-                    <td className="px-5 py-3.5">{h.productName}</td>
-                    <td className="px-5 py-3.5">{h.adjustmentType}</td>
-                    <td className="px-5 py-3.5 font-mono">
-                      {h.quantity > 0 ? `+${h.quantity}` : h.quantity}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono">{h.previousStock}</td>
-                    <td className="px-5 py-3.5 font-mono">{h.newStock}</td>
-                    <td className="px-5 py-3.5">{h.reason}</td>
-                    <td className="px-5 py-3.5">{h.adjustedBy}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-5 py-4">
-          <p className="text-xs text-slate-500">
-            Showing {pagedStockHistory.length} of {filteredStockHistory.length}{" "}
-            adjustments.
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={historyPage === 1}
-              onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span className="text-sm text-slate-600">
-              Page {historyPage} of {totalHistoryPages}
-            </span>
-            <button
-              disabled={historyPage === totalHistoryPages}
-              onClick={() =>
-                setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))
-              }
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </Card>
     </div>
   );
@@ -5624,8 +4957,6 @@ function ReportsScreen() {
     { key: "inventory", label: "Inventory Report", icon: Package },
   ];
 
-<<<<<<< Updated upstream
-=======
   const renderActiveReport = () => {
     switch (activeReport) {
       case "sales":
@@ -5643,7 +4974,6 @@ function ReportsScreen() {
     }
   };
 
->>>>>>> Stashed changes
   return (
     <div className="space-y-5">
       <div className="flex gap-2 flex-wrap">
@@ -5651,11 +4981,7 @@ function ReportsScreen() {
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
-<<<<<<< Updated upstream
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeReport === r.key ? "bg-red-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
-=======
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeReport === r.key ? "bg-blue-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
->>>>>>> Stashed changes
           >
             <r.icon className="w-4 h-4" />
             {r.label}
@@ -5679,223 +5005,7 @@ function ReportsScreen() {
         </div>
       </div>
 
-<<<<<<< Updated upstream
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          ["₹8.9L", "Total Revenue", "+12%", "up"],
-          ["₹5.2L", "Total Expenses", "+3%", "up"],
-          ["₹3.7L", "Net Profit", "+24%", "up"],
-          ["41.6%", "Profit Margin", "+5%", "up"],
-        ].map(([v, l, s, t]) => (
-          <Card key={l} className="p-4">
-            <p
-              className={`text-xl font-bold ${l.includes("Profit") ? "text-emerald-600" : "l" === "Profit Margin" ? "text-purple-600" : "text-slate-900"}`}
-            >
-              {v}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5 mb-2">{l}</p>
-            <span
-              className={`text-xs font-medium flex items-center gap-1 ${t === "up" ? "text-emerald-600" : "text-red-500"}`}
-            >
-              <ArrowUpRight className="w-3 h-3" />
-              {s} this month
-            </span>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-slate-900">
-              Monthly Revenue Trend
-            </h3>
-            <div className="flex gap-2">
-              {["2024", "2023"].map((y) => (
-                <button
-                  key={y}
-                  className={`text-xs px-2.5 py-1 rounded-lg ${y === "2024" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={salesData}>
-              <defs>
-                <linearGradient id="repSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `₹${v / 1000}K`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-                formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, ""]}
-              />
-              <Area
-                type="monotone"
-                dataKey="sales"
-                stroke="#2563EB"
-                strokeWidth={2.5}
-                fill="url(#repSales)"
-                name="Sales"
-              />
-              <Area
-                type="monotone"
-                dataKey="profit"
-                stroke="#10B981"
-                strokeWidth={2}
-                fill="none"
-                name="Profit"
-                strokeDasharray="4 2"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card className="p-5">
-          <h3 className="font-semibold text-slate-900 mb-5">
-            Expenses Breakdown
-          </h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart
-              data={[
-                { name: "Rent", v: 45000 },
-                { name: "Salary", v: 125000 },
-                { name: "Util.", v: 8200 },
-                { name: "Marketing", v: 15000 },
-                { name: "Logistics", v: 12400 },
-              ]}
-              barSize={32}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `₹${v / 1000}K`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-                formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, ""]}
-              />
-              <Bar dataKey="v" fill="#6366F1" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-4 space-y-2">
-            {expenses.slice(0, 4).map((e) => (
-              <div
-                key={e.id}
-                className="flex items-center justify-between text-xs"
-              >
-                <span className="text-slate-600">{e.category}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-indigo-500 rounded-full"
-                      style={{ width: `${(e.amount / 125000) * 100}%` }}
-                    />
-                  </div>
-                  <span className="font-mono font-medium text-slate-900 w-20 text-right">
-                    {fmt(e.amount)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      <Card>
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900">Sales Details</h3>
-          <div className="flex gap-2">
-            <Input placeholder="From date" type="date" />
-            <Input placeholder="To date" type="date" />
-            <Btn variant="primary" size="sm">
-              Apply
-            </Btn>
-          </div>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100">
-              {[
-                "Invoice",
-                "Customer",
-                "Date",
-                "Amount",
-                "GST",
-                "Total",
-                "Status",
-              ].map((h) => (
-                <th
-                  key={h}
-                  className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {invoices.map((inv) => (
-              <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-5 py-3.5 font-mono text-xs text-blue-600">
-                  {inv.id}
-                </td>
-                <td className="px-5 py-3.5 font-medium text-slate-900">
-                  {inv.customer}
-                </td>
-                <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
-                  {inv.date}
-                </td>
-                <td className="px-5 py-3.5 text-slate-900">
-                  {fmt(inv.amount)}
-                </td>
-                <td className="px-5 py-3.5 text-slate-600">{fmt(inv.gst)}</td>
-                <td className="px-5 py-3.5 font-semibold text-slate-900">
-                  {fmt(inv.total)}
-                </td>
-                <td className="px-5 py-3.5">{statusBadge(inv.status)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-=======
       {renderActiveReport()}
->>>>>>> Stashed changes
     </div>
   );
 }
@@ -5903,47 +5013,9 @@ function ReportsScreen() {
 
 // ─── EXPENSES SCREEN ──────────────────────────────────────────────────────────
 
-function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
+function ExpensesScreen() {
   const [showModal, setShowModal] = useState(false);
-  const [category, setCategory] = useState("Rent");
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [paymentMode, setPaymentMode] = useState("Bank Transfer");
-  const [reference, setReference] = useState("");
-  const [status, setStatus] = useState("Paid");
 
-<<<<<<< Updated upstream
-  const resetForm = () => {
-    setCategory("Rent");
-    setDescription("");
-    setAmount("");
-    setDate(new Date().toISOString().slice(0, 10));
-    setPaymentMode("Bank Transfer");
-    setReference("");
-    setStatus("Paid");
-  };
-
-  const handleSave = () => {
-    const id = Date.now();
-    const amt = Number(String(amount).replace(/[,\s₹]/g, "")) || 0;
-    const newExpense = {
-      id,
-      category,
-      description,
-      date,
-      amount: amt,
-      paymentMode,
-      reference,
-      status,
-    };
-    onAddExpense(newExpense);
-    resetForm();
-    setShowModal(false);
-  };
-
-=======
->>>>>>> Stashed changes
   return (
     <div className="space-y-5">
       {showModal && (
@@ -5951,13 +5023,8 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
           <div className="space-y-4">
             <Select
               label="Category"
-<<<<<<< Updated upstream
-              value={category}
-              onChange={setCategory}
-=======
               value="Rent"
               onChange={() => {}}
->>>>>>> Stashed changes
               options={[
                 "Rent",
                 "Utilities",
@@ -5968,20 +5035,6 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
                 "Other",
               ]}
             />
-<<<<<<< Updated upstream
-            <Input
-              label="Description"
-              placeholder="August rent payment"
-              value={description}
-              onChange={setDescription}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Amount (₹)"
-                placeholder="45000"
-                value={amount}
-                onChange={setAmount}
-=======
             <Input label="Description" placeholder="August rent payment" />
             <div className="grid grid-cols-2 gap-3">
               <Input label="Amount (₹)" placeholder="45000" />
@@ -5989,19 +5042,12 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
                 label="Date"
                 type="date"
                 value={new Date().toISOString().slice(0, 10)}
->>>>>>> Stashed changes
               />
-              <Input label="Date" type="date" value={date} onChange={setDate} />
             </div>
             <Select
               label="Payment Mode"
-<<<<<<< Updated upstream
-              value={paymentMode}
-              onChange={setPaymentMode}
-=======
               value="Bank Transfer"
               onChange={() => {}}
->>>>>>> Stashed changes
               options={[
                 "Cash",
                 "Bank Transfer",
@@ -6010,22 +5056,7 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
                 "Cheque",
               ]}
             />
-<<<<<<< Updated upstream
-            <Input
-              label="Reference / Receipt No."
-              placeholder="REF-001"
-              value={reference}
-              onChange={setReference}
-            />
-            <Select
-              label="Status"
-              value={status}
-              onChange={setStatus}
-              options={["Paid", "Pending", "Overdue"]}
-            />
-=======
             <Input label="Reference / Receipt No." placeholder="REF-001" />
->>>>>>> Stashed changes
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -8779,7 +7810,6 @@ function ProfileScreen() {
 function AppShell({ role, onLogout, page, onNav }) {
   const [collapsed, setCollapsed] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
-  const [, setTick] = useState(0);
 
   const renderPage = () => {
     switch (page) {
@@ -8802,15 +7832,7 @@ function AppShell({ role, onLogout, page, onNav }) {
       case "reports":
         return <ReportsScreen />;
       case "expenses":
-        return (
-          <ExpensesScreen
-            expenses={expenses}
-            onAddExpense={(e) => {
-              expenses.push(e);
-              setTick((t) => t + 1);
-            }}
-          />
-        );
+        return <ExpensesScreen />;
       case "users":
         return <UsersScreen />;
       case "settings":
