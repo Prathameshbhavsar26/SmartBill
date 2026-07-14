@@ -4941,6 +4941,12 @@ function InventoryScreen() {
 
 // ─── REPORTS SCREEN ───────────────────────────────────────────────────────────
 
+import PurchaseReport from "./reports/PurchaseReport";
+import ProfitLossReport from "./reports/ProfitLossReport";
+import GSTReport from "./reports/GSTReport";
+import InventoryReport from "./reports/InventoryReport";
+import SalesReport from "./reports/SalesReport";
+
 function ReportsScreen() {
   const [activeReport, setActiveReport] = useState("sales");
   const reportTypes = [
@@ -4951,6 +4957,23 @@ function ReportsScreen() {
     { key: "inventory", label: "Inventory Report", icon: Package },
   ];
 
+  const renderActiveReport = () => {
+    switch (activeReport) {
+      case "sales":
+        return <SalesReport />;
+      case "purchase":
+        return <PurchaseReport />;
+      case "pl":
+        return <ProfitLossReport />;
+      case "gst":
+        return <GSTReport />;
+      case "inventory":
+        return <InventoryReport />;
+      default:
+        return <SalesReport />;
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex gap-2 flex-wrap">
@@ -4958,7 +4981,7 @@ function ReportsScreen() {
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeReport === r.key ? "bg-red-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeReport === r.key ? "bg-blue-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
           >
             <r.icon className="w-4 h-4" />
             {r.label}
@@ -4982,222 +5005,11 @@ function ReportsScreen() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          ["₹8.9L", "Total Revenue", "+12%", "up"],
-          ["₹5.2L", "Total Expenses", "+3%", "up"],
-          ["₹3.7L", "Net Profit", "+24%", "up"],
-          ["41.6%", "Profit Margin", "+5%", "up"],
-        ].map(([v, l, s, t]) => (
-          <Card key={l} className="p-4">
-            <p
-              className={`text-xl font-bold ${l.includes("Profit") ? "text-emerald-600" : "l" === "Profit Margin" ? "text-purple-600" : "text-slate-900"}`}
-            >
-              {v}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5 mb-2">{l}</p>
-            <span
-              className={`text-xs font-medium flex items-center gap-1 ${t === "up" ? "text-emerald-600" : "text-red-500"}`}
-            >
-              <ArrowUpRight className="w-3 h-3" />
-              {s} this month
-            </span>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-slate-900">
-              Monthly Revenue Trend
-            </h3>
-            <div className="flex gap-2">
-              {["2024", "2023"].map((y) => (
-                <button
-                  key={y}
-                  className={`text-xs px-2.5 py-1 rounded-lg ${y === "2024" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={salesData}>
-              <defs>
-                <linearGradient id="repSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `₹${v / 1000}K`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-                formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, ""]}
-              />
-              <Area
-                type="monotone"
-                dataKey="sales"
-                stroke="#2563EB"
-                strokeWidth={2.5}
-                fill="url(#repSales)"
-                name="Sales"
-              />
-              <Area
-                type="monotone"
-                dataKey="profit"
-                stroke="#10B981"
-                strokeWidth={2}
-                fill="none"
-                name="Profit"
-                strokeDasharray="4 2"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card className="p-5">
-          <h3 className="font-semibold text-slate-900 mb-5">
-            Expenses Breakdown
-          </h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart
-              data={[
-                { name: "Rent", v: 45000 },
-                { name: "Salary", v: 125000 },
-                { name: "Util.", v: 8200 },
-                { name: "Marketing", v: 15000 },
-                { name: "Logistics", v: 12400 },
-              ]}
-              barSize={32}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `₹${v / 1000}K`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-                formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, ""]}
-              />
-              <Bar dataKey="v" fill="#6366F1" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-4 space-y-2">
-            {expenses.slice(0, 4).map((e) => (
-              <div
-                key={e.id}
-                className="flex items-center justify-between text-xs"
-              >
-                <span className="text-slate-600">{e.category}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-indigo-500 rounded-full"
-                      style={{ width: `${(e.amount / 125000) * 100}%` }}
-                    />
-                  </div>
-                  <span className="font-mono font-medium text-slate-900 w-20 text-right">
-                    {fmt(e.amount)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      <Card>
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="font-semibold text-slate-900">Sales Details</h3>
-          <div className="flex gap-2">
-            <Input placeholder="From date" type="date" />
-            <Input placeholder="To date" type="date" />
-            <Btn variant="primary" size="sm">
-              Apply
-            </Btn>
-          </div>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100">
-              {[
-                "Invoice",
-                "Customer",
-                "Date",
-                "Amount",
-                "GST",
-                "Total",
-                "Status",
-              ].map((h) => (
-                <th
-                  key={h}
-                  className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {invoices.map((inv) => (
-              <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-5 py-3.5 font-mono text-xs text-blue-600">
-                  {inv.id}
-                </td>
-                <td className="px-5 py-3.5 font-medium text-slate-900">
-                  {inv.customer}
-                </td>
-                <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
-                  {inv.date}
-                </td>
-                <td className="px-5 py-3.5 text-slate-900">
-                  {fmt(inv.amount)}
-                </td>
-                <td className="px-5 py-3.5 text-slate-600">{fmt(inv.gst)}</td>
-                <td className="px-5 py-3.5 font-semibold text-slate-900">
-                  {fmt(inv.total)}
-                </td>
-                <td className="px-5 py-3.5">{statusBadge(inv.status)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      {renderActiveReport()}
     </div>
   );
 }
+
 
 // ─── EXPENSES SCREEN ──────────────────────────────────────────────────────────
 
