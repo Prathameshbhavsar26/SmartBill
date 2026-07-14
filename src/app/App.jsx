@@ -5208,6 +5208,7 @@ function AdjustStockModal({
 }
 
 function InventoryScreen() {
+<<<<<<< Updated upstream
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [adjustModalProductId, setAdjustModalProductId] = useState(null);
   const [stockHistory, setStockHistory] = useState([]);
@@ -5281,6 +5282,8 @@ function InventoryScreen() {
     setHistoryPage(1);
   }, [historySearch, historyType, historyFromDate, historyToDate]);
 
+=======
+>>>>>>> Stashed changes
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -5605,6 +5608,12 @@ function InventoryScreen() {
 
 // ─── REPORTS SCREEN ───────────────────────────────────────────────────────────
 
+import PurchaseReport from "./reports/PurchaseReport";
+import ProfitLossReport from "./reports/ProfitLossReport";
+import GSTReport from "./reports/GSTReport";
+import InventoryReport from "./reports/InventoryReport";
+import SalesReport from "./reports/SalesReport";
+
 function ReportsScreen() {
   const [activeReport, setActiveReport] = useState("sales");
   const reportTypes = [
@@ -5615,6 +5624,26 @@ function ReportsScreen() {
     { key: "inventory", label: "Inventory Report", icon: Package },
   ];
 
+<<<<<<< Updated upstream
+=======
+  const renderActiveReport = () => {
+    switch (activeReport) {
+      case "sales":
+        return <SalesReport />;
+      case "purchase":
+        return <PurchaseReport />;
+      case "pl":
+        return <ProfitLossReport />;
+      case "gst":
+        return <GSTReport />;
+      case "inventory":
+        return <InventoryReport />;
+      default:
+        return <SalesReport />;
+    }
+  };
+
+>>>>>>> Stashed changes
   return (
     <div className="space-y-5">
       <div className="flex gap-2 flex-wrap">
@@ -5622,7 +5651,11 @@ function ReportsScreen() {
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
+<<<<<<< Updated upstream
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeReport === r.key ? "bg-red-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
+=======
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeReport === r.key ? "bg-blue-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
+>>>>>>> Stashed changes
           >
             <r.icon className="w-4 h-4" />
             {r.label}
@@ -5646,6 +5679,7 @@ function ReportsScreen() {
         </div>
       </div>
 
+<<<<<<< Updated upstream
       <div className="grid grid-cols-4 gap-4">
         {[
           ["₹8.9L", "Total Revenue", "+12%", "up"],
@@ -5859,9 +5893,13 @@ function ReportsScreen() {
           </tbody>
         </table>
       </Card>
+=======
+      {renderActiveReport()}
+>>>>>>> Stashed changes
     </div>
   );
 }
+
 
 // ─── EXPENSES SCREEN ──────────────────────────────────────────────────────────
 
@@ -5875,6 +5913,7 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
   const [reference, setReference] = useState("");
   const [status, setStatus] = useState("Paid");
 
+<<<<<<< Updated upstream
   const resetForm = () => {
     setCategory("Rent");
     setDescription("");
@@ -5903,6 +5942,8 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
     setShowModal(false);
   };
 
+=======
+>>>>>>> Stashed changes
   return (
     <div className="space-y-5">
       {showModal && (
@@ -5910,8 +5951,13 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
           <div className="space-y-4">
             <Select
               label="Category"
+<<<<<<< Updated upstream
               value={category}
               onChange={setCategory}
+=======
+              value="Rent"
+              onChange={() => {}}
+>>>>>>> Stashed changes
               options={[
                 "Rent",
                 "Utilities",
@@ -5922,6 +5968,7 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
                 "Other",
               ]}
             />
+<<<<<<< Updated upstream
             <Input
               label="Description"
               placeholder="August rent payment"
@@ -5934,13 +5981,27 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
                 placeholder="45000"
                 value={amount}
                 onChange={setAmount}
+=======
+            <Input label="Description" placeholder="August rent payment" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Amount (₹)" placeholder="45000" />
+              <Input
+                label="Date"
+                type="date"
+                value={new Date().toISOString().slice(0, 10)}
+>>>>>>> Stashed changes
               />
               <Input label="Date" type="date" value={date} onChange={setDate} />
             </div>
             <Select
               label="Payment Mode"
+<<<<<<< Updated upstream
               value={paymentMode}
               onChange={setPaymentMode}
+=======
+              value="Bank Transfer"
+              onChange={() => {}}
+>>>>>>> Stashed changes
               options={[
                 "Cash",
                 "Bank Transfer",
@@ -5949,6 +6010,7 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
                 "Cheque",
               ]}
             />
+<<<<<<< Updated upstream
             <Input
               label="Reference / Receipt No."
               placeholder="REF-001"
@@ -5961,6 +6023,9 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
               onChange={setStatus}
               options={["Paid", "Pending", "Overdue"]}
             />
+=======
+            <Input label="Reference / Receipt No." placeholder="REF-001" />
+>>>>>>> Stashed changes
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -5971,7 +6036,7 @@ function ExpensesScreen({ expenses = [], onAddExpense = () => {} }) {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={handleSave}
+                onClick={() => setShowModal(false)}
                 className="flex-1 justify-center"
               >
                 Save Expense
