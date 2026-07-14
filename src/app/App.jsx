@@ -7915,10 +7915,16 @@ function AppRoutes() {
 
   useEffect(() => {
     const routePage = getPageFromPath(location.pathname);
+
+    // When user lands on /app (no page segment), pick role-based default.
+    if (location.pathname === "/app") {
+      setPage(role === "superadmin" ? "super-dashboard" : "dashboard");
+      return;
+    }
+
+    // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
     if (routePage) {
       setPage(routePage);
-    } else if (location.pathname === "/app") {
-      setPage(role === "superadmin" ? "super-dashboard" : "dashboard");
     }
   }, [location.pathname, role]);
 
