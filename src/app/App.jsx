@@ -3562,7 +3562,17 @@ function ProductsScreen() {
   // Make products editable so "Save Product" updates the table below.
   const [productList, setProductList] = useState(products);
 
-  const cats = ["All", "Electronics", "Clothing", "Groceries", "Hardware"];
+  // --- ADDED FOR DYNAMIC CATEGORIES IN PROJECT 1 ---
+  const [categories, setCategories] = useState([
+    "Electronics",
+    "Clothing",
+    "Groceries",
+    "Hardware",
+  ]);
+  const [newCategory, setNewCategory] = useState("");
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
+  const [showEditCategoryInput, setShowEditCategoryInput] = useState(false);
+  // -------------------------------------------------
 
   const [form, setForm] = useState({
     name: "",
@@ -3608,12 +3618,14 @@ function ProductsScreen() {
         />
       )}
 
+      {/* EDIT PRODUCT MODAL */}
       {showEditModal && editId !== null && (
         <Modal
           title="Edit Product"
           onClose={() => {
             setShowEditModal(false);
             setEditId(null);
+            setShowEditCategoryInput(false);
           }}
         >
           <div className="space-y-4">
@@ -3634,10 +3646,43 @@ function ProductsScreen() {
               <Select
                 label="Category"
                 value={editForm.category}
-                onChange={(v) => setEditForm((f) => ({ ...f, category: v }))}
-                options={cats.slice(1)}
+                onChange={(v) => {
+                  if (v === "+ Add Category") {
+                    setShowEditCategoryInput(true);
+                  } else {
+                    setEditForm((f) => ({ ...f, category: v }));
+                    setShowEditCategoryInput(false);
+                  }
+                }}
+                options={[...categories, "+ Add Category"]}
               />
             </div>
+
+            {/* Conditionally rendered Add Category field in Edit Modal */}
+            {showEditCategoryInput && (
+              <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                <Input
+                  label="New Category"
+                  value={newCategory}
+                  onChange={setNewCategory}
+                  placeholder="Enter category name"
+                />
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (newCategory.trim()) {
+                      setCategories([...categories, newCategory]);
+                      setEditForm((f) => ({ ...f, category: newCategory }));
+                      setNewCategory("");
+                      setShowEditCategoryInput(false);
+                    }
+                  }}
+                >
+                  Save Category
+                </Btn>
+              </div>
+            )}
 
             <Select
               label="Supplier"
@@ -3695,6 +3740,7 @@ function ProductsScreen() {
                 onClick={() => {
                   setShowEditModal(false);
                   setEditId(null);
+                  setShowEditCategoryInput(false);
                 }}
                 className="flex-1 justify-center"
               >
@@ -3728,6 +3774,7 @@ function ProductsScreen() {
                   );
                   setShowEditModal(false);
                   setEditId(null);
+                  setShowEditCategoryInput(false);
                   showToast("Product updated successfully", "success");
                 }}
                 className="flex-1 justify-center"
@@ -3739,8 +3786,15 @@ function ProductsScreen() {
         </Modal>
       )}
 
+      {/* ADD NEW PRODUCT MODAL */}
       {showModal && (
-        <Modal title="Add New Product" onClose={() => setShowModal(false)}>
+        <Modal 
+          title="Add New Product" 
+          onClose={() => {
+            setShowModal(false);
+            setShowCategoryInput(false);
+          }}
+        >
           <div className="space-y-4">
             <Input
               label="Product Name"
@@ -3759,10 +3813,44 @@ function ProductsScreen() {
               <Select
                 label="Category"
                 value={form.category}
-                onChange={(v) => setForm((f) => ({ ...f, category: v }))}
-                options={cats.slice(1)}
+                onChange={(v) => {
+                  if (v === "+ Add Category") {
+                    setShowCategoryInput(true);
+                  } else {
+                    setForm((f) => ({ ...f, category: v }));
+                    setShowCategoryInput(false);
+                  }
+                }}
+                options={[...categories, "+ Add Category"]}
               />
             </div>
+
+            {/* Conditionally rendered Add Category field in Add Modal */}
+            {showCategoryInput && (
+              <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                <Input
+                  label="New Category"
+                  value={newCategory}
+                  onChange={setNewCategory}
+                  placeholder="Enter category name"
+                />
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (newCategory.trim()) {
+                      setCategories([...categories, newCategory]);
+                      setForm((f) => ({ ...f, category: newCategory }));
+                      setNewCategory("");
+                      setShowCategoryInput(false);
+                    }
+                  }}
+                >
+                  Save Category
+                </Btn>
+              </div>
+            )}
+
             <Select
               label="Supplier"
               value={form.supplier}
@@ -3814,6 +3902,7 @@ function ProductsScreen() {
                 variant="outline"
                 onClick={() => {
                   setShowModal(false);
+                  setShowCategoryInput(false);
                 }}
                 className="flex-1 justify-center"
               >
@@ -3849,6 +3938,7 @@ function ProductsScreen() {
                   ]);
 
                   setShowModal(false);
+                  setShowCategoryInput(false);
                   setForm({
                     name: "",
                     sku: "",
@@ -3871,6 +3961,7 @@ function ProductsScreen() {
         </Modal>
       )}
 
+      {/* FILTER AND HEADER CONTROLS */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-48">
           <Input
@@ -3881,7 +3972,7 @@ function ProductsScreen() {
           />
         </div>
         <div className="flex items-center gap-2">
-          {cats.map((c) => (
+          {["All", ...categories].map((c) => (
             <button
               key={c}
               onClick={() => setCatFilter(c)}
@@ -3904,6 +3995,7 @@ function ProductsScreen() {
         </Btn>
       </div>
 
+      {/* TABLE SECTION */}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -4025,7 +4117,6 @@ function ProductsScreen() {
     </div>
   );
 }
-
 // ─── POS / BILLING SCREEN ─────────────────────────────────────────────────────
 
 function POSScreen() {
