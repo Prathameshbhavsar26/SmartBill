@@ -958,7 +958,7 @@ function StatCard({ label, value, sub, trend, icon, color }) {
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
           <h3 className="font-semibold text-slate-900">{title}</h3>
           <button
@@ -4771,6 +4771,50 @@ function PurchaseScreen() {
 // ─── INVENTORY SCREEN ─────────────────────────────────────────────────────────
 
 function InventoryScreen() {
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustProductId, setAdjustProductId] = useState(null);
+  const [adjustAmount, setAdjustAmount] = useState("1");
+  const [adjustMode, setAdjustMode] = useState("increase");
+
+  const [localProductList, setLocalProductList] = useState(products);
+
+  const selectedProduct =
+    localProductList.find((p) => p.id === adjustProductId) ?? null;
+
+  const openAdjust = (productId) => {
+    setAdjustProductId(productId ?? null);
+    setAdjustMode("increase");
+    setAdjustAmount("1");
+    setAdjustOpen(true);
+  };
+
+  const applyAdjustment = () => {
+    if (selectedProduct == null) return;
+    const amt = Math.max(0, Number(adjustAmount || 0));
+    if (!Number.isFinite(amt) || amt <= 0) return;
+
+    setLocalProductList((prev) =>
+      prev.map((p) =>
+        p.id !== selectedProduct.id
+          ? p
+          : {
+              ...p,
+              stock:
+                adjustMode === "increase"
+                  ? p.stock + amt
+                  : Math.max(0, p.stock - amt),
+              status:
+                p.stock + (adjustMode === "increase" ? amt : -amt) <= 0
+                  ? "Inactive"
+                  : p.status,
+            },
+      ),
+    );
+
+    setAdjustOpen(false);
+    setAdjustProductId(null);
+  };
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -4848,93 +4892,40 @@ function InventoryScreen() {
         </div>
       </Card>
 
-      <Card>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="font-semibold text-slate-900">Current Stock</h3>
-          <div className="flex gap-2">
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<RefreshCw className="w-3.5 h-3.5" />}
-            >
-              Adjust Stock
-            </Btn>
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<Download className="w-3.5 h-3.5" />}
-            >
-              Export
-            </Btn>
-          </div>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100">
-              {[
-                "Product",
-                "Category",
-                "In Stock",
-                "Min Level",
-                "Value",
-                "Status",
-              ].map((h) => (
-                <th
-                  key={h}
-                  className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {products.map((p) => (
-              <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-5 py-3.5">
-                  <p className="font-medium text-slate-900">{p.name}</p>
-                  <p className="text-xs text-slate-400 font-mono">{p.sku}</p>
-                </td>
-                <td className="px-5 py-3.5">
-                  <Badge label={p.category} variant="blue" />
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`font-bold font-mono ${p.stock === 0 ? "text-red-500" : p.stock <= p.minStock ? "text-amber-600" : "text-slate-900"}`}
-                    >
-                      {p.stock}
-                    </span>
-                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.min(100, (p.stock / 50) * 100)}%`,
-                          backgroundColor:
-                            p.stock === 0
-                              ? "#EF4444"
-                              : p.stock <= p.minStock
-                                ? "#F59E0B"
-                                : "#10B981",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-slate-600 font-mono">
-                  {p.minStock}
-                </td>
-                <td className="px-5 py-3.5 font-medium text-slate-900">
-                  {fmt(p.price * p.stock)}
-                </td>
-                <td className="px-5 py-3.5">
-                  {statusBadge(p.stock === 0 ? "Inactive" : p.status)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      {adjustOpen && selectedProduct && (
+        <Modal
+          title="Adjust Stock"
+          onClose={() => {
+            setAdjustOpen(false);
+            setAdjustProductId(null);
+          }}
+        >
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Selected Product
+              </p>
+              <p className="mt-1 font-semibold text-slate-900">
+                {selectedProduct.name}
+              </p>
+              <p className="text-xs text-slate-500 font-mono mt-1">
+                {selectedProduct.sku}
+              </p>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-xs text-slate-500">Current Stock</p>
+                  <p className="text-lg font-bold text-slate-900 font-mono">
+                    {selectedProduct.stock}
+                  </p>
+                </div>
+                <div className="w-px h-10 bg-slate-200" />
+                <div className="flex-1">
+                  <p className="text-xs text-slate-500">Min Stock</p>
+                  <p className="text-lg font-bold text-slate-900 font-mono">
+                    {selectedProduct.minStock}
+                  </p>
+                </div>
+              </div>
     </div>
   );
 }
@@ -5010,21 +5001,95 @@ function ReportsScreen() {
   );
 }
 
-
 // ─── EXPENSES SCREEN ──────────────────────────────────────────────────────────
 
 function ExpensesScreen() {
   const [showModal, setShowModal] = useState(false);
 
+  const [expenseList, setExpenseList] = useState(expenses);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type) => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const [form, setForm] = useState({
+    category: "Rent",
+    description: "",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    paymentMode: "Bank Transfer",
+    referenceNo: "",
+    status: "Paid",
+  });
+
+  const handleSaveExpense = () => {
+    const amountNum = Number(form.amount || 0);
+    if (!form.category) {
+      showToast("Please select category", "error");
+      return;
+    }
+    if (!form.description.trim()) {
+      showToast("Description is required", "error");
+      return;
+    }
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      showToast("Amount must be greater than 0", "error");
+      return;
+    }
+    if (!form.date) {
+      showToast("Date is required", "error");
+      return;
+    }
+
+    const newId =
+      expenseList.length > 0
+        ? Math.max(...expenseList.map((x) => x.id)) + 1
+        : 1;
+
+    const newExpense = {
+      id: newId,
+      category: form.category,
+      description: form.description.trim(),
+      date: form.date,
+      amount: amountNum,
+      paymentMode: form.paymentMode,
+      status: form.status,
+    };
+
+    setExpenseList((prev) => [...prev, newExpense]);
+    setShowModal(false);
+    showToast("Expense added successfully", "success");
+
+    setForm({
+      category: "Rent",
+      description: "",
+      amount: "",
+      date: new Date().toISOString().slice(0, 10),
+      paymentMode: "Bank Transfer",
+      referenceNo: "",
+      status: "Paid",
+    });
+  };
+
   return (
     <div className="space-y-5">
+      {toast && (
+        <Toast
+          message={toast.msg}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {showModal && (
         <Modal title="Add Expense" onClose={() => setShowModal(false)}>
           <div className="space-y-4">
             <Select
               label="Category"
-              value="Rent"
-              onChange={() => {}}
+              value={form.category}
+              onChange={(v) => setForm((f) => ({ ...f, category: v }))}
               options={[
                 "Rent",
                 "Utilities",
@@ -5035,19 +5100,30 @@ function ExpensesScreen() {
                 "Other",
               ]}
             />
-            <Input label="Description" placeholder="August rent payment" />
+            <Input
+              label="Description"
+              placeholder="August rent payment"
+              value={form.description}
+              onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+            />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Amount (₹)" placeholder="45000" />
+              <Input
+                label="Amount (₹)"
+                placeholder="45000"
+                value={form.amount}
+                onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
+              />
               <Input
                 label="Date"
                 type="date"
-                value={new Date().toISOString().slice(0, 10)}
+                value={form.date}
+                onChange={(v) => setForm((f) => ({ ...f, date: v }))}
               />
             </div>
             <Select
               label="Payment Mode"
-              value="Bank Transfer"
-              onChange={() => {}}
+              value={form.paymentMode}
+              onChange={(v) => setForm((f) => ({ ...f, paymentMode: v }))}
               options={[
                 "Cash",
                 "Bank Transfer",
@@ -5056,7 +5132,12 @@ function ExpensesScreen() {
                 "Cheque",
               ]}
             />
-            <Input label="Reference / Receipt No." placeholder="REF-001" />
+            <Input
+              label="Reference / Receipt No."
+              placeholder="REF-001"
+              value={form.referenceNo}
+              onChange={(v) => setForm((f) => ({ ...f, referenceNo: v }))}
+            />
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -5067,7 +5148,7 @@ function ExpensesScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => setShowModal(false)}
+                onClick={handleSaveExpense}
                 className="flex-1 justify-center"
               >
                 Save Expense
@@ -5137,7 +5218,7 @@ function ExpensesScreen() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {expenses.map((e) => (
+            {expenseList.map((e) => (
               <tr
                 key={e.id}
                 className="hover:bg-slate-50 transition-colors group"
