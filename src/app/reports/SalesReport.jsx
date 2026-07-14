@@ -105,234 +105,217 @@ const topProducts = [
   { name: "Zeronics Mouse", qty: 22, revenue: 98978 },
 ];
 
+const toDate = (v) => {
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const inRange = (dateStr, appliedFrom, appliedTo) => {
+  const d = toDate(dateStr);
+  if (!d || !appliedFrom || !appliedTo) return true;
+  const f = toDate(appliedFrom);
+  const t = toDate(appliedTo);
+  if (!f || !t) return true;
+  return d >= f && d <= t;
+};
+
 export default function SalesReport() {
-  const derived = useMemo(() => {
-
-    const totalRevenue = salesData.reduce((s, d) => s + d.sales, 0);
-    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-    const netProfit = salesData.reduce((s, d) => s + d.profit, 0);
-    const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-
-    return {
-      totalRevenue,
-      totalExpenses,
-      netProfit,
-      margin,
-    };
-  }, []);
-
   return (
     <div className="space-y-5">
       <div className="flex gap-2 flex-wrap"></div>
 
-      <ReportFilters />
+      <ReportFilters>
+        {({ from: appliedFrom, to: appliedTo }) => {
+          const filteredSales = salesData.filter((d) =>
+            inRange(d.month, appliedFrom, appliedTo)
+          );
 
+          const filteredExpenses = expenses.filter((e) =>
+            inRange("2024-08-10", appliedFrom, appliedTo)
+          );
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {[
-          {
-            value: fmt(derived.totalRevenue),
-            label: "Total Revenue",
-            sub: "+12% this month",
-            trend: "up",
-          },
-          {
-            value: fmt(derived.totalExpenses),
-            label: "Total Expenses",
-            sub: "+3% this month",
-            trend: "up",
-          },
-          {
-            value: fmt(derived.netProfit),
-            label: "Net Profit",
-            sub: "+24% this month",
-            trend: "up",
-          },
-          {
-            value: `${derived.margin.toFixed(1)}%`,
-            label: "Profit Margin",
-            sub: "+5% this month",
-            trend: "up",
-          },
-        ].map((s) => (
-          <Card key={s.label} className="p-4">
-            <p className="text-xl font-bold text-slate-900">{s.value}</p>
-            <p className="text-xs text-slate-500 mt-0.5 mb-2">{s.label}</p>
-            <span
-              className={`text-xs font-medium flex items-center gap-1 ${
-                s.trend === "up" ? "text-emerald-600" : "text-red-500"
-              }`}
-            >
-              {s.trend === "up" ? (
-                <ArrowUpRight className="w-3 h-3" />
-              ) : (
-                <ArrowDownRight className="w-3 h-3" />
-              )}
-              {s.sub}
-            </span>
-          </Card>
-        ))}
-      </div>
+          const derived = {
+            totalRevenue: filteredSales.reduce((s, d) => s + d.sales, 0),
+            totalExpenses: filteredExpenses.reduce((s, e) => s + e.amount, 0),
+            netProfit: filteredSales.reduce((s, d) => s + d.profit, 0),
+          };
+          derived.margin =
+            derived.totalRevenue > 0
+              ? (derived.netProfit / derived.totalRevenue) * 100
+              : 0;
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <ReportCard className="p-5">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-slate-900">Monthly Revenue Trend</h3>
-            <div className="flex gap-2">
-              {[
-                "2024",
-                "2023",
-              ].map((y) => (
-                <button
-                  key={y}
-                  className={`text-xs px-2.5 py-1 rounded-lg ${y === "2024" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={salesData}>
-              <defs>
-                <linearGradient id="repSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="month" tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v / 1000}K`} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-                formatter={(v) => [`₹${Number(v).toLocaleString("en-IN")}`, ""]}
-              />
-              <Area
-                type="monotone"
-                dataKey="sales"
-                stroke="#2563EB"
-                strokeWidth={2.5}
-                fill="url(#repSales)"
-                name="Sales"
-              />
-              <Area
-                type="monotone"
-                dataKey="profit"
-                stroke="#10B981"
-                strokeWidth={2}
-                fill="none"
-                name="Profit"
-                strokeDasharray="4 2"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </ReportCard>
+          const filteredInvoices = invoices.filter((inv) =>
+            inRange(inv.date, appliedFrom, appliedTo)
+          );
 
-        <ReportCard className="p-5">
-          <h3 className="font-semibold text-slate-900 mb-5">Expense Breakdown</h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart
-              data={expenses.map((e) => ({ name: e.category, v: e.amount }))}
-              barSize={32}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="name" tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v / 1000}K`} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-                formatter={(v) => [`₹${Number(v).toLocaleString("en-IN")}`, ""]}
-              />
-              <Bar dataKey="v" fill="#6366F1" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-4 space-y-2">
-            {expenses.slice(0, 4).map((e) => (
-              <div key={e.id} className="flex items-center justify-between text-xs">
-                <span className="text-slate-600">{e.category}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(e.amount / 125000) * 100}%` }} />
-                  </div>
-                  <span className="font-mono font-medium text-slate-900 w-20 text-right">{fmt(e.amount)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </ReportCard>
-      </div>
-
-      <ReportCard className="p-5">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">Top selling products</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {topProducts.map((p) => (
-            <div key={p.name} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-semibold text-slate-900">{p.name}</p>
-                <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold">Qty {p.qty}</span>
-              </div>
-              <p className="text-sm text-slate-600">Revenue</p>
-              <p className="text-lg font-bold text-slate-900">{fmt(p.revenue)}</p>
-            </div>
-          ))}
-        </div>
-      </ReportCard>
-
-      <ReportCard className="p-5">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">Recent transactions</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
+          return (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {[
-                  "Invoice",
-                  "Customer",
-                  "Date",
-                  "Amount",
-                  "GST",
-                  "Total",
-                  "Status",
-                ].map((h) => (
-                  <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {invoices.map((inv) => (
-                <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3.5 font-mono text-xs text-blue-600">{inv.id}</td>
-                  <td className="px-5 py-3.5 font-medium text-slate-900">{inv.customer}</td>
-                  <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">{inv.date}</td>
-                  <td className="px-5 py-3.5 text-slate-900">{fmt(inv.amount)}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{fmt(inv.gst)}</td>
-                  <td className="px-5 py-3.5 font-semibold text-slate-900">{fmt(inv.total)}</td>
-                  <td className="px-5 py-3.5">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 border border-slate-200 text-slate-600">
-                      {inv.status}
+                  {
+                    value: fmt(derived.totalRevenue),
+                    label: "Total Revenue",
+                    sub: "+12% this month",
+                    trend: "up",
+                  },
+                  {
+                    value: fmt(derived.totalExpenses),
+                    label: "Total Expenses",
+                    sub: "+3% this month",
+                    trend: "up",
+                  },
+                  {
+                    value: fmt(derived.netProfit),
+                    label: "Net Profit",
+                    sub: "+24% this month",
+                    trend: "up",
+                  },
+                  {
+                    value: `${derived.margin.toFixed(1)}%`,
+                    label: "Profit Margin",
+                    sub: "+5% this month",
+                    trend: "up",
+                  },
+                ].map((s) => (
+                  <Card key={s.label} className="p-4">
+                    <p className="text-xl font-bold text-slate-900">{s.value}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 mb-2">{s.label}</p>
+                    <span
+                      className={`text-xs font-medium flex items-center gap-1 ${
+                        s.trend === "up" ? "text-emerald-600" : "text-red-500"
+                      }`}
+                    >
+                      {s.trend === "up" ? (
+                        <ArrowUpRight className="w-3 h-3" />
+                      ) : (
+                        <ArrowDownRight className="w-3 h-3" />
+                      )}
+                      {s.sub}
                     </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </ReportCard>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <ReportCard className="p-5">
+                  <div className="flex items-center justify-between mb-5">
+                    <h3 className="font-semibold text-slate-900">Monthly Revenue Trend</h3>
+                  </div>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <AreaChart data={salesData.filter((d) => inRange("2024-08-01", appliedFrom, appliedTo))}>
+                      <defs>
+                        <linearGradient id="repSales" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                      <XAxis dataKey="month" tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v / 1000}K`} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#fff",
+                          border: "1px solid #E2E8F0",
+                          borderRadius: 10,
+                          fontSize: 12,
+                        }}
+                        formatter={(v) => [`₹${Number(v).toLocaleString("en-IN")}`, ""]}
+                      />
+                      <Area type="monotone" dataKey="sales" stroke="#2563EB" strokeWidth={2.5} fill="url(#repSales)" name="Sales" />
+                      <Area type="monotone" dataKey="profit" stroke="#10B981" strokeWidth={2} fill="none" name="Profit" strokeDasharray="4 2" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </ReportCard>
+
+                <ReportCard className="p-5">
+                  <h3 className="font-semibold text-slate-900 mb-5">Expense Breakdown</h3>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={expenses.map((e) => ({ name: e.category, v: e.amount }))} barSize={32}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                      <XAxis dataKey="name" tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v / 1000}K`} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#fff",
+                          border: "1px solid #E2E8F0",
+                          borderRadius: 10,
+                          fontSize: 12,
+                        }}
+                        formatter={(v) => [`₹${Number(v).toLocaleString("en-IN")}`, ""]}
+                      />
+                      <Bar dataKey="v" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ReportCard>
+              </div>
+
+              <ReportCard className="p-5">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="font-semibold text-slate-900">Top selling products</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {topProducts.map((p) => (
+                    <div key={p.name} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-semibold text-slate-900">{p.name}</p>
+                        <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold">Qty {p.qty}</span>
+                      </div>
+                      <p className="text-sm text-slate-600">Revenue</p>
+                      <p className="text-lg font-bold text-slate-900">{fmt(p.revenue)}</p>
+                    </div>
+                  ))}
+                </div>
+              </ReportCard>
+
+              <ReportCard className="p-5">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="font-semibold text-slate-900">Recent transactions</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        {[
+                          "Invoice",
+                          "Customer",
+                          "Date",
+                          "Amount",
+                          "GST",
+                          "Total",
+                          "Status",
+                        ].map((h) => (
+                          <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {filteredInvoices.map((inv) => (
+                        <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-3.5 font-mono text-xs text-blue-600">{inv.id}</td>
+                          <td className="px-5 py-3.5 font-medium text-slate-900">{inv.customer}</td>
+                          <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">{inv.date}</td>
+                          <td className="px-5 py-3.5 text-slate-900">{fmt(inv.amount)}</td>
+                          <td className="px-5 py-3.5 text-slate-600">{fmt(inv.gst)}</td>
+                          <td className="px-5 py-3.5 font-semibold text-slate-900">{fmt(inv.total)}</td>
+                          <td className="px-5 py-3.5">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 border border-slate-200 text-slate-600">
+                              {inv.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ReportCard>
+            </>
+          );
+        }}
+      </ReportFilters>
     </div>
   );
 }
+
 

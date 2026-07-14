@@ -9,7 +9,10 @@ import { useReportFilters } from "../useReportFilters";
  * Props:
  * - onAppliedRangeChange(appliedRange): optional callback whenever the user clicks Apply
  */
-export default function ReportFilters({ onAppliedRangeChange }) {
+export default function ReportFilters({
+  onAppliedRangeChange,
+  children,
+}) {
   const { from, to, setFrom, setTo, appliedRange, apply } = useReportFilters();
 
   React.useEffect(() => {
@@ -17,13 +20,17 @@ export default function ReportFilters({ onAppliedRangeChange }) {
   }, [appliedRange, onAppliedRangeChange]);
 
   return (
-    <FilterBar
-      from={from}
-      to={to}
-      onFromChange={setFrom}
-      onToChange={setTo}
-      onApply={apply}
-    />
+    <>
+      <FilterBar
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        onApply={apply}
+      />
+      {typeof children === "function" ? children(appliedRange) : children}
+    </>
   );
 }
+
 
