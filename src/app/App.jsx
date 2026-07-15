@@ -2199,13 +2199,11 @@ function SuperAdminDashboard() {
         ? adminStats1Y
         : adminStats6M;
 
-  // Ensure charts visually change per tab (mock/demo).
-  // Use an additional transformed dataset for each range so the curve/points differ.
+  // Demo-only: transform dataset per tab so the chart visually changes.
   const revenueChartData =
     revenueRange === "3M"
       ? adminStats3M.map((d) => ({
           ...d,
-          // add a small variation so the chart is clearly different per range
           revenue: Math.round(Number(d.revenue) * 1.02),
         }))
       : revenueRange === "1Y"
@@ -2284,7 +2282,7 @@ function SuperAdminDashboard() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={revenueData}>
+            <AreaChart data={revenueChartData}>
               <defs>
                 <linearGradient id="adminGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
@@ -5758,6 +5756,7 @@ function UsersScreen() {
 // ─── BUSINESSES SCREEN (SUPER ADMIN) ─────────────────────────────────────────
 
 function BusinessesScreen() {
+  // Businesses module: only show the Businesses + Owner table (no extra blocks)
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState(null);
   const [revenueRange, setRevenueRange] = useState("6M");
