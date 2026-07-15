@@ -2165,135 +2165,197 @@ function AuthScreen({ view, onNav, onLogin }) {
 
 // ─── SUPER ADMIN DASHBOARD ────────────────────────────────────────────────────
 
-function BusinessesScreen() {
-  const [search, setSearch] = useState("");
+function SuperAdminDashboard() {
+  const [revenueRange, setRevenueRange] = useState("6M");
 
-  const filtered = businesses.filter(
-    (b) =>
-      b.name.toLowerCase().includes(search.toLowerCase()) ||
-      b.owner.toLowerCase().includes(search.toLowerCase()) ||
-      b.plan.toLowerCase().includes(search.toLowerCase()) ||
-      String(b.status).toLowerCase().includes(search.toLowerCase()),
-  );
+  const revenueData =
+    revenueRange === "3M"
+      ? adminStats3M
+      : revenueRange === "1Y"
+        ? adminStats1Y
+        : adminStats6M;
+
+  // Ensure charts visually change per tab (mock/demo).
+  // Use an additional transformed dataset for each range so the curve/points differ.
+  const revenueChartData =
+    revenueRange === "3M"
+      ? adminStats3M.map((d) => ({
+          ...d,
+          // add a small variation so the chart is clearly different per range
+          revenue: Math.round(Number(d.revenue) * 1.02),
+        }))
+      : revenueRange === "1Y"
+        ? adminStats1Y.map((d) => ({
+            ...d,
+            revenue: Math.round(Number(d.revenue) * 1.06),
+          }))
+        : adminStats6M.map((d) => ({
+            ...d,
+            revenue: Math.round(Number(d.revenue) * 1.04),
+          }));
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex-1 min-w-48">
-          <Input
-            value={search}
-            onChange={setSearch}
-            placeholder="Search businesses..."
-            icon={<Search className="w-4 h-4" />}
-          />
-        </div>
-        <div className="flex gap-2">
-          <Btn
-            variant="outline"
-            size="md"
-            icon={<Filter className="w-4 h-4" />}
-          >
-            Filter
-          </Btn>
-          <Btn
-            variant="outline"
-            size="md"
-            icon={<Download className="w-4 h-4" />}
-          >
-            Export
-          </Btn>
-        </div>
+    <div className="space-y-6">
+      {/* Businesses table moved here from CustomersScreen (customers) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Total Businesses"
+          value="1,248"
+          sub="+12% this month"
+          trend="up"
+          icon={<Building2 className="w-5 h-5" />}
+          color="bg-blue-50 text-blue-600"
+        />
+        <StatCard
+          label="Total Users"
+          value="8,432"
+          sub="+8.4% this month"
+          trend="up"
+          icon={<Users className="w-5 h-5" />}
+          color="bg-emerald-50 text-emerald-600"
+        />
+        <StatCard
+          label="Active Subscriptions"
+          value="1,104"
+          sub="88.4% of total"
+          trend="up"
+          icon={<CreditCard className="w-5 h-5" />}
+          color="bg-purple-50 text-purple-600"
+        />
+        <StatCard
+          label="MRR"
+          value="₹28.4L"
+          sub="+21% this month"
+          trend="up"
+          icon={<DollarSign className="w-5 h-5" />}
+          color="bg-amber-50 text-amber-600"
+        />
       </div>
 
-      <Card>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="font-semibold text-slate-900">Business Management</h3>
-          <div className="flex gap-2">
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<Filter className="w-3.5 h-3.5" />}
-            >
-              Filter
-            </Btn>
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<Download className="w-3.5 h-3.5" />}
-            >
-              Export
-            </Btn>
+      <div className="grid grid-cols-1 gap-5">
+        <Card className="w-full p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-semibold text-slate-900">
+                Revenue Analytics
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Monthly recurring revenue
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {["3M", "6M", "1Y"].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setRevenueRange(t)}
+                  className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                    revenueRange === t
+                      ? "bg-red-600 text-white"
+                      : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  "Business",
-                  "Owner",
-                  "Plan",
-                  "Users",
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={revenueData}>
+              <defs>
+                <linearGradient id="adminGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+              <XAxis
+                dataKey="month"
+                tick={{ fill: "#94A3B8", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: "#94A3B8", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 10,
+                  fontSize: 12,
+                }}
+                formatter={(v) => [
+                  `₹${Number(v).toLocaleString("en-IN")}`,
                   "Revenue",
-                  "Status",
-                  "Joined",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                  >
-                    {h}
-                  </th>
+                ]}
+              />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="#2563EB"
+                strokeWidth={2.5}
+                fill="url(#adminGrad)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+        <Card className="p-5">
+          <h3 className="font-semibold text-slate-900 mb-5">
+            Plan Distribution
+          </h3>
+          <ResponsiveContainer width="100%" height={180}>
+            <RechartsPie>
+              <Pie
+                data={[
+                  { name: "Starter", value: 480 },
+                  { name: "Pro", value: 512 },
+                  { name: "Enterprise", value: 256 },
+                ]}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                paddingAngle={3}
+                dataKey="value"
+              >
+                {["#CBD5E1", "#2563EB", "#7C3AED"].map((c, i) => (
+                  <Cell key={`plan-${i}`} fill={c} />
                 ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-8">
-                    <EmptyState
-                      icon={<Building2 className="w-6 h-6" />}
-                      title="No businesses found"
-                      sub="Try adjusting your search query"
-                    />
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((b) => (
-                  <tr
-                    key={b.id}
-                    className="hover:bg-slate-50 transition-colors"
-                  >
-                    <td className="px-5 py-3.5 font-medium text-slate-900">
-                      {b.name}
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-600">{b.owner}</td>
-                    <td className="px-5 py-3.5">{statusBadge(b.plan)}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{b.users}</td>
-                    <td className="px-5 py-3.5 font-medium text-slate-900">
-                      {fmt(b.revenue)}
-                    </td>
-                    <td className="px-5 py-3.5">{statusBadge(b.status)}</td>
-                    <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
-                      {b.joined}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
-          <p className="text-xs text-slate-500">
-            Showing {filtered.length} of {businesses.length} businesses
-          </p>
-        </div>
-      </Card>
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 10,
+                  fontSize: 12,
+                }}
+              />
+            </RechartsPie>
+          </ResponsiveContainer>
+          <div className="space-y-2 mt-2">
+            {[
+              ["Starter", "480", "#CBD5E1"],
+              ["Pro", "512", "#2563EB"],
+              ["Enterprise", "256", "#7C3AED"],
+            ].map(([n, v, c]) => (
+              <div key={n} className="flex items-center gap-2 text-xs">
+                <span
+                  className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                  style={{ backgroundColor: c }}
+                />
+                <span className="text-slate-600 flex-1">{n}</span>
+                <span className="font-semibold text-slate-900">{v}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
-
 
 function SuperAdminDashboard() {
   return (
