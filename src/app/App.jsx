@@ -5260,6 +5260,7 @@ function ExpensesScreen() {
 function UsersScreen() {
   const [employeeList, setEmployeeList] = useState(employees);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
 const [name, setName] = useState("");
 const [email, setEmail] = useState("");
@@ -5271,43 +5272,35 @@ const [passwordError, setPasswordError] = useState("");
 const [phoneError, setPhoneError] = useState("");
 
 const handleSaveEmployee = () => {
-  // Password validation
-  const passwordRegex =
-    /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
-  if (!passwordRegex.test(password)) {
-    setPasswordError(
-      "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character."
-    );
-    return;
-  }
-
-  setPasswordError("");
-
-  // Phone number validation
-const phoneRegex = /^[0-9]{10}$/;
-
-if (!phoneRegex.test(phone)) {
-  setPhoneError("Phone number must be exactly 10 digits.");
-  return;
-}
-
-setPhoneError("");
-
-  const newEmployee = {
-    id: Date.now(),
+  const updatedEmployee = {
+    id: editingId ?? Date.now(),
     name,
     email,
     role,
     department,
     phone,
-    lastActive: "Just Now",
+    password,
     status: "Active",
+    lastActive: "Just now",
   };
 
-  setEmployeeList((prev) => [...prev, newEmployee]);
+  if (editingId !== null) {
 
-  // Clear form
+    setEmployeeList(
+      employeeList.map((emp) =>
+        emp.id === editingId ? updatedEmployee : emp
+      )
+    );
+
+  } else {
+
+    setEmployeeList([...employeeList, updatedEmployee]);
+
+  }
+
+  setEditingId(null);
+
   setName("");
   setEmail("");
   setRole("Cashier");
@@ -5316,12 +5309,46 @@ setPhoneError("");
   setPassword("");
 
   setShowModal(false);
+
+};
+
+const handleEdit = (employee) => {
+  setName(employee.name);
+  setEmail(employee.email);
+  setRole(employee.role);
+  setDepartment(employee.department);
+  setPhone(employee.phone || "");
+  setPassword(employee.password || "");
+
+  setEditingId(employee.id);
+
+  setShowModal(true);
+};
+
+const handleDelete = (id) => {
+  if (window.confirm("Delete this employee?")) {
+    setEmployeeList(employeeList.filter((emp) => emp.id !== id));
+  }
 };
 
   return (
     <div className="space-y-5">
       {showModal && (
-        <Modal title="Add Employee" onClose={() => setShowModal(false)}>
+        <Modal
+  title={editingId ? "Update Employee" : "Add Employee"}
+  onClose={() => {
+    setEditingId(null);
+
+    setName("");
+    setEmail("");
+    setRole("Cashier");
+    setDepartment("");
+    setPhone("");
+    setPassword("");
+
+    setShowModal(false);
+  }}
+>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Input
@@ -5409,18 +5436,28 @@ setPhoneError("");
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+  setEditingId(null);
+
+  setName("");
+  setEmail("");
+  setRole("Cashier");
+  setDepartment("");
+  setPhone("");
+  setPassword("");
+
+  setShowModal(false);
+}}
                 className="flex-1 justify-center"
               >
                 Cancel
               </Btn>
               <Btn
-                variant="primary"
-                onClick={handleSaveEmployee}
-                className="flex-1 justify-center"
-              >
-                Add Employee
-              </Btn>
+  variant="primary"
+  onClick={handleSaveEmployee}
+>
+  {editingId ? "Update Employee" : "Add Employee"}
+</Btn>
             </div>
           </div>
         </Modal>
@@ -5430,26 +5467,24 @@ setPhoneError("");
         <Btn
           variant="primary"
           size="md"
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+  setEditingId(null);
+
+  setName("");
+  setEmail("");
+  setRole("Cashier");
+  setDepartment("");
+  setPhone("");
+  setPassword("");
+
+  setShowModal(true);
+}}
           icon={<Plus className="w-4 h-4" />}
         >
           Add Employee
         </Btn>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {[
-          ["4", "Total Users"],
-          ["3", "Active"],
-          ["1", "Inactive"],
-          ["3", "Roles Used"],
-        ].map(([v, l]) => (
-          <Card key={l} className="p-4 text-center">
-            <p className="text-xl font-bold text-slate-900">{v}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{l}</p>
-          </Card>
-        ))}
-      </div>
 
       <Card>
         <table className="w-full text-sm">
@@ -5458,7 +5493,7 @@ setPhoneError("");
               {[
                 "Employee",
                 "Email",
-                "Role",
+                "role",
                 "Department",
                 "Last Active",
                 "Status",
@@ -5493,43 +5528,24 @@ setPhoneError("");
                   </div>
                 </td>
                 <td className="px-5 py-4 text-slate-500 text-xs">{e.email}</td>
-                <td className="px-5 py-4">
-                  {statusBadge(
-                    e.role === "Manager"
-                      ? "Pro"
-                      : e.role === "Accountant"
-                        ? "blue"
-                        : "gray",
-                  ) || (
-                    <Badge
-                      label={e.role}
-                      variant={
-                        e.role === "Manager"
-                          ? "purple"
-                          : e.role === "Accountant"
-                            ? "blue"
-                            : "gray"
-                      }
-                    />
-                  )}
-                </td>
+                <td className="px-5 py-4 text-slate-700 font-medium">{e.role}</td>
                 <td className="px-5 py-4 text-slate-600">{e.department}</td>
-                <td className="px-5 py-4 text-slate-500 text-xs">
-                  {e.lastActive}
-                </td>
+                <td className="px-5 py-4 text-slate-500 text-xs">{e.lastActive}</td>
                 <td className="px-5 py-4">{statusBadge(e.status)}</td>
                 <td className="px-5 py-4">
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Btn
-                      variant="ghost"
-                      size="sm"
-                      icon={<Edit2 className="w-3.5 h-3.5" />}
-                    />
+  variant="ghost"
+  size="sm"
+  onClick={() => handleEdit(e)}
+  icon={<Edit2 className="w-3.5 h-3.5" />}
+/>
                     <Btn
-                      variant="ghost"
-                      size="sm"
-                      icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                    />
+  variant="ghost"
+  size="sm"
+  onClick={() => handleDelete(e.id)}
+  icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+/>
                   </div>
                 </td>
               </tr>
