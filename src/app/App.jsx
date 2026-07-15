@@ -1076,10 +1076,10 @@ const NAV_GROUPS = [
 const SUPER_ADMIN_ITEMS = [
   { key: "super-dashboard", label: "Overview", icon: LayoutDashboard },
   { key: "customers", label: "Businesses", icon: Building2 },
-  { key: "users", label: "Users", icon: Users },
 
   { key: "settings", label: "Settings", icon: Settings },
 ];
+
 
 function Sidebar({ page, onNav, role, collapsed, onToggle }) {
   const isSuperAdmin = role === "superadmin";
@@ -2166,11 +2166,12 @@ function AuthScreen({ view, onNav, onLogin }) {
 function BusinessesScreen() {
   const [search, setSearch] = useState("");
 
-  const filtered = businesses.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase()) ||
-    b.owner.toLowerCase().includes(search.toLowerCase()) ||
-    b.plan.toLowerCase().includes(search.toLowerCase()) ||
-    String(b.status).toLowerCase().includes(search.toLowerCase()),
+  const filtered = businesses.filter(
+    (b) =>
+      b.name.toLowerCase().includes(search.toLowerCase()) ||
+      b.owner.toLowerCase().includes(search.toLowerCase()) ||
+      b.plan.toLowerCase().includes(search.toLowerCase()) ||
+      String(b.status).toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -2203,6 +2204,26 @@ function BusinessesScreen() {
       </div>
 
       <Card>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h3 className="font-semibold text-slate-900">Business Management</h3>
+          <div className="flex gap-2">
+            <Btn
+              variant="outline"
+              size="sm"
+              icon={<Filter className="w-3.5 h-3.5" />}
+            >
+              Filter
+            </Btn>
+            <Btn
+              variant="outline"
+              size="sm"
+              icon={<Download className="w-3.5 h-3.5" />}
+            >
+              Export
+            </Btn>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -2238,7 +2259,10 @@ function BusinessesScreen() {
                 </tr>
               ) : (
                 filtered.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50 transition-colors">
+                  <tr
+                    key={b.id}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
                     <td className="px-5 py-3.5 font-medium text-slate-900">
                       {b.name}
                     </td>
@@ -2267,6 +2291,7 @@ function BusinessesScreen() {
     </div>
   );
 }
+
 
 function SuperAdminDashboard() {
   return (
@@ -2423,70 +2448,7 @@ function SuperAdminDashboard() {
         </Card>
       </div>
 
-      <Card>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="font-semibold text-slate-900">Business Management</h3>
-          <div className="flex gap-2">
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<Filter className="w-3.5 h-3.5" />}
-            >
-              Filter
-            </Btn>
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<Download className="w-3.5 h-3.5" />}
-            >
-              Export
-            </Btn>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  "Business",
-                  "Owner",
-                  "Plan",
-                  "Users",
-                  "Revenue",
-                  "Status",
-                  "Joined",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {businesses.map((b) => (
-                <tr key={b.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-slate-900">
-                    {b.name}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-600">{b.owner}</td>
-                  <td className="px-5 py-3.5">{statusBadge(b.plan)}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{b.users}</td>
-                  <td className="px-5 py-3.5 font-medium text-slate-900">
-                    {fmt(b.revenue)}
-                  </td>
-                  <td className="px-5 py-3.5">{statusBadge(b.status)}</td>
-                  <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
-                    {b.joined}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+
     </div>
   );
 }
