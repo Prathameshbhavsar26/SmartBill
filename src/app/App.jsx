@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import Revenue from "./components/revenue";
 import {
   BrowserRouter,
   Routes,
@@ -1076,6 +1077,7 @@ const NAV_GROUPS = [
 const SUPER_ADMIN_ITEMS = [
   { key: "super-dashboard", label: "Overview", icon: LayoutDashboard },
   { key: "customers", label: "Businesses", icon: Building2 },
+  { key: "revenue", label: "Revenue", icon: BarChart3 },
 
   { key: "settings", label: "Settings", icon: Settings },
 ];
@@ -8165,6 +8167,8 @@ function AppShell({ role, onLogout, page, onNav }) {
         return <SuppliersScreen />;
       case "products":
         return <ProductsScreen />;
+        case "revenue":
+      return <Revenue />;
       case "pos":
         return <POSScreen />;
       case "purchase":
