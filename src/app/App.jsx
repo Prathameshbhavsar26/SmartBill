@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import Revenue from "./components/revenue";
 import {
   BrowserRouter,
   Routes,
@@ -125,31 +126,6 @@ const pieData = [
 ];
 
 const adminStats = [
-  { month: "Jan", businesses: 42, revenue: 520000 },
-  { month: "Feb", businesses: 58, revenue: 720000 },
-  { month: "Mar", businesses: 71, revenue: 880000 },
-  { month: "Apr", businesses: 89, revenue: 1100000 },
-  { month: "May", businesses: 104, revenue: 1280000 },
-  { month: "Jun", businesses: 128, revenue: 1560000 },
-];
-
-// Revenue analytics datasets for Super Admin.
-// These are mock values for UI performance/demo.
-const adminStats3M = adminStats.slice(-3).map((d) => ({
-  ...d,
-  // Keep labels consistent with shorter range
-  month: d.month,
-}));
-
-const adminStats6M = adminStats;
-
-const adminStats1Y = [
-  { month: "Jul", businesses: 98, revenue: 1180000 },
-  { month: "Aug", businesses: 112, revenue: 1320000 },
-  { month: "Sep", businesses: 124, revenue: 1490000 },
-  { month: "Oct", businesses: 137, revenue: 1650000 },
-  { month: "Nov", businesses: 150, revenue: 1760000 },
-  { month: "Dec", businesses: 162, revenue: 1920000 },
   { month: "Jan", businesses: 42, revenue: 520000 },
   { month: "Feb", businesses: 58, revenue: 720000 },
   { month: "Mar", businesses: 71, revenue: 880000 },
@@ -1100,11 +1076,12 @@ const NAV_GROUPS = [
 
 const SUPER_ADMIN_ITEMS = [
   { key: "super-dashboard", label: "Overview", icon: LayoutDashboard },
-  { key: "users", label: "Users", icon: Users },
-  { key: "businesses", label: "Businesses", icon: Building2 },
-  { key: "reports", label: "Revenue", icon: BarChart3 },
+  
+  { key: "revenue", label: "Revenue", icon: BarChart3 },
+
   { key: "settings", label: "Settings", icon: Settings },
 ];
+
 
 function Sidebar({ page, onNav, role, collapsed, onToggle }) {
   const isSuperAdmin = role === "superadmin";
@@ -1227,7 +1204,6 @@ function Sidebar({ page, onNav, role, collapsed, onToggle }) {
 const PAGE_LABELS = {
   dashboard: "Dashboard",
   "super-dashboard": "Admin Overview",
-  businesses: "Businesses",
   customers: "Customers",
   suppliers: "Suppliers",
   products: "Products",
@@ -2189,36 +2165,11 @@ function AuthScreen({ view, onNav, onLogin }) {
 
 // ─── SUPER ADMIN DASHBOARD ────────────────────────────────────────────────────
 
+
+
 function SuperAdminDashboard() {
-  const [revenueRange, setRevenueRange] = useState("6M");
-
-  const revenueData =
-    revenueRange === "3M"
-      ? adminStats3M
-      : revenueRange === "1Y"
-        ? adminStats1Y
-        : adminStats6M;
-
-  // Demo-only: transform dataset per tab so the chart visually changes.
-  const revenueChartData =
-    revenueRange === "3M"
-      ? adminStats3M.map((d) => ({
-          ...d,
-          revenue: Math.round(Number(d.revenue) * 1.02),
-        }))
-      : revenueRange === "1Y"
-        ? adminStats1Y.map((d) => ({
-            ...d,
-            revenue: Math.round(Number(d.revenue) * 1.06),
-          }))
-        : adminStats6M.map((d) => ({
-            ...d,
-            revenue: Math.round(Number(d.revenue) * 1.04),
-          }));
-
   return (
     <div className="space-y-6">
-      {/* Businesses table moved here from CustomersScreen (customers) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Businesses"
@@ -2254,8 +2205,8 @@ function SuperAdminDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5">
-        <Card className="w-full p-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <Card className="lg:col-span-2 p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-semibold text-slate-900">
@@ -2269,12 +2220,7 @@ function SuperAdminDashboard() {
               {["3M", "6M", "1Y"].map((t) => (
                 <button
                   key={t}
-                  onClick={() => setRevenueRange(t)}
-                  className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
-                    revenueRange === t
-                      ? "bg-red-600 text-white"
-                      : "text-slate-500 hover:bg-slate-100"
-                  }`}
+                  className={`text-xs px-2.5 py-1 rounded-lg ${t === "6M" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
                 >
                   {t}
                 </button>
@@ -2282,7 +2228,7 @@ function SuperAdminDashboard() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={revenueChartData}>
+            <AreaChart data={adminStats}>
               <defs>
                 <linearGradient id="adminGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
@@ -2375,6 +2321,8 @@ function SuperAdminDashboard() {
           </div>
         </Card>
       </div>
+
+
     </div>
   );
 }
@@ -3781,8 +3729,8 @@ function ProductsScreen() {
 
       {/* ADD NEW PRODUCT MODAL */}
       {showModal && (
-        <Modal
-          title="Add New Product"
+        <Modal 
+          title="Add New Product" 
           onClose={() => {
             setShowModal(false);
             setShowCategoryInput(false);
@@ -4467,6 +4415,33 @@ function PurchaseScreen() {
 
         const nextItem = { ...item, [field]: value };
 
+        if (field === "product") {
+  const selectedProduct = products.find(
+    (p) => p.name === value
+  );
+
+  if (selectedProduct) {
+    nextItem.rate = selectedProduct.cost;
+
+    const qty = Number(nextItem.qty) || 0;
+    nextItem.amount = qty * nextItem.rate;
+  }
+}
+
+if (field === "qty") {
+  const qty = Number(value) || 0;
+  const rate = Number(nextItem.rate) || 0;
+
+  nextItem.amount = qty * rate;
+}
+
+if (field === "rate") {
+  const qty = Number(nextItem.qty) || 0;
+  const rate = Number(value) || 0;
+
+  nextItem.amount = qty * rate;
+}
+
         if (field === "qty" || field === "rate") {
           const qty =
             field === "qty"
@@ -4763,18 +4738,7 @@ function PurchaseScreen() {
                 </Btn>
               </div>
             </Card>
-            <Card className="p-4">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-                Notes
-              </h4>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add notes or terms..."
-                rows={3}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
-            </Card>
+            
           </div>
         </div>
       ) : (
@@ -4786,22 +4750,7 @@ function PurchaseScreen() {
               placeholder="Search purchases..."
               icon={<Search className="w-4 h-4" />}
             />
-            <div className="flex gap-2 ml-3">
-              <Btn
-                variant="outline"
-                size="sm"
-                icon={<Filter className="w-3.5 h-3.5" />}
-              >
-                Filter
-              </Btn>
-              <Btn
-                variant="outline"
-                size="sm"
-                icon={<Download className="w-3.5 h-3.5" />}
-              >
-                Export
-              </Btn>
-            </div>
+            
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -4855,45 +4804,6 @@ function PurchaseScreen() {
 // ─── INVENTORY SCREEN ─────────────────────────────────────────────────────────
 
 function InventoryScreen() {
-  const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
-  const [activeProductId, setActiveProductId] = useState(null);
-  const [adjustType, setAdjustType] = useState("add");
-  const [adjustQty, setAdjustQty] = useState("0");
-  const [adjustReason, setAdjustReason] = useState("");
-
-  const [productList, setProductList] = useState(products);
-
-  const activeProduct =
-    activeProductId !== null
-      ? productList.find((p) => p.id === activeProductId)
-      : null;
-
-  const openAdjust = (productId) => {
-    setActiveProductId(productId);
-    setAdjustType("add");
-    setAdjustQty("0");
-    setAdjustReason("");
-    setStockAdjustOpen(true);
-  };
-
-  const applyAdjust = () => {
-    const qtyNum = Number(adjustQty || 0);
-    if (!Number.isFinite(qtyNum) || qtyNum <= 0) return;
-
-    const delta = adjustType === "add" ? qtyNum : -qtyNum;
-
-    setProductList((prev) =>
-      prev.map((p) =>
-        p.id === activeProductId
-          ? { ...p, stock: Math.max(0, p.stock + delta) }
-          : p,
-      ),
-    );
-
-    setStockAdjustOpen(false);
-    setActiveProductId(null);
-  };
-
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -4979,7 +4889,6 @@ function InventoryScreen() {
               variant="outline"
               size="sm"
               icon={<RefreshCw className="w-3.5 h-3.5" />}
-              onClick={() => openAdjust(productList[0]?.id ?? null)}
             >
               Adjust Stock
             </Btn>
@@ -5013,7 +4922,7 @@ function InventoryScreen() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {productList.map((p) => (
+            {products.map((p) => (
               <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-5 py-3.5">
                   <p className="font-medium text-slate-900">{p.name}</p>
@@ -5023,11 +4932,7 @@ function InventoryScreen() {
                   <Badge label={p.category} variant="blue" />
                 </td>
                 <td className="px-5 py-3.5">
-                  <button
-                    onClick={() => openAdjust(p.id)}
-                    className="flex items-center gap-2 w-full text-left"
-                    title="Adjust stock"
-                  >
+                  <div className="flex items-center gap-2">
                     <span
                       className={`font-bold font-mono ${p.stock === 0 ? "text-red-500" : p.stock <= p.minStock ? "text-amber-600" : "text-slate-900"}`}
                     >
@@ -5047,7 +4952,7 @@ function InventoryScreen() {
                         }}
                       />
                     </div>
-                  </button>
+                  </div>
                 </td>
                 <td className="px-5 py-3.5 text-slate-600 font-mono">
                   {p.minStock}
@@ -5063,104 +4968,8 @@ function InventoryScreen() {
           </tbody>
         </table>
       </Card>
-
-      {stockAdjustOpen && activeProduct && (
-        <Modal
-          title="Adjust Stock"
-          onClose={() => {
-            setStockAdjustOpen(false);
-            setActiveProductId(null);
-          }}
-        >
-          <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Product
-              </p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">
-                {activeProduct.name}
-              </p>
-              <p className="text-xs text-slate-500 font-mono mt-1">
-                {activeProduct.sku} · Category: {activeProduct.category}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Current Stock
-                </p>
-                <p className="mt-1 text-xl font-bold text-slate-900 font-mono">
-                  {activeProduct.stock}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Min Level
-                </p>
-                <p className="mt-1 text-xl font-bold text-slate-900 font-mono">
-                  {activeProduct.minStock}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setAdjustType("add")}
-                className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${adjustType === "add" ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"}`}
-              >
-                Add Stock
-              </button>
-              <button
-                onClick={() => setAdjustType("remove")}
-                className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${adjustType === "remove" ? "bg-red-50 border-red-300 text-red-700" : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"}`}
-              >
-                Remove Stock
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Quantity"
-                value={adjustQty}
-                onChange={setAdjustQty}
-                placeholder="0"
-                type="number"
-              />
-              <Input
-                label="Reason (optional)"
-                value={adjustReason}
-                onChange={setAdjustReason}
-                placeholder="e.g., damage / count adjustment"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <Btn
-                variant="outline"
-                onClick={() => {
-                  setStockAdjustOpen(false);
-                  setActiveProductId(null);
-                }}
-                className="flex-1 justify-center"
-              >
-                Cancel
-              </Btn>
-              <Btn
-                variant="primary"
-                onClick={() => applyAdjust()}
-                className="flex-1 justify-center"
-              >
-                Apply Adjustment
-              </Btn>
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
-  //   </div>
-  // );
 }
 
 // ─── REPORTS SCREEN ───────────────────────────────────────────────────────────
@@ -5233,6 +5042,7 @@ function ReportsScreen() {
     </div>
   );
 }
+
 
 // ─── EXPENSES SCREEN ──────────────────────────────────────────────────────────
 
@@ -5472,54 +5282,85 @@ function ExpensesScreen() {
 function UsersScreen() {
   const [employeeList, setEmployeeList] = useState(employees);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("Cashier");
-  const [department, setDepartment] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [phoneError, setPhoneError] = useState("");
+const [name, setName] = useState("");
+const [email, setEmail] = useState("");
+const [role, setRole] = useState("Cashier");
+const [department, setDepartment] = useState("");
+const [phone, setPhone] = useState("");
+const [password, setPassword] = useState("");
+const [passwordError, setPasswordError] = useState("");
+const [phoneError, setPhoneError] = useState("");
 
-  const handleSaveEmployee = () => {
-    // Password validation
-    const passwordRegex =
-      /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+const handleSaveEmployee = () => {
 
-    if (!passwordRegex.test(password)) {
-      setPasswordError(
-        "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.",
-      );
-      return;
-    }
+  const updatedEmployee = {
+    id: editingId ?? Date.now(),
+    name,
+    email,
+    role,
+    department,
+    phone,
+    password,
+    status: "Active",
+    lastActive: "Just now",
+  };
 
-    setPasswordError("");
+  if (editingId !== null) {
 
-    // Phone number validation
-    const phoneRegex = /^[0-9]{10}$/;
+    setEmployeeList(
+      employeeList.map((emp) =>
+        emp.id === editingId ? updatedEmployee : emp
+      )
+    );
 
-    if (!phoneRegex.test(phone)) {
-      setPhoneError("Phone number must be exactly 10 digits.");
-      return;
-    }
+  } else {
 
-    setPhoneError("");
+    setEmployeeList([...employeeList, updatedEmployee]);
 
-    const newEmployee = {
-      id: Date.now(),
-      name,
-      email,
-      role,
-      department,
-      phone,
-      lastActive: "Just Now",
-      status: "Active",
-    };
+  }
 
-    setEmployeeList((prev) => [...prev, newEmployee]);
+  setEditingId(null);
 
-    // Clear form
+  setName("");
+  setEmail("");
+  setRole("Cashier");
+  setDepartment("");
+  setPhone("");
+  setPassword("");
+
+  setShowModal(false);
+
+};
+
+const handleEdit = (employee) => {
+  setName(employee.name);
+  setEmail(employee.email);
+  setRole(employee.role);
+  setDepartment(employee.department);
+  setPhone(employee.phone || "");
+  setPassword(employee.password || "");
+
+  setEditingId(employee.id);
+
+  setShowModal(true);
+};
+
+const handleDelete = (id) => {
+  if (window.confirm("Delete this employee?")) {
+    setEmployeeList(employeeList.filter((emp) => emp.id !== id));
+  }
+};
+
+  return (
+    <div className="space-y-5">
+      {showModal && (
+        <Modal
+  title={editingId ? "Update Employee" : "Add Employee"}
+  onClose={() => {
+    setEditingId(null);
+
     setName("");
     setEmail("");
     setRole("Cashier");
@@ -5528,69 +5369,65 @@ function UsersScreen() {
     setPassword("");
 
     setShowModal(false);
-  };
-
-  return (
-    <div className="space-y-5">
-      {showModal && (
-        <Modal title="Add Employee" onClose={() => setShowModal(false)}>
+  }}
+>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Full Name"
-                placeholder="Priya Sharma"
-                value={name}
-                onChange={setName}
-              />
+  label="Full Name"
+  placeholder="Priya Sharma"
+  value={name}
+  onChange={setName}
+/>
               <Input
-                label="Email"
-                placeholder="priya@business.in"
-                value={email}
-                onChange={setEmail}
-                icon={<Mail className="w-4 h-4" />}
-              />
+  label="Email"
+  placeholder="priya@business.in"
+  value={email}
+  onChange={setEmail}
+  icon={<Mail className="w-4 h-4" />}
+/>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Select
-                label="Role"
-                value={role}
-                onChange={setRole}
-                options={["Owner", "Manager", "Cashier", "Accountant"]}
-              />
+  label="Role"
+  value={role}
+  onChange={setRole}
+  options={["Owner", "Manager", "Cashier", "Accountant"]}
+/>
               <Input
-                label="Department"
-                placeholder="Sales"
-                value={department}
-                onChange={setDepartment}
-              />
+  label="Department"
+  placeholder="Sales"
+  value={department}
+  onChange={setDepartment}
+/>
             </div>
             <Input
-              label="Phone"
-              placeholder="+91"
-              value={phone}
-              onChange={(value) => {
-                // Allow only digits
-                const digits = value.replace(/\D/g, "");
+  label="Phone"
+  placeholder="+91"
+  value={phone}
+  onChange={(value) => {
+    // Allow only digits
+    const digits = value.replace(/\D/g, "");
 
-                // Limit to 10 digits
-                if (digits.length <= 10) {
-                  setPhone(digits);
-                  setPhoneError("");
-                }
-              }}
-              error={phoneError}
-            />
+    // Limit to 10 digits
+    if (digits.length <= 10) {
+      setPhone(digits);
+      setPhoneError("");
+    }
+  }}
+  error={phoneError}
+/>
             <Input
-              label="Temporary Password"
-              type="password"
-              value={password}
-              onChange={(value) => {
-                setPassword(value);
-                setPasswordError("");
-              }}
-              icon={<Lock className="w-4 h-4" />}
-              error={passwordError}
-            />
+  label="Temporary Password"
+  type="password"
+  value={password}
+  onChange={(value) => {
+    setPassword(value);
+    setPasswordError("");
+  }}
+  icon={<Lock className="w-4 h-4" />}
+  error={passwordError}
+/>
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 Permissions
@@ -5621,18 +5458,28 @@ function UsersScreen() {
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
-                onClick={() => setShowModal(false)}
+                  onClick={() => {
+  setEditingId(null);
+
+  setName("");
+  setEmail("");
+  setRole("Cashier");
+  setDepartment("");
+  setPhone("");
+  setPassword("");
+
+  setShowModal(false);
+}}
                 className="flex-1 justify-center"
               >
                 Cancel
               </Btn>
               <Btn
-                variant="primary"
-                onClick={handleSaveEmployee}
-                className="flex-1 justify-center"
-              >
-                Add Employee
-              </Btn>
+  variant="primary"
+  onClick={handleSaveEmployee}
+>
+  {editingId ? "Update Employee" : "Add Employee"}
+</Btn>
             </div>
           </div>
         </Modal>
@@ -5642,26 +5489,24 @@ function UsersScreen() {
         <Btn
           variant="primary"
           size="md"
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+  setEditingId(null);
+
+  setName("");
+  setEmail("");
+  setRole("Cashier");
+  setDepartment("");
+  setPhone("");
+  setPassword("");
+
+  setShowModal(true);
+}}
           icon={<Plus className="w-4 h-4" />}
         >
           Add Employee
         </Btn>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {[
-          ["4", "Total Users"],
-          ["3", "Active"],
-          ["1", "Inactive"],
-          ["3", "Roles Used"],
-        ].map(([v, l]) => (
-          <Card key={l} className="p-4 text-center">
-            <p className="text-xl font-bold text-slate-900">{v}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{l}</p>
-          </Card>
-        ))}
-      </div>
 
       <Card>
         <table className="w-full text-sm">
@@ -5670,7 +5515,7 @@ function UsersScreen() {
               {[
                 "Employee",
                 "Email",
-                "Role",
+                "role",
                 "Department",
                 "Last Active",
                 "Status",
@@ -5705,574 +5550,30 @@ function UsersScreen() {
                   </div>
                 </td>
                 <td className="px-5 py-4 text-slate-500 text-xs">{e.email}</td>
-                <td className="px-5 py-4">
-                  {statusBadge(
-                    e.role === "Manager"
-                      ? "Pro"
-                      : e.role === "Accountant"
-                        ? "blue"
-                        : "gray",
-                  ) || (
-                    <Badge
-                      label={e.role}
-                      variant={
-                        e.role === "Manager"
-                          ? "purple"
-                          : e.role === "Accountant"
-                            ? "blue"
-                            : "gray"
-                      }
-                    />
-                  )}
-                </td>
+                <td className="px-5 py-4 text-slate-700 font-medium">{e.role}</td>
                 <td className="px-5 py-4 text-slate-600">{e.department}</td>
-                <td className="px-5 py-4 text-slate-500 text-xs">
-                  {e.lastActive}
-                </td>
+                <td className="px-5 py-4 text-slate-500 text-xs">{e.lastActive}</td>
                 <td className="px-5 py-4">{statusBadge(e.status)}</td>
                 <td className="px-5 py-4">
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Btn
-                      variant="ghost"
-                      size="sm"
-                      icon={<Edit2 className="w-3.5 h-3.5" />}
-                    />
+  variant="ghost"
+  size="sm"
+  onClick={() => handleEdit(e)}
+  icon={<Edit2 className="w-3.5 h-3.5" />}
+/>
                     <Btn
-                      variant="ghost"
-                      size="sm"
-                      icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                    />
+  variant="ghost"
+  size="sm"
+  onClick={() => handleDelete(e.id)}
+  icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+/>
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </Card>
-    </div>
-  );
-}
-
-// ─── BUSINESSES SCREEN (SUPER ADMIN) ─────────────────────────────────────────
-
-function BusinessesScreen() {
-  // Businesses module: only show the Businesses + Owner table (no extra blocks)
-  const [search, setSearch] = useState("");
-  const [toast, setToast] = useState(null);
-  const [revenueRange, setRevenueRange] = useState("6M");
-
-  const revenueData =
-    revenueRange === "3M"
-      ? adminStats3M
-      : revenueRange === "1Y"
-        ? adminStats1Y
-        : adminStats6M;
-
-  const [businessList, setBusinessList] = useState(businesses);
-
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
-  const [viewBusiness, setViewBusiness] = useState(null);
-
-  const [editId, setEditId] = useState(null);
-
-  const [form, setForm] = useState({
-    name: "",
-    owner: "",
-    plan: "Pro",
-    users: "1",
-    revenue: "0",
-    status: "Active",
-    joined: new Date().toISOString().slice(0, 10),
-  });
-
-  const showToast = (msg, type) => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const filtered = businessList.filter((b) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      b.name.toLowerCase().includes(q) ||
-      b.owner.toLowerCase().includes(q) ||
-      String(b.plan).toLowerCase().includes(q) ||
-      String(b.status).toLowerCase().includes(q) ||
-      String(b.joined).includes(q)
-    );
-  });
-
-  const resetForm = () => {
-    setForm({
-      name: "",
-      owner: "",
-      plan: "Pro",
-      users: "1",
-      revenue: "0",
-      status: "Active",
-      joined: new Date().toISOString().slice(0, 10),
-    });
-  };
-
-  const openEdit = (b) => {
-    setEditId(b.id);
-    setEditId(b.id);
-    setForm({
-      name: b.name,
-      owner: b.owner,
-      plan: b.plan,
-      users: String(b.users ?? 0),
-      revenue: String(b.revenue ?? 0),
-      status: b.status,
-      joined: b.joined,
-    });
-    setShowEditModal(true);
-  };
-
-  return (
-    <div className="space-y-5">
-      {toast && (
-        <Toast
-          message={toast.msg}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
-
-      {deleteId !== null && (
-        <ConfirmDialog
-          message="This will permanently delete the business."
-          onConfirm={() => {
-            setBusinessList((prev) => prev.filter((b) => b.id !== deleteId));
-            setDeleteId(null);
-            showToast("Business deleted successfully", "success");
-          }}
-          onCancel={() => setDeleteId(null)}
-        />
-      )}
-
-      {viewBusiness && (
-        <Modal title="Business Details" onClose={() => setViewBusiness(null)}>
-          <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Business Name
-              </p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">
-                {viewBusiness.name}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Owner
-                </p>
-                <p className="mt-1 text-sm text-slate-700">
-                  {viewBusiness.owner || "—"}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Plan
-                </p>
-                <div className="mt-1">{statusBadge(viewBusiness.plan)}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Users
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {viewBusiness.users ?? 0}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Revenue
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {fmt(viewBusiness.revenue ?? 0)}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Status
-                </p>
-                <div className="mt-1">{statusBadge(viewBusiness.status)}</div>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Joined
-                </p>
-                <p className="mt-1 text-sm text-slate-700">
-                  {viewBusiness.joined || "—"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {showEditModal && editId !== null && (
-        <Modal
-          title="Edit Business"
-          onClose={() => {
-            setShowEditModal(false);
-            setEditId(null);
-          }}
-        >
-          <div className="space-y-4">
-            <Input
-              label="Business Name"
-              value={form.name}
-              onChange={(v) => setForm((f) => ({ ...f, name: v }))}
-              placeholder="Sharma Electronics"
-            />
-            <Input
-              label="Owner"
-              value={form.owner}
-              onChange={(v) => setForm((f) => ({ ...f, owner: v }))}
-              placeholder="Vikram Sharma"
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <Select
-                label="Plan"
-                value={form.plan}
-                onChange={(v) => setForm((f) => ({ ...f, plan: v }))}
-                options={["Starter", "Pro", "Enterprise"]}
-              />
-              <Select
-                label="Status"
-                value={form.status}
-                onChange={(v) => setForm((f) => ({ ...f, status: v }))}
-                options={["Active", "Suspended"]}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Users"
-                value={form.users}
-                onChange={(v) => setForm((f) => ({ ...f, users: v }))}
-                type="number"
-              />
-              <Input
-                label="Revenue"
-                value={form.revenue}
-                onChange={(v) => setForm((f) => ({ ...f, revenue: v }))}
-                type="number"
-              />
-            </div>
-
-            <Input
-              label="Joined"
-              value={form.joined}
-              onChange={(v) => setForm((f) => ({ ...f, joined: v }))}
-              type="date"
-            />
-
-            <div className="flex gap-3 pt-2">
-              <Btn
-                variant="outline"
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditId(null);
-                }}
-                className="flex-1 justify-center"
-              >
-                Cancel
-              </Btn>
-              <Btn
-                variant="primary"
-                onClick={() => {
-                  const usersNum = Number(form.users || 0);
-                  const revenueNum = Number(form.revenue || 0);
-
-                  setBusinessList((prev) =>
-                    prev.map((b) =>
-                      b.id === editId
-                        ? {
-                            ...b,
-                            name: form.name || b.name,
-                            owner: form.owner || b.owner,
-                            plan: form.plan,
-                            status: form.status,
-                            users: Number.isFinite(usersNum) ? usersNum : 0,
-                            revenue: Number.isFinite(revenueNum)
-                              ? revenueNum
-                              : 0,
-                            joined: form.joined || b.joined,
-                          }
-                        : b,
-                    ),
-                  );
-
-                  setShowEditModal(false);
-                  setEditId(null);
-                  resetForm();
-                  showToast("Business updated successfully", "success");
-                }}
-                className="flex-1 justify-center"
-              >
-                Save Changes
-              </Btn>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {showAddModal && (
-        <Modal
-          title="Add New Business"
-          onClose={() => {
-            setShowAddModal(false);
-            resetForm();
-          }}
-        >
-          <div className="space-y-4">
-            <Input
-              label="Business Name"
-              value={form.name}
-              onChange={(v) => setForm((f) => ({ ...f, name: v }))}
-              placeholder="Sharma Electronics"
-            />
-            <Input
-              label="Owner"
-              value={form.owner}
-              onChange={(v) => setForm((f) => ({ ...f, owner: v }))}
-              placeholder="Vikram Sharma"
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <Select
-                label="Plan"
-                value={form.plan}
-                onChange={(v) => setForm((f) => ({ ...f, plan: v }))}
-                options={["Starter", "Pro", "Enterprise"]}
-              />
-              <Select
-                label="Status"
-                value={form.status}
-                onChange={(v) => setForm((f) => ({ ...f, status: v }))}
-                options={["Active", "Suspended"]}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Users"
-                value={form.users}
-                onChange={(v) => setForm((f) => ({ ...f, users: v }))}
-                type="number"
-              />
-              <Input
-                label="Revenue"
-                value={form.revenue}
-                onChange={(v) => setForm((f) => ({ ...f, revenue: v }))}
-                type="number"
-              />
-            </div>
-
-            <Input
-              label="Joined"
-              value={form.joined}
-              onChange={(v) => setForm((f) => ({ ...f, joined: v }))}
-              type="date"
-            />
-
-            <div className="flex gap-3 pt-2">
-              <Btn
-                variant="outline"
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}
-                className="flex-1 justify-center"
-              >
-                Cancel
-              </Btn>
-              <Btn
-                variant="primary"
-                onClick={() => {
-                  const usersNum = Number(form.users || 0);
-                  const revenueNum = Number(form.revenue || 0);
-                  const newId =
-                    businessList.length > 0
-                      ? Math.max(...businessList.map((x) => x.id)) + 1
-                      : 1;
-
-                  const newBusiness = {
-                    id: newId,
-                    name: form.name || "New Business",
-                    owner: form.owner || "",
-                    plan: form.plan,
-                    users: Number.isFinite(usersNum) ? usersNum : 0,
-                    revenue: Number.isFinite(revenueNum) ? revenueNum : 0,
-                    status: form.status,
-                    joined:
-                      form.joined || new Date().toISOString().slice(0, 10),
-                  };
-
-                  setBusinessList((prev) => [...prev, newBusiness]);
-                  setShowAddModal(false);
-                  resetForm();
-                  showToast("Business added successfully", "success");
-                }}
-                className="flex-1 justify-center"
-              >
-                Save Business
-              </Btn>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex-1 min-w-48">
-          <Input
-            value={search}
-            onChange={setSearch}
-            placeholder="Search businesses by name, owner, plan..."
-            icon={<Search className="w-4 h-4" />}
-          />
-        </div>
-
-        <Btn
-          variant="primary"
-          size="md"
-          onClick={() => setShowAddModal(true)}
-          icon={<Plus className="w-4 h-4" />}
-        >
-          Add Business
-        </Btn>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          [String(businessList.length), "Total Businesses"],
-          [
-            String(businessList.filter((b) => b.status === "Active").length),
-            "Active",
-          ],
-          [
-            String(businessList.filter((b) => b.status === "Suspended").length),
-            "Suspended",
-          ],
-        ].map(([v, l]) => (
-          <Card key={l} className="p-4 text-center">
-            <p className="text-xl font-bold text-slate-900">{v}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{l}</p>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  "Business",
-                  "Owner",
-                  "Plan",
-                  "Users",
-                  "Revenue",
-                  "Status",
-                  "Joined",
-                  "Actions",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-8">
-                    <EmptyState
-                      icon={<Building2 className="w-6 h-6" />}
-                      title="No businesses found"
-                      sub="Try adjusting your search"
-                    />
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((b) => (
-                  <tr
-                    key={b.id}
-                    className="hover:bg-slate-50 transition-colors group"
-                  >
-                    <td className="px-5 py-4">
-                      <p className="font-medium text-slate-900">{b.name}</p>
-                    </td>
-                    <td className="px-5 py-4 text-slate-600">{b.owner}</td>
-                    <td className="px-5 py-4">{statusBadge(b.plan)}</td>
-                    <td className="px-5 py-4 text-slate-600 font-mono">
-                      {b.users ?? 0}
-                    </td>
-                    <td className="px-5 py-4 text-slate-900 font-semibold">
-                      {fmt(b.revenue ?? 0)}
-                    </td>
-                    <td className="px-5 py-4">{statusBadge(b.status)}</td>
-                    <td className="px-5 py-4 text-slate-500 font-mono text-xs">
-                      {b.joined}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Btn
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setViewBusiness(b);
-                          }}
-                          icon={<Eye className="w-3.5 h-3.5" />}
-                        />
-                        <Btn
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEdit(b);
-                          }}
-                          icon={<Edit2 className="w-3.5 h-3.5" />}
-                        />
-                        <Btn
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(b.id);
-                          }}
-                          icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
-          <p className="text-xs text-slate-500">
-            Showing {filtered.length} of {businessList.length} businesses
-          </p>
-        </div>
       </Card>
     </div>
   );
@@ -8738,6 +8039,8 @@ function AppShell({ role, onLogout, page, onNav }) {
         return <SuppliersScreen />;
       case "products":
         return <ProductsScreen />;
+        case "revenue":
+      return <Revenue />;
       case "pos":
         return <POSScreen />;
       case "purchase":
