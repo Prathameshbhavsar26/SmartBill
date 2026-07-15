@@ -133,6 +133,31 @@ const adminStats = [
   { month: "Jun", businesses: 128, revenue: 1560000 },
 ];
 
+// Revenue analytics datasets for Super Admin.
+// These are mock values for UI performance/demo.
+const adminStats3M = adminStats.slice(-3).map((d) => ({
+  ...d,
+  // Keep labels consistent with shorter range
+  month: d.month,
+}));
+
+const adminStats6M = adminStats;
+
+const adminStats1Y = [
+  { month: "Jul", businesses: 98, revenue: 1180000 },
+  { month: "Aug", businesses: 112, revenue: 1320000 },
+  { month: "Sep", businesses: 124, revenue: 1490000 },
+  { month: "Oct", businesses: 137, revenue: 1650000 },
+  { month: "Nov", businesses: 150, revenue: 1760000 },
+  { month: "Dec", businesses: 162, revenue: 1920000 },
+  { month: "Jan", businesses: 42, revenue: 520000 },
+  { month: "Feb", businesses: 58, revenue: 720000 },
+  { month: "Mar", businesses: 71, revenue: 880000 },
+  { month: "Apr", businesses: 89, revenue: 1100000 },
+  { month: "May", businesses: 104, revenue: 1280000 },
+  { month: "Jun", businesses: 128, revenue: 1560000 },
+];
+
 const customers = [
   {
     id: 1,
@@ -1075,8 +1100,8 @@ const NAV_GROUPS = [
 
 const SUPER_ADMIN_ITEMS = [
   { key: "super-dashboard", label: "Overview", icon: LayoutDashboard },
-  { key: "customers", label: "Businesses", icon: Building2 },
   { key: "users", label: "Users", icon: Users },
+  { key: "businesses", label: "Businesses", icon: Building2 },
   { key: "reports", label: "Revenue", icon: BarChart3 },
   { key: "settings", label: "Settings", icon: Settings },
 ];
@@ -1202,6 +1227,7 @@ function Sidebar({ page, onNav, role, collapsed, onToggle }) {
 const PAGE_LABELS = {
   dashboard: "Dashboard",
   "super-dashboard": "Admin Overview",
+  businesses: "Businesses",
   customers: "Customers",
   suppliers: "Suppliers",
   products: "Products",
@@ -2164,8 +2190,37 @@ function AuthScreen({ view, onNav, onLogin }) {
 // ─── SUPER ADMIN DASHBOARD ────────────────────────────────────────────────────
 
 function SuperAdminDashboard() {
+  const [revenueRange, setRevenueRange] = useState("6M");
+
+  const revenueData =
+    revenueRange === "3M"
+      ? adminStats3M
+      : revenueRange === "1Y"
+        ? adminStats1Y
+        : adminStats6M;
+
+  // Ensure charts visually change per tab (mock/demo).
+  // Use an additional transformed dataset for each range so the curve/points differ.
+  const revenueChartData =
+    revenueRange === "3M"
+      ? adminStats3M.map((d) => ({
+          ...d,
+          // add a small variation so the chart is clearly different per range
+          revenue: Math.round(Number(d.revenue) * 1.02),
+        }))
+      : revenueRange === "1Y"
+        ? adminStats1Y.map((d) => ({
+            ...d,
+            revenue: Math.round(Number(d.revenue) * 1.06),
+          }))
+        : adminStats6M.map((d) => ({
+            ...d,
+            revenue: Math.round(Number(d.revenue) * 1.04),
+          }));
+
   return (
     <div className="space-y-6">
+      {/* Businesses table moved here from CustomersScreen (customers) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Total Businesses"
@@ -2201,8 +2256,8 @@ function SuperAdminDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="lg:col-span-2 p-5">
+      <div className="grid grid-cols-1 gap-5">
+        <Card className="w-full p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-semibold text-slate-900">
@@ -2216,7 +2271,12 @@ function SuperAdminDashboard() {
               {["3M", "6M", "1Y"].map((t) => (
                 <button
                   key={t}
-                  className={`text-xs px-2.5 py-1 rounded-lg ${t === "6M" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
+                  onClick={() => setRevenueRange(t)}
+                  className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                    revenueRange === t
+                      ? "bg-red-600 text-white"
+                      : "text-slate-500 hover:bg-slate-100"
+                  }`}
                 >
                   {t}
                 </button>
@@ -2224,7 +2284,7 @@ function SuperAdminDashboard() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={adminStats}>
+            <AreaChart data={revenueData}>
               <defs>
                 <linearGradient id="adminGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
@@ -2317,71 +2377,6 @@ function SuperAdminDashboard() {
           </div>
         </Card>
       </div>
-
-      <Card>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="font-semibold text-slate-900">Business Management</h3>
-          <div className="flex gap-2">
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<Filter className="w-3.5 h-3.5" />}
-            >
-              Filter
-            </Btn>
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<Download className="w-3.5 h-3.5" />}
-            >
-              Export
-            </Btn>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  "Business",
-                  "Owner",
-                  "Plan",
-                  "Users",
-                  "Revenue",
-                  "Status",
-                  "Joined",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {businesses.map((b) => (
-                <tr key={b.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-slate-900">
-                    {b.name}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-600">{b.owner}</td>
-                  <td className="px-5 py-3.5">{statusBadge(b.plan)}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{b.users}</td>
-                  <td className="px-5 py-3.5 font-medium text-slate-900">
-                    {fmt(b.revenue)}
-                  </td>
-                  <td className="px-5 py-3.5">{statusBadge(b.status)}</td>
-                  <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
-                    {b.joined}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
     </div>
   );
 }
@@ -5254,7 +5249,6 @@ function ExpensesScreen() {
     description: "",
     amount: "",
     date: new Date().toISOString().slice(0, 10),
-    amount: "",
     paymentMode: "Bank Transfer",
     reference: "",
   });
@@ -5481,62 +5475,62 @@ function UsersScreen() {
   const [employeeList, setEmployeeList] = useState(employees);
   const [showModal, setShowModal] = useState(false);
 
-const [name, setName] = useState("");
-const [email, setEmail] = useState("");
-const [role, setRole] = useState("Cashier");
-const [department, setDepartment] = useState("");
-const [phone, setPhone] = useState("");
-const [password, setPassword] = useState("");
-const [passwordError, setPasswordError] = useState("");
-const [phoneError, setPhoneError] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Cashier");
+  const [department, setDepartment] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
 
-const handleSaveEmployee = () => {
-  // Password validation
-  const passwordRegex =
-    /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+  const handleSaveEmployee = () => {
+    // Password validation
+    const passwordRegex =
+      /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
-  if (!passwordRegex.test(password)) {
-    setPasswordError(
-      "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character."
-    );
-    return;
-  }
+    if (!passwordRegex.test(password)) {
+      setPasswordError(
+        "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.",
+      );
+      return;
+    }
 
-  setPasswordError("");
+    setPasswordError("");
 
-  // Phone number validation
-const phoneRegex = /^[0-9]{10}$/;
+    // Phone number validation
+    const phoneRegex = /^[0-9]{10}$/;
 
-if (!phoneRegex.test(phone)) {
-  setPhoneError("Phone number must be exactly 10 digits.");
-  return;
-}
+    if (!phoneRegex.test(phone)) {
+      setPhoneError("Phone number must be exactly 10 digits.");
+      return;
+    }
 
-setPhoneError("");
+    setPhoneError("");
 
-  const newEmployee = {
-    id: Date.now(),
-    name,
-    email,
-    role,
-    department,
-    phone,
-    lastActive: "Just Now",
-    status: "Active",
+    const newEmployee = {
+      id: Date.now(),
+      name,
+      email,
+      role,
+      department,
+      phone,
+      lastActive: "Just Now",
+      status: "Active",
+    };
+
+    setEmployeeList((prev) => [...prev, newEmployee]);
+
+    // Clear form
+    setName("");
+    setEmail("");
+    setRole("Cashier");
+    setDepartment("");
+    setPhone("");
+    setPassword("");
+
+    setShowModal(false);
   };
-
-  setEmployeeList((prev) => [...prev, newEmployee]);
-
-  // Clear form
-  setName("");
-  setEmail("");
-  setRole("Cashier");
-  setDepartment("");
-  setPhone("");
-  setPassword("");
-
-  setShowModal(false);
-};
 
   return (
     <div className="space-y-5">
@@ -5545,60 +5539,60 @@ setPhoneError("");
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Input
-  label="Full Name"
-  placeholder="Priya Sharma"
-  value={name}
-  onChange={setName}
-/>
+                label="Full Name"
+                placeholder="Priya Sharma"
+                value={name}
+                onChange={setName}
+              />
               <Input
-  label="Email"
-  placeholder="priya@business.in"
-  value={email}
-  onChange={setEmail}
-  icon={<Mail className="w-4 h-4" />}
-/>
+                label="Email"
+                placeholder="priya@business.in"
+                value={email}
+                onChange={setEmail}
+                icon={<Mail className="w-4 h-4" />}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Select
-  label="Role"
-  value={role}
-  onChange={setRole}
-  options={["Owner", "Manager", "Cashier", "Accountant"]}
-/>
+                label="Role"
+                value={role}
+                onChange={setRole}
+                options={["Owner", "Manager", "Cashier", "Accountant"]}
+              />
               <Input
-  label="Department"
-  placeholder="Sales"
-  value={department}
-  onChange={setDepartment}
-/>
+                label="Department"
+                placeholder="Sales"
+                value={department}
+                onChange={setDepartment}
+              />
             </div>
             <Input
-  label="Phone"
-  placeholder="+91"
-  value={phone}
-  onChange={(value) => {
-    // Allow only digits
-    const digits = value.replace(/\D/g, "");
+              label="Phone"
+              placeholder="+91"
+              value={phone}
+              onChange={(value) => {
+                // Allow only digits
+                const digits = value.replace(/\D/g, "");
 
-    // Limit to 10 digits
-    if (digits.length <= 10) {
-      setPhone(digits);
-      setPhoneError("");
-    }
-  }}
-  error={phoneError}
-/>
+                // Limit to 10 digits
+                if (digits.length <= 10) {
+                  setPhone(digits);
+                  setPhoneError("");
+                }
+              }}
+              error={phoneError}
+            />
             <Input
-  label="Temporary Password"
-  type="password"
-  value={password}
-  onChange={(value) => {
-    setPassword(value);
-    setPasswordError("");
-  }}
-  icon={<Lock className="w-4 h-4" />}
-  error={passwordError}
-/>
+              label="Temporary Password"
+              type="password"
+              value={password}
+              onChange={(value) => {
+                setPassword(value);
+                setPasswordError("");
+              }}
+              icon={<Lock className="w-4 h-4" />}
+              error={passwordError}
+            />
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 Permissions
@@ -5629,7 +5623,7 @@ setPhoneError("");
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
-                  onClick={() => setShowModal(false)}
+                onClick={() => setShowModal(false)}
                 className="flex-1 justify-center"
               >
                 Cancel
@@ -5756,6 +5750,530 @@ setPhoneError("");
             ))}
           </tbody>
         </table>
+      </Card>
+    </div>
+  );
+}
+
+// ─── BUSINESSES SCREEN (SUPER ADMIN) ─────────────────────────────────────────
+
+function BusinessesScreen() {
+  const [search, setSearch] = useState("");
+  const [toast, setToast] = useState(null);
+  const [revenueRange, setRevenueRange] = useState("6M");
+
+  const revenueData =
+    revenueRange === "3M"
+      ? adminStats3M
+      : revenueRange === "1Y"
+        ? adminStats1Y
+        : adminStats6M;
+
+  const [businessList, setBusinessList] = useState(businesses);
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [viewBusiness, setViewBusiness] = useState(null);
+
+  const [editId, setEditId] = useState(null);
+
+  const [form, setForm] = useState({
+    name: "",
+    owner: "",
+    plan: "Pro",
+    users: "1",
+    revenue: "0",
+    status: "Active",
+    joined: new Date().toISOString().slice(0, 10),
+  });
+
+  const showToast = (msg, type) => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const filtered = businessList.filter((b) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      b.name.toLowerCase().includes(q) ||
+      b.owner.toLowerCase().includes(q) ||
+      String(b.plan).toLowerCase().includes(q) ||
+      String(b.status).toLowerCase().includes(q) ||
+      String(b.joined).includes(q)
+    );
+  });
+
+  const resetForm = () => {
+    setForm({
+      name: "",
+      owner: "",
+      plan: "Pro",
+      users: "1",
+      revenue: "0",
+      status: "Active",
+      joined: new Date().toISOString().slice(0, 10),
+    });
+  };
+
+  const openEdit = (b) => {
+    setEditId(b.id);
+    setEditId(b.id);
+    setForm({
+      name: b.name,
+      owner: b.owner,
+      plan: b.plan,
+      users: String(b.users ?? 0),
+      revenue: String(b.revenue ?? 0),
+      status: b.status,
+      joined: b.joined,
+    });
+    setShowEditModal(true);
+  };
+
+  return (
+    <div className="space-y-5">
+      {toast && (
+        <Toast
+          message={toast.msg}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {deleteId !== null && (
+        <ConfirmDialog
+          message="This will permanently delete the business."
+          onConfirm={() => {
+            setBusinessList((prev) => prev.filter((b) => b.id !== deleteId));
+            setDeleteId(null);
+            showToast("Business deleted successfully", "success");
+          }}
+          onCancel={() => setDeleteId(null)}
+        />
+      )}
+
+      {viewBusiness && (
+        <Modal title="Business Details" onClose={() => setViewBusiness(null)}>
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Business Name
+              </p>
+              <p className="mt-1 text-lg font-semibold text-slate-900">
+                {viewBusiness.name}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Owner
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewBusiness.owner || "—"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Plan
+                </p>
+                <div className="mt-1">{statusBadge(viewBusiness.plan)}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Users
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {viewBusiness.users ?? 0}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Revenue
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {fmt(viewBusiness.revenue ?? 0)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Status
+                </p>
+                <div className="mt-1">{statusBadge(viewBusiness.status)}</div>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Joined
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {viewBusiness.joined || "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showEditModal && editId !== null && (
+        <Modal
+          title="Edit Business"
+          onClose={() => {
+            setShowEditModal(false);
+            setEditId(null);
+          }}
+        >
+          <div className="space-y-4">
+            <Input
+              label="Business Name"
+              value={form.name}
+              onChange={(v) => setForm((f) => ({ ...f, name: v }))}
+              placeholder="Sharma Electronics"
+            />
+            <Input
+              label="Owner"
+              value={form.owner}
+              onChange={(v) => setForm((f) => ({ ...f, owner: v }))}
+              placeholder="Vikram Sharma"
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Plan"
+                value={form.plan}
+                onChange={(v) => setForm((f) => ({ ...f, plan: v }))}
+                options={["Starter", "Pro", "Enterprise"]}
+              />
+              <Select
+                label="Status"
+                value={form.status}
+                onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                options={["Active", "Suspended"]}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Users"
+                value={form.users}
+                onChange={(v) => setForm((f) => ({ ...f, users: v }))}
+                type="number"
+              />
+              <Input
+                label="Revenue"
+                value={form.revenue}
+                onChange={(v) => setForm((f) => ({ ...f, revenue: v }))}
+                type="number"
+              />
+            </div>
+
+            <Input
+              label="Joined"
+              value={form.joined}
+              onChange={(v) => setForm((f) => ({ ...f, joined: v }))}
+              type="date"
+            />
+
+            <div className="flex gap-3 pt-2">
+              <Btn
+                variant="outline"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditId(null);
+                }}
+                className="flex-1 justify-center"
+              >
+                Cancel
+              </Btn>
+              <Btn
+                variant="primary"
+                onClick={() => {
+                  const usersNum = Number(form.users || 0);
+                  const revenueNum = Number(form.revenue || 0);
+
+                  setBusinessList((prev) =>
+                    prev.map((b) =>
+                      b.id === editId
+                        ? {
+                            ...b,
+                            name: form.name || b.name,
+                            owner: form.owner || b.owner,
+                            plan: form.plan,
+                            status: form.status,
+                            users: Number.isFinite(usersNum) ? usersNum : 0,
+                            revenue: Number.isFinite(revenueNum)
+                              ? revenueNum
+                              : 0,
+                            joined: form.joined || b.joined,
+                          }
+                        : b,
+                    ),
+                  );
+
+                  setShowEditModal(false);
+                  setEditId(null);
+                  resetForm();
+                  showToast("Business updated successfully", "success");
+                }}
+                className="flex-1 justify-center"
+              >
+                Save Changes
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showAddModal && (
+        <Modal
+          title="Add New Business"
+          onClose={() => {
+            setShowAddModal(false);
+            resetForm();
+          }}
+        >
+          <div className="space-y-4">
+            <Input
+              label="Business Name"
+              value={form.name}
+              onChange={(v) => setForm((f) => ({ ...f, name: v }))}
+              placeholder="Sharma Electronics"
+            />
+            <Input
+              label="Owner"
+              value={form.owner}
+              onChange={(v) => setForm((f) => ({ ...f, owner: v }))}
+              placeholder="Vikram Sharma"
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Plan"
+                value={form.plan}
+                onChange={(v) => setForm((f) => ({ ...f, plan: v }))}
+                options={["Starter", "Pro", "Enterprise"]}
+              />
+              <Select
+                label="Status"
+                value={form.status}
+                onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                options={["Active", "Suspended"]}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Users"
+                value={form.users}
+                onChange={(v) => setForm((f) => ({ ...f, users: v }))}
+                type="number"
+              />
+              <Input
+                label="Revenue"
+                value={form.revenue}
+                onChange={(v) => setForm((f) => ({ ...f, revenue: v }))}
+                type="number"
+              />
+            </div>
+
+            <Input
+              label="Joined"
+              value={form.joined}
+              onChange={(v) => setForm((f) => ({ ...f, joined: v }))}
+              type="date"
+            />
+
+            <div className="flex gap-3 pt-2">
+              <Btn
+                variant="outline"
+                onClick={() => {
+                  setShowAddModal(false);
+                  resetForm();
+                }}
+                className="flex-1 justify-center"
+              >
+                Cancel
+              </Btn>
+              <Btn
+                variant="primary"
+                onClick={() => {
+                  const usersNum = Number(form.users || 0);
+                  const revenueNum = Number(form.revenue || 0);
+                  const newId =
+                    businessList.length > 0
+                      ? Math.max(...businessList.map((x) => x.id)) + 1
+                      : 1;
+
+                  const newBusiness = {
+                    id: newId,
+                    name: form.name || "New Business",
+                    owner: form.owner || "",
+                    plan: form.plan,
+                    users: Number.isFinite(usersNum) ? usersNum : 0,
+                    revenue: Number.isFinite(revenueNum) ? revenueNum : 0,
+                    status: form.status,
+                    joined:
+                      form.joined || new Date().toISOString().slice(0, 10),
+                  };
+
+                  setBusinessList((prev) => [...prev, newBusiness]);
+                  setShowAddModal(false);
+                  resetForm();
+                  showToast("Business added successfully", "success");
+                }}
+                className="flex-1 justify-center"
+              >
+                Save Business
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 min-w-48">
+          <Input
+            value={search}
+            onChange={setSearch}
+            placeholder="Search businesses by name, owner, plan..."
+            icon={<Search className="w-4 h-4" />}
+          />
+        </div>
+
+        <Btn
+          variant="primary"
+          size="md"
+          onClick={() => setShowAddModal(true)}
+          icon={<Plus className="w-4 h-4" />}
+        >
+          Add Business
+        </Btn>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          [String(businessList.length), "Total Businesses"],
+          [
+            String(businessList.filter((b) => b.status === "Active").length),
+            "Active",
+          ],
+          [
+            String(businessList.filter((b) => b.status === "Suspended").length),
+            "Suspended",
+          ],
+        ].map(([v, l]) => (
+          <Card key={l} className="p-4 text-center">
+            <p className="text-xl font-bold text-slate-900">{v}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{l}</p>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100">
+                {[
+                  "Business",
+                  "Owner",
+                  "Plan",
+                  "Users",
+                  "Revenue",
+                  "Status",
+                  "Joined",
+                  "Actions",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8">
+                    <EmptyState
+                      icon={<Building2 className="w-6 h-6" />}
+                      title="No businesses found"
+                      sub="Try adjusting your search"
+                    />
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((b) => (
+                  <tr
+                    key={b.id}
+                    className="hover:bg-slate-50 transition-colors group"
+                  >
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-slate-900">{b.name}</p>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{b.owner}</td>
+                    <td className="px-5 py-4">{statusBadge(b.plan)}</td>
+                    <td className="px-5 py-4 text-slate-600 font-mono">
+                      {b.users ?? 0}
+                    </td>
+                    <td className="px-5 py-4 text-slate-900 font-semibold">
+                      {fmt(b.revenue ?? 0)}
+                    </td>
+                    <td className="px-5 py-4">{statusBadge(b.status)}</td>
+                    <td className="px-5 py-4 text-slate-500 font-mono text-xs">
+                      {b.joined}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Btn
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewBusiness(b);
+                          }}
+                          icon={<Eye className="w-3.5 h-3.5" />}
+                        />
+                        <Btn
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit(b);
+                          }}
+                          icon={<Edit2 className="w-3.5 h-3.5" />}
+                        />
+                        <Btn
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteId(b.id);
+                          }}
+                          icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
+          <p className="text-xs text-slate-500">
+            Showing {filtered.length} of {businessList.length} businesses
+          </p>
+        </div>
       </Card>
     </div>
   );
