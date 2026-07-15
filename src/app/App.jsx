@@ -5258,7 +5258,65 @@ function ExpensesScreen() {
 // ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
 
 function UsersScreen() {
+  const [employeeList, setEmployeeList] = useState(employees);
   const [showModal, setShowModal] = useState(false);
+
+const [name, setName] = useState("");
+const [email, setEmail] = useState("");
+const [role, setRole] = useState("Cashier");
+const [department, setDepartment] = useState("");
+const [phone, setPhone] = useState("");
+const [password, setPassword] = useState("");
+const [passwordError, setPasswordError] = useState("");
+const [phoneError, setPhoneError] = useState("");
+
+const handleSaveEmployee = () => {
+  // Password validation
+  const passwordRegex =
+    /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+
+  if (!passwordRegex.test(password)) {
+    setPasswordError(
+      "Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character."
+    );
+    return;
+  }
+
+  setPasswordError("");
+
+  // Phone number validation
+const phoneRegex = /^[0-9]{10}$/;
+
+if (!phoneRegex.test(phone)) {
+  setPhoneError("Phone number must be exactly 10 digits.");
+  return;
+}
+
+setPhoneError("");
+
+  const newEmployee = {
+    id: Date.now(),
+    name,
+    email,
+    role,
+    department,
+    phone,
+    lastActive: "Just Now",
+    status: "Active",
+  };
+
+  setEmployeeList((prev) => [...prev, newEmployee]);
+
+  // Clear form
+  setName("");
+  setEmail("");
+  setRole("Cashier");
+  setDepartment("");
+  setPhone("");
+  setPassword("");
+
+  setShowModal(false);
+};
 
   return (
     <div className="space-y-5">
@@ -5266,33 +5324,61 @@ function UsersScreen() {
         <Modal title="Add Employee" onClose={() => setShowModal(false)}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Full Name" placeholder="Priya Sharma" />
               <Input
-                label="Email"
-                placeholder="priya@business.in"
-                icon={<Mail className="w-4 h-4" />}
-              />
+  label="Full Name"
+  placeholder="Priya Sharma"
+  value={name}
+  onChange={setName}
+/>
+              <Input
+  label="Email"
+  placeholder="priya@business.in"
+  value={email}
+  onChange={setEmail}
+  icon={<Mail className="w-4 h-4" />}
+/>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Select
-                label="Role"
-                value="Cashier"
-                onChange={() => {}}
-                options={["Owner", "Manager", "Cashier", "Accountant"]}
-              />
-              <Input label="Department" placeholder="Sales" />
+  label="Role"
+  value={role}
+  onChange={setRole}
+  options={["Owner", "Manager", "Cashier", "Accountant"]}
+/>
+              <Input
+  label="Department"
+  placeholder="Sales"
+  value={department}
+  onChange={setDepartment}
+/>
             </div>
             <Input
-              label="Phone"
-              placeholder="+91 "
-              icon={<Phone className="w-4 h-4" />}
-            />
+  label="Phone"
+  placeholder="+91"
+  value={phone}
+  onChange={(value) => {
+    // Allow only digits
+    const digits = value.replace(/\D/g, "");
+
+    // Limit to 10 digits
+    if (digits.length <= 10) {
+      setPhone(digits);
+      setPhoneError("");
+    }
+  }}
+  error={phoneError}
+/>
             <Input
-              label="Temporary Password"
-              type="password"
-              placeholder="Min. 8 characters"
-              icon={<Lock className="w-4 h-4" />}
-            />
+  label="Temporary Password"
+  type="password"
+  value={password}
+  onChange={(value) => {
+    setPassword(value);
+    setPasswordError("");
+  }}
+  icon={<Lock className="w-4 h-4" />}
+  error={passwordError}
+/>
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 Permissions
@@ -5323,14 +5409,14 @@ function UsersScreen() {
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
-                onClick={() => setShowModal(false)}
+                  onClick={() => setShowModal(false)}
                 className="flex-1 justify-center"
               >
                 Cancel
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => setShowModal(false)}
+                onClick={handleSaveEmployee}
                 className="flex-1 justify-center"
               >
                 Add Employee
@@ -5388,7 +5474,7 @@ function UsersScreen() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {employees.map((e) => (
+            {employeeList.map((e) => (
               <tr
                 key={e.id}
                 className="hover:bg-slate-50 transition-colors group"
