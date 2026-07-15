@@ -1076,7 +1076,7 @@ const NAV_GROUPS = [
 
 const SUPER_ADMIN_ITEMS = [
   { key: "super-dashboard", label: "Overview", icon: LayoutDashboard },
-  { key: "customers", label: "Businesses", icon: Building2 },
+  
   { key: "revenue", label: "Revenue", icon: BarChart3 },
 
   { key: "settings", label: "Settings", icon: Settings },
