@@ -4579,6 +4579,33 @@ function PurchaseScreen() {
 
         const nextItem = { ...item, [field]: value };
 
+        if (field === "product") {
+  const selectedProduct = products.find(
+    (p) => p.name === value
+  );
+
+  if (selectedProduct) {
+    nextItem.rate = selectedProduct.cost;
+
+    const qty = Number(nextItem.qty) || 0;
+    nextItem.amount = qty * nextItem.rate;
+  }
+}
+
+if (field === "qty") {
+  const qty = Number(value) || 0;
+  const rate = Number(nextItem.rate) || 0;
+
+  nextItem.amount = qty * rate;
+}
+
+if (field === "rate") {
+  const qty = Number(nextItem.qty) || 0;
+  const rate = Number(value) || 0;
+
+  nextItem.amount = qty * rate;
+}
+
         if (field === "qty" || field === "rate") {
           const qty =
             field === "qty"
@@ -4875,18 +4902,6 @@ function PurchaseScreen() {
                 </Btn>
               </div>
             </Card>
-            <Card className="p-4">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-                Notes
-              </h4>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add notes or terms..."
-                rows={3}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
-            </Card>
           </div>
         </div>
       ) : (
@@ -4898,22 +4913,7 @@ function PurchaseScreen() {
               placeholder="Search purchases..."
               icon={<Search className="w-4 h-4" />}
             />
-            <div className="flex gap-2 ml-3">
-              <Btn
-                variant="outline"
-                size="sm"
-                icon={<Filter className="w-3.5 h-3.5" />}
-              >
-                Filter
-              </Btn>
-              <Btn
-                variant="outline"
-                size="sm"
-                icon={<Download className="w-3.5 h-3.5" />}
-              >
-                Export
-              </Btn>
-            </div>
+            
           </div>
           <table className="w-full text-sm">
             <thead>
