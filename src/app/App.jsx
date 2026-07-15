@@ -958,7 +958,7 @@ function StatCard({ label, value, sub, trend, icon, color }) {
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <Card className="w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
           <h3 className="font-semibold text-slate-900">{title}</h3>
           <button
@@ -3562,7 +3562,17 @@ function ProductsScreen() {
   // Make products editable so "Save Product" updates the table below.
   const [productList, setProductList] = useState(products);
 
-  const cats = ["All", "Electronics", "Clothing", "Groceries", "Hardware"];
+  // --- ADDED FOR DYNAMIC CATEGORIES IN PROJECT 1 ---
+  const [categories, setCategories] = useState([
+    "Electronics",
+    "Clothing",
+    "Groceries",
+    "Hardware",
+  ]);
+  const [newCategory, setNewCategory] = useState("");
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
+  const [showEditCategoryInput, setShowEditCategoryInput] = useState(false);
+  // -------------------------------------------------
 
   const [form, setForm] = useState({
     name: "",
@@ -3608,12 +3618,14 @@ function ProductsScreen() {
         />
       )}
 
+      {/* EDIT PRODUCT MODAL */}
       {showEditModal && editId !== null && (
         <Modal
           title="Edit Product"
           onClose={() => {
             setShowEditModal(false);
             setEditId(null);
+            setShowEditCategoryInput(false);
           }}
         >
           <div className="space-y-4">
@@ -3634,10 +3646,43 @@ function ProductsScreen() {
               <Select
                 label="Category"
                 value={editForm.category}
-                onChange={(v) => setEditForm((f) => ({ ...f, category: v }))}
-                options={cats.slice(1)}
+                onChange={(v) => {
+                  if (v === "+ Add Category") {
+                    setShowEditCategoryInput(true);
+                  } else {
+                    setEditForm((f) => ({ ...f, category: v }));
+                    setShowEditCategoryInput(false);
+                  }
+                }}
+                options={[...categories, "+ Add Category"]}
               />
             </div>
+
+            {/* Conditionally rendered Add Category field in Edit Modal */}
+            {showEditCategoryInput && (
+              <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                <Input
+                  label="New Category"
+                  value={newCategory}
+                  onChange={setNewCategory}
+                  placeholder="Enter category name"
+                />
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (newCategory.trim()) {
+                      setCategories([...categories, newCategory]);
+                      setEditForm((f) => ({ ...f, category: newCategory }));
+                      setNewCategory("");
+                      setShowEditCategoryInput(false);
+                    }
+                  }}
+                >
+                  Save Category
+                </Btn>
+              </div>
+            )}
 
             <Select
               label="Supplier"
@@ -3695,6 +3740,7 @@ function ProductsScreen() {
                 onClick={() => {
                   setShowEditModal(false);
                   setEditId(null);
+                  setShowEditCategoryInput(false);
                 }}
                 className="flex-1 justify-center"
               >
@@ -3728,6 +3774,7 @@ function ProductsScreen() {
                   );
                   setShowEditModal(false);
                   setEditId(null);
+                  setShowEditCategoryInput(false);
                   showToast("Product updated successfully", "success");
                 }}
                 className="flex-1 justify-center"
@@ -3739,8 +3786,15 @@ function ProductsScreen() {
         </Modal>
       )}
 
+      {/* ADD NEW PRODUCT MODAL */}
       {showModal && (
-        <Modal title="Add New Product" onClose={() => setShowModal(false)}>
+        <Modal
+          title="Add New Product"
+          onClose={() => {
+            setShowModal(false);
+            setShowCategoryInput(false);
+          }}
+        >
           <div className="space-y-4">
             <Input
               label="Product Name"
@@ -3759,10 +3813,44 @@ function ProductsScreen() {
               <Select
                 label="Category"
                 value={form.category}
-                onChange={(v) => setForm((f) => ({ ...f, category: v }))}
-                options={cats.slice(1)}
+                onChange={(v) => {
+                  if (v === "+ Add Category") {
+                    setShowCategoryInput(true);
+                  } else {
+                    setForm((f) => ({ ...f, category: v }));
+                    setShowCategoryInput(false);
+                  }
+                }}
+                options={[...categories, "+ Add Category"]}
               />
             </div>
+
+            {/* Conditionally rendered Add Category field in Add Modal */}
+            {showCategoryInput && (
+              <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                <Input
+                  label="New Category"
+                  value={newCategory}
+                  onChange={setNewCategory}
+                  placeholder="Enter category name"
+                />
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (newCategory.trim()) {
+                      setCategories([...categories, newCategory]);
+                      setForm((f) => ({ ...f, category: newCategory }));
+                      setNewCategory("");
+                      setShowCategoryInput(false);
+                    }
+                  }}
+                >
+                  Save Category
+                </Btn>
+              </div>
+            )}
+
             <Select
               label="Supplier"
               value={form.supplier}
@@ -3814,6 +3902,7 @@ function ProductsScreen() {
                 variant="outline"
                 onClick={() => {
                   setShowModal(false);
+                  setShowCategoryInput(false);
                 }}
                 className="flex-1 justify-center"
               >
@@ -3849,6 +3938,7 @@ function ProductsScreen() {
                   ]);
 
                   setShowModal(false);
+                  setShowCategoryInput(false);
                   setForm({
                     name: "",
                     sku: "",
@@ -3871,6 +3961,7 @@ function ProductsScreen() {
         </Modal>
       )}
 
+      {/* FILTER AND HEADER CONTROLS */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-48">
           <Input
@@ -3881,7 +3972,7 @@ function ProductsScreen() {
           />
         </div>
         <div className="flex items-center gap-2">
-          {cats.map((c) => (
+          {["All", ...categories].map((c) => (
             <button
               key={c}
               onClick={() => setCatFilter(c)}
@@ -3904,6 +3995,7 @@ function ProductsScreen() {
         </Btn>
       </div>
 
+      {/* TABLE SECTION */}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -4025,7 +4117,6 @@ function ProductsScreen() {
     </div>
   );
 }
-
 // ─── POS / BILLING SCREEN ─────────────────────────────────────────────────────
 
 function POSScreen() {
@@ -4771,48 +4862,43 @@ function PurchaseScreen() {
 // ─── INVENTORY SCREEN ─────────────────────────────────────────────────────────
 
 function InventoryScreen() {
-  const [adjustOpen, setAdjustOpen] = useState(false);
-  const [adjustProductId, setAdjustProductId] = useState(null);
-  const [adjustAmount, setAdjustAmount] = useState("1");
-  const [adjustMode, setAdjustMode] = useState("increase");
+  const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
+  const [activeProductId, setActiveProductId] = useState(null);
+  const [adjustType, setAdjustType] = useState("add");
+  const [adjustQty, setAdjustQty] = useState("0");
+  const [adjustReason, setAdjustReason] = useState("");
 
-  const [localProductList, setLocalProductList] = useState(products);
+  const [productList, setProductList] = useState(products);
 
-  const selectedProduct =
-    localProductList.find((p) => p.id === adjustProductId) ?? null;
+  const activeProduct =
+    activeProductId !== null
+      ? productList.find((p) => p.id === activeProductId)
+      : null;
 
   const openAdjust = (productId) => {
-    setAdjustProductId(productId ?? null);
-    setAdjustMode("increase");
-    setAdjustAmount("1");
-    setAdjustOpen(true);
+    setActiveProductId(productId);
+    setAdjustType("add");
+    setAdjustQty("0");
+    setAdjustReason("");
+    setStockAdjustOpen(true);
   };
 
-  const applyAdjustment = () => {
-    if (selectedProduct == null) return;
-    const amt = Math.max(0, Number(adjustAmount || 0));
-    if (!Number.isFinite(amt) || amt <= 0) return;
+  const applyAdjust = () => {
+    const qtyNum = Number(adjustQty || 0);
+    if (!Number.isFinite(qtyNum) || qtyNum <= 0) return;
 
-    setLocalProductList((prev) =>
+    const delta = adjustType === "add" ? qtyNum : -qtyNum;
+
+    setProductList((prev) =>
       prev.map((p) =>
-        p.id !== selectedProduct.id
-          ? p
-          : {
-              ...p,
-              stock:
-                adjustMode === "increase"
-                  ? p.stock + amt
-                  : Math.max(0, p.stock - amt),
-              status:
-                p.stock + (adjustMode === "increase" ? amt : -amt) <= 0
-                  ? "Inactive"
-                  : p.status,
-            },
+        p.id === activeProductId
+          ? { ...p, stock: Math.max(0, p.stock + delta) }
+          : p,
       ),
     );
 
-    setAdjustOpen(false);
-    setAdjustProductId(null);
+    setStockAdjustOpen(false);
+    setActiveProductId(null);
   };
 
   return (
@@ -4892,42 +4978,196 @@ function InventoryScreen() {
         </div>
       </Card>
 
-      {adjustOpen && selectedProduct && (
+      <Card>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h3 className="font-semibold text-slate-900">Current Stock</h3>
+          <div className="flex gap-2">
+            <Btn
+              variant="outline"
+              size="sm"
+              icon={<RefreshCw className="w-3.5 h-3.5" />}
+              onClick={() => openAdjust(productList[0]?.id ?? null)}
+            >
+              Adjust Stock
+            </Btn>
+            <Btn
+              variant="outline"
+              size="sm"
+              icon={<Download className="w-3.5 h-3.5" />}
+            >
+              Export
+            </Btn>
+          </div>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100">
+              {[
+                "Product",
+                "Category",
+                "In Stock",
+                "Min Level",
+                "Value",
+                "Status",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {productList.map((p) => (
+              <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-5 py-3.5">
+                  <p className="font-medium text-slate-900">{p.name}</p>
+                  <p className="text-xs text-slate-400 font-mono">{p.sku}</p>
+                </td>
+                <td className="px-5 py-3.5">
+                  <Badge label={p.category} variant="blue" />
+                </td>
+                <td className="px-5 py-3.5">
+                  <button
+                    onClick={() => openAdjust(p.id)}
+                    className="flex items-center gap-2 w-full text-left"
+                    title="Adjust stock"
+                  >
+                    <span
+                      className={`font-bold font-mono ${p.stock === 0 ? "text-red-500" : p.stock <= p.minStock ? "text-amber-600" : "text-slate-900"}`}
+                    >
+                      {p.stock}
+                    </span>
+                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.min(100, (p.stock / 50) * 100)}%`,
+                          backgroundColor:
+                            p.stock === 0
+                              ? "#EF4444"
+                              : p.stock <= p.minStock
+                                ? "#F59E0B"
+                                : "#10B981",
+                        }}
+                      />
+                    </div>
+                  </button>
+                </td>
+                <td className="px-5 py-3.5 text-slate-600 font-mono">
+                  {p.minStock}
+                </td>
+                <td className="px-5 py-3.5 font-medium text-slate-900">
+                  {fmt(p.price * p.stock)}
+                </td>
+                <td className="px-5 py-3.5">
+                  {statusBadge(p.stock === 0 ? "Inactive" : p.status)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      {stockAdjustOpen && activeProduct && (
         <Modal
           title="Adjust Stock"
           onClose={() => {
-            setAdjustOpen(false);
-            setAdjustProductId(null);
+            setStockAdjustOpen(false);
+            setActiveProductId(null);
           }}
         >
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Selected Product
+                Product
               </p>
-              <p className="mt-1 font-semibold text-slate-900">
-                {selectedProduct.name}
+              <p className="mt-1 text-lg font-semibold text-slate-900">
+                {activeProduct.name}
               </p>
               <p className="text-xs text-slate-500 font-mono mt-1">
-                {selectedProduct.sku}
+                {activeProduct.sku} · Category: {activeProduct.category}
               </p>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500">Current Stock</p>
-                  <p className="text-lg font-bold text-slate-900 font-mono">
-                    {selectedProduct.stock}
-                  </p>
-                </div>
-                <div className="w-px h-10 bg-slate-200" />
-                <div className="flex-1">
-                  <p className="text-xs text-slate-500">Min Stock</p>
-                  <p className="text-lg font-bold text-slate-900 font-mono">
-                    {selectedProduct.minStock}
-                  </p>
-                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Current Stock
+                </p>
+                <p className="mt-1 text-xl font-bold text-slate-900 font-mono">
+                  {activeProduct.stock}
+                </p>
               </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Min Level
+                </p>
+                <p className="mt-1 text-xl font-bold text-slate-900 font-mono">
+                  {activeProduct.minStock}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setAdjustType("add")}
+                className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${adjustType === "add" ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"}`}
+              >
+                Add Stock
+              </button>
+              <button
+                onClick={() => setAdjustType("remove")}
+                className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${adjustType === "remove" ? "bg-red-50 border-red-300 text-red-700" : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"}`}
+              >
+                Remove Stock
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Quantity"
+                value={adjustQty}
+                onChange={setAdjustQty}
+                placeholder="0"
+                type="number"
+              />
+              <Input
+                label="Reason (optional)"
+                value={adjustReason}
+                onChange={setAdjustReason}
+                placeholder="e.g., damage / count adjustment"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Btn
+                variant="outline"
+                onClick={() => {
+                  setStockAdjustOpen(false);
+                  setActiveProductId(null);
+                }}
+                className="flex-1 justify-center"
+              >
+                Cancel
+              </Btn>
+              <Btn
+                variant="primary"
+                onClick={() => applyAdjust()}
+                className="flex-1 justify-center"
+              >
+                Apply Adjustment
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
+  //   </div>
+  // );
 }
 
 // ─── REPORTS SCREEN ───────────────────────────────────────────────────────────
@@ -5006,71 +5246,24 @@ function ReportsScreen() {
 function ExpensesScreen() {
   const [showModal, setShowModal] = useState(false);
 
+  // Local editable list so added expenses appear in the table below.
   const [expenseList, setExpenseList] = useState(expenses);
-  const [toast, setToast] = useState(null);
-
-  const showToast = (msg, type) => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const [form, setForm] = useState({
     category: "Rent",
     description: "",
     amount: "",
     date: new Date().toISOString().slice(0, 10),
+    amount: "",
     paymentMode: "Bank Transfer",
-    referenceNo: "",
-    status: "Paid",
+    reference: "",
   });
 
-  const handleSaveExpense = () => {
-    const amountNum = Number(form.amount || 0);
-    if (!form.category) {
-      showToast("Please select category", "error");
-      return;
-    }
-    if (!form.description.trim()) {
-      showToast("Description is required", "error");
-      return;
-    }
-    if (!Number.isFinite(amountNum) || amountNum <= 0) {
-      showToast("Amount must be greater than 0", "error");
-      return;
-    }
-    if (!form.date) {
-      showToast("Date is required", "error");
-      return;
-    }
+  const [toast, setToast] = useState(null);
 
-    const newId =
-      expenseList.length > 0
-        ? Math.max(...expenseList.map((x) => x.id)) + 1
-        : 1;
-
-    const newExpense = {
-      id: newId,
-      category: form.category,
-      description: form.description.trim(),
-      date: form.date,
-      amount: amountNum,
-      paymentMode: form.paymentMode,
-      status: form.status,
-    };
-
-    setExpenseList((prev) => [...prev, newExpense]);
-    setShowModal(false);
-    showToast("Expense added successfully", "success");
-
-    setForm({
-      category: "Rent",
-      description: "",
-      amount: "",
-      date: new Date().toISOString().slice(0, 10),
-      paymentMode: "Bank Transfer",
-      referenceNo: "",
-      status: "Paid",
-    });
+  const showToast = (msg, type) => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
   };
 
   return (
@@ -5135,8 +5328,8 @@ function ExpensesScreen() {
             <Input
               label="Reference / Receipt No."
               placeholder="REF-001"
-              value={form.referenceNo}
-              onChange={(v) => setForm((f) => ({ ...f, referenceNo: v }))}
+              value={form.reference}
+              onChange={(v) => setForm((f) => ({ ...f, reference: v }))}
             />
             <div className="flex gap-3 pt-2">
               <Btn
@@ -5148,7 +5341,45 @@ function ExpensesScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={handleSaveExpense}
+                onClick={() => {
+                  const amountNum = Number(form.amount || 0);
+                  if (!form.description.trim()) {
+                    showToast("Description is required", "error");
+                    return;
+                  }
+                  if (!Number.isFinite(amountNum) || amountNum <= 0) {
+                    showToast("Amount must be greater than 0", "error");
+                    return;
+                  }
+
+                  const newId =
+                    expenseList.length > 0
+                      ? Math.max(...expenseList.map((x) => x.id)) + 1
+                      : 1;
+
+                  const newExpense = {
+                    id: newId,
+                    category: form.category,
+                    description: form.description,
+                    date: form.date,
+                    amount: amountNum,
+                    paymentMode: form.paymentMode,
+                    reference: form.reference || "",
+                    status: "Paid",
+                  };
+
+                  setExpenseList((prev) => [newExpense, ...prev]);
+                  setShowModal(false);
+                  setForm({
+                    category: "Rent",
+                    description: "",
+                    date: new Date().toISOString().slice(0, 10),
+                    amount: "",
+                    paymentMode: "Bank Transfer",
+                    reference: "",
+                  });
+                  showToast("Expense saved successfully", "success");
+                }}
                 className="flex-1 justify-center"
               >
                 Save Expense
@@ -5161,8 +5392,8 @@ function ExpensesScreen() {
       <div className="grid grid-cols-3 gap-4">
         <StatCard
           label="Total Expenses (Aug)"
-          value="₹2.06L"
-          sub="+8% vs last month"
+          value={`₹${Number(expenseList.reduce((s, e) => s + (Number(e.amount) || 0), 0)).toLocaleString("en-IN")}`}
+          sub=""
           trend="up"
           icon={<Wallet className="w-5 h-5" />}
           color="bg-red-50 text-red-500"
@@ -7996,10 +8227,16 @@ function AppRoutes() {
 
   useEffect(() => {
     const routePage = getPageFromPath(location.pathname);
+
+    // When user lands on /app (no page segment), pick role-based default.
+    if (location.pathname === "/app") {
+      setPage(role === "superadmin" ? "super-dashboard" : "dashboard");
+      return;
+    }
+
+    // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
     if (routePage) {
       setPage(routePage);
-    } else if (location.pathname === "/app") {
-      setPage(role === "superadmin" ? "super-dashboard" : "dashboard");
     }
   }, [location.pathname, role]);
 
