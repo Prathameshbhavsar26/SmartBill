@@ -5213,15 +5213,42 @@ function ReportsScreen() {
 function ExpensesScreen() {
   const [showModal, setShowModal] = useState(false);
 
+  // Local editable list so added expenses appear in the table below.
+  const [expenseList, setExpenseList] = useState(expenses);
+
+  const [form, setForm] = useState({
+    category: "Rent",
+    description: "",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    paymentMode: "Bank Transfer",
+    reference: "",
+  });
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type) => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   return (
     <div className="space-y-5">
+      {toast && (
+        <Toast
+          message={toast.msg}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {showModal && (
         <Modal title="Add Expense" onClose={() => setShowModal(false)}>
           <div className="space-y-4">
             <Select
               label="Category"
-              value="Rent"
-              onChange={() => {}}
+              value={form.category}
+              onChange={(v) => setForm((f) => ({ ...f, category: v }))}
               options={[
                 "Rent",
                 "Utilities",
@@ -5232,19 +5259,30 @@ function ExpensesScreen() {
                 "Other",
               ]}
             />
-            <Input label="Description" placeholder="August rent payment" />
+            <Input
+              label="Description"
+              placeholder="August rent payment"
+              value={form.description}
+              onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+            />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Amount (₹)" placeholder="45000" />
+              <Input
+                label="Amount (₹)"
+                placeholder="45000"
+                value={form.amount}
+                onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
+              />
               <Input
                 label="Date"
                 type="date"
-                value={new Date().toISOString().slice(0, 10)}
+                value={form.date}
+                onChange={(v) => setForm((f) => ({ ...f, date: v }))}
               />
             </div>
             <Select
               label="Payment Mode"
-              value="Bank Transfer"
-              onChange={() => {}}
+              value={form.paymentMode}
+              onChange={(v) => setForm((f) => ({ ...f, paymentMode: v }))}
               options={[
                 "Cash",
                 "Bank Transfer",
@@ -5253,7 +5291,12 @@ function ExpensesScreen() {
                 "Cheque",
               ]}
             />
-            <Input label="Reference / Receipt No." placeholder="REF-001" />
+            <Input
+              label="Reference / Receipt No."
+              placeholder="REF-001"
+              value={form.reference}
+              onChange={(v) => setForm((f) => ({ ...f, reference: v }))}
+            />
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -5264,7 +5307,45 @@ function ExpensesScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  const amountNum = Number(form.amount || 0);
+                  if (!form.description.trim()) {
+                    showToast("Description is required", "error");
+                    return;
+                  }
+                  if (!Number.isFinite(amountNum) || amountNum <= 0) {
+                    showToast("Amount must be greater than 0", "error");
+                    return;
+                  }
+
+                  const newId =
+                    expenseList.length > 0
+                      ? Math.max(...expenseList.map((x) => x.id)) + 1
+                      : 1;
+
+                  const newExpense = {
+                    id: newId,
+                    category: form.category,
+                    description: form.description,
+                    date: form.date,
+                    amount: amountNum,
+                    paymentMode: form.paymentMode,
+                    reference: form.reference || "",
+                    status: "Paid",
+                  };
+
+                  setExpenseList((prev) => [newExpense, ...prev]);
+                  setShowModal(false);
+                  setForm({
+                    category: "Rent",
+                    description: "",
+                    date: new Date().toISOString().slice(0, 10),
+                    amount: "",
+                    paymentMode: "Bank Transfer",
+                    reference: "",
+                  });
+                  showToast("Expense saved successfully", "success");
+                }}
                 className="flex-1 justify-center"
               >
                 Save Expense
@@ -5277,8 +5358,8 @@ function ExpensesScreen() {
       <div className="grid grid-cols-3 gap-4">
         <StatCard
           label="Total Expenses (Aug)"
-          value="₹2.06L"
-          sub="+8% vs last month"
+          value={`₹${Number(expenseList.reduce((s, e) => s + (Number(e.amount) || 0), 0)).toLocaleString("en-IN")}`}
+          sub=""
           trend="up"
           icon={<Wallet className="w-5 h-5" />}
           color="bg-red-50 text-red-500"
@@ -5334,7 +5415,7 @@ function ExpensesScreen() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {expenses.map((e) => (
+            {expenseList.map((e) => (
               <tr
                 key={e.id}
                 className="hover:bg-slate-50 transition-colors group"
@@ -5359,7 +5440,6 @@ function ExpensesScreen() {
     </div>
   );
 }
-
 
 // ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
 
