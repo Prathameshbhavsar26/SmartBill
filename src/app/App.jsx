@@ -2609,7 +2609,7 @@ function CustomersScreen() {
     email: "",
     city: "",
     gst: "",
-    openingBalance: "0",
+    Balance: "0",
   });
 
   const [toast, setToast] = useState(null);
@@ -2790,7 +2790,7 @@ function CustomersScreen() {
             />
 
             <Input
-              label="Opening Balance (₹)"
+              label="Balance (₹)"
               placeholder="0"
               value={editForm.openingBalance}
               onChange={(v) =>
@@ -2888,7 +2888,7 @@ function CustomersScreen() {
               onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
             />
             <Input
-              label="Opening Balance (₹)"
+              label="Balance (₹)"
               placeholder="0"
               value={form.openingBalance}
               onChange={(v) => setForm((f) => ({ ...f, openingBalance: v }))}
