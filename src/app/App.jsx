@@ -8237,6 +8237,8 @@ function AppShell({ role, onLogout, page, onNav }) {
 const APP_PAGES = [
   "dashboard",
   "super-dashboard",
+  "businesses",
+  "revenue",
   "customers",
   "suppliers",
   "products",
