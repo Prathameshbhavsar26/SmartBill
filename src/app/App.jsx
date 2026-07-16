@@ -5037,7 +5037,7 @@ function ReportsScreen() {
       case "inventory":
         return <InventoryReport />;
       default:
-        return <SalesReport />;
+              return <SalesReport />;
     }
   };
 
@@ -5076,6 +5076,7 @@ function ReportsScreen() {
     </div>
   );
 }
+
 
 // ─── EXPENSES SCREEN ──────────────────────────────────────────────────────────
 
@@ -8236,6 +8237,8 @@ function AppShell({ role, onLogout, page, onNav }) {
 const APP_PAGES = [
   "dashboard",
   "super-dashboard",
+  "businesses",
+  "revenue",
   "customers",
   "suppliers",
   "products",
@@ -8278,10 +8281,9 @@ function AppRoutes() {
     }
 
     // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
-    if (routePage) {
-      setPage(routePage);
-    }
+    if (routePage) setPage(routePage);
   }, [location.pathname, role]);
+
 
   const handleLogin = (r) => {
     setRole(r);
@@ -8304,12 +8306,13 @@ function AppRoutes() {
 
   const navApp = useCallback(
     (p) => {
-      setPage(p);
+      // Navigation source of truth is the URL. Page state is derived in AppRoutes.
       if (p === "dashboard" || p === "super-dashboard") navigate("/app");
       else navigate(`/app/${p}`);
     },
     [navigate],
   );
+
 
   return (
     <Routes>
