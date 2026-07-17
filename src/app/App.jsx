@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import Revenue from "./components/revenue";
+import BusinessesNew from "./BusinessesNew";
 import {
   BrowserRouter,
   Routes,
@@ -521,6 +522,9 @@ const businesses = [
     id: 1,
     name: "Sharma Electronics",
     owner: "Vikram Sharma",
+    ownerEmail: "vikram.sharma@sharmaelectronics.in",
+    ownerPhone: "+91 8830164600",
+    ownerCity: "Nashik",
     plan: "Pro",
     users: 8,
     revenue: 245000,
@@ -531,6 +535,9 @@ const businesses = [
     id: 2,
     name: "Mumbai Textiles",
     owner: "Nirmala Patel",
+    ownerEmail: "nirmala.patel@mumbaitextiles.in",
+    ownerPhone: "+91 9765969840",
+    ownerCity: "Mumbai",
     plan: "Enterprise",
     users: 24,
     revenue: 1280000,
@@ -541,6 +548,9 @@ const businesses = [
     id: 3,
     name: "Delhi Grocers",
     owner: "Amar Singh",
+    ownerEmail: "amar.singh@delhigrocers.in",
+    ownerPhone: "+91 9922334455",
+    ownerCity: "Delhi",
     plan: "Starter",
     users: 3,
     revenue: 89000,
@@ -551,6 +561,9 @@ const businesses = [
     id: 4,
     name: "Pune Hardware Hub",
     owner: "Sanjay More",
+    ownerEmail: "sanjay.more@punehardware.in",
+    ownerPhone: "+91 9988776655",
+    ownerCity: "Pune",
     plan: "Pro",
     users: 6,
     revenue: 412000,
@@ -561,6 +574,9 @@ const businesses = [
     id: 5,
     name: "Chennai Pharma",
     owner: "Lakshmi Rajan",
+    ownerEmail: "lakshmi.rajan@chennai-pharma.in",
+    ownerPhone: "+91 8899001122",
+    ownerCity: "Chennai",
     plan: "Enterprise",
     users: 31,
     revenue: 2100000,
@@ -5037,7 +5053,7 @@ function ReportsScreen() {
       case "inventory":
         return <InventoryReport />;
       default:
-              return <SalesReport />;
+        return <SalesReport />;
     }
   };
 
@@ -5076,7 +5092,6 @@ function ReportsScreen() {
     </div>
   );
 }
-
 
 // ─── EXPENSES SCREEN ──────────────────────────────────────────────────────────
 
@@ -5609,7 +5624,10 @@ function UsersScreen() {
 
 // ─── SUPER ADMIN SETTINGS SCREEN ──────────────────────────────────────────────
 
-function BusinessesScreen() {
+function BusinessesScreen({ onOpenBusiness }) {
+  // NOTE: This legacy screen is kept for backward compatibility.
+  // The super-admin "Businesses" route should render BusinessesNew instead.
+
   const [search, setSearch] = useState("");
 
   const filtered = businesses.filter((b) => {
@@ -5656,13 +5674,17 @@ function BusinessesScreen() {
             <thead>
               <tr className="border-b border-slate-100">
                 {[
-                  "Business",
+                  "Business Name",
                   "Business Owner",
-                  "Plan",
-                  "Users",
+                  "Email",
+                  "Phone Number",
+                  "City",
+                  "Subscription Plan",
+                  "Joining Date",
                   "Revenue",
+                  "Employees",
                   "Status",
-                  "Joined",
+                  "Actions",
                 ].map((h) => (
                   <th
                     key={h}
@@ -5676,13 +5698,7 @@ function BusinessesScreen() {
             <tbody className="divide-y divide-slate-50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10">
-                    <EmptyState
-                      icon={<Building2 className="w-6 h-6" />}
-                      title="No businesses found"
-                      sub="Try adjusting your search query"
-                    />
-                  </td>
+                  <td colSpan={11} className="py-10"></td>
                 </tr>
               ) : (
                 filtered.map((b) => (
@@ -5694,15 +5710,27 @@ function BusinessesScreen() {
                       <p className="font-medium text-slate-900">{b.name}</p>
                     </td>
                     <td className="px-5 py-4 text-slate-700">{b.owner}</td>
+                    <td className="px-5 py-4 text-slate-600">{b.ownerEmail}</td>
+                    <td className="px-5 py-4 text-slate-600 font-mono text-xs">
+                      {b.ownerPhone}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{b.ownerCity}</td>
                     <td className="px-5 py-4">
                       <Badge label={b.plan} variant="blue" />
                     </td>
-                    <td className="px-5 py-4 text-slate-600">{b.users}</td>
+                    <td className="px-5 py-4 text-slate-600">{b.joined}</td>
                     <td className="px-5 py-4 font-semibold text-slate-900">
                       {fmt(b.revenue)}
                     </td>
+                    <td className="px-5 py-4 text-slate-600">{b.users}</td>
                     <td className="px-5 py-4">{statusBadge(b.status)}</td>
-                    <td className="px-5 py-4 text-slate-600">{b.joined}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1">
+                        <Btn variant="ghost" size="sm" onClick={() => {}}>
+                          View
+                        </Btn>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -8227,6 +8255,8 @@ function AppShell({ role, onLogout, page, onNav }) {
     switch (page) {
       case "super-dashboard":
         return <SuperAdminDashboard />;
+      case "businesses":
+        return <BusinessesNew />;
       case "dashboard":
         return <BusinessDashboard onNav={onNav} />;
       case "customers":
@@ -8342,7 +8372,6 @@ function AppRoutes() {
     if (routePage) setPage(routePage);
   }, [location.pathname, role]);
 
-
   const handleLogin = (r) => {
     setRole(r);
     setPage(r === "superadmin" ? "super-dashboard" : "dashboard");
@@ -8370,7 +8399,6 @@ function AppRoutes() {
     },
     [navigate],
   );
-
 
   return (
     <Routes>
