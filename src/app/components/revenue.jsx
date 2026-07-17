@@ -3,17 +3,16 @@ import {
   TrendingUp,
   DollarSign,
   ShoppingCart,
-  Users,
   FileText,
   CreditCard,
   ArrowUpRight,
-  ArrowDownRight,
   ChevronDown,
   Download,
   Calendar,
   Percent,
-  Award,
   CheckCircle,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import {
   BarChart,
@@ -26,26 +25,33 @@ import {
   PieChart as RechartsPie,
   Pie,
   Cell,
-  Legend,
 } from "recharts";
 
 // ─── MOCK DATASETS ────────────────────────────────────────────────────────────
 
-const weeklyRevenueTrend = [
-  { day: "Mon", revenue: 125000, orders: 45 },
-  { day: "Tue", revenue: 148000, orders: 52 },
-  { day: "Wed", revenue: 132000, orders: 48 },
-  { day: "Thu", revenue: 195000, orders: 68 },
-  { day: "Fri", revenue: 210000, orders: 75 },
-  { day: "Sat", revenue: 185000, orders: 60 },
-  { day: "Sun", revenue: 105000, orders: 38 },
+// Updated to include structural expense metrics for comparison
+const weeklyFinancialTrend = [
+  { day: "Mon", revenue: 125000, expenses: 45000, orders: 45 },
+  { day: "Tue", revenue: 148000, expenses: 52000, orders: 52 },
+  { day: "Wed", revenue: 132000, expenses: 48000, orders: 48 },
+  { day: "Thu", revenue: 195000, expenses: 60000, orders: 68 },
+  { day: "Fri", revenue: 210000, expenses: 75000, orders: 75 },
+  { day: "Sat", revenue: 185000, expenses: 90000, orders: 60 },
+  { day: "Sun", revenue: 105000, expenses: 30000, orders: 38 },
+];
+
+// Added aging invoices tracking dataset
+const agingInvoicesData = [
+  { range: "0–30 Days (Current)", amount: 145000, count: 12, color: "bg-blue-500", textColor: "text-blue-600" },
+  { range: "31–60 Days (Overdue)", amount: 82000, count: 6, color: "bg-amber-500", textColor: "text-amber-600" },
+  { range: "61+ Days (Critical)", amount: 48000, count: 3, color: "bg-rose-500", textColor: "text-rose-600" },
 ];
 
 const paymentMethodData = [
-  { name: "UPI", value: 450000, color: "#2563EB" }, // Blue
-  { name: "Cash", value: 280000, color: "#10B981" }, // Emerald
-  { name: "Card", value: 210000, color: "#F59E0B" }, // Amber
-  { name: "Wallet", value: 60000, color: "#8B5CF6" }, // Purple
+  { name: "UPI", value: 450000, color: "#2563EB" }, 
+  { name: "Cash", value: 280000, color: "#10B981" }, 
+  { name: "Card", value: 210000, color: "#F59E0B" }, 
+  { name: "Wallet", value: 60000, color: "#8B5CF6" }, 
 ];
 
 const categoryRevenueData = [
@@ -56,17 +62,17 @@ const categoryRevenueData = [
 ];
 
 const topProducts = [
-  { id: 1, name: "Boult Audio Earbuds", sales: 142, revenue: 993858, status: "High" },
-  { id: 2, name: "Max Fashion Shirt (L)", sales: 120, revenue: 107880, status: "Medium" },
-  { id: 3, name: "Basmati Rice Premium 5kg", sales: 98, revenue: 50960, status: "Low" },
-  { id: 4, name: "Zeronics Mechanical Mouse", sales: 64, revenue: 287936, status: "Medium" },
+  { id: 1, name: "Boult Audio Earbuds", revenue: 993858 },
+  { id: 2, name: "Max Fashion Shirt (L)", revenue: 107880 },
+  { id: 3, name: "Basmati Rice Premium 5kg", revenue: 50960 },
+  { id: 4, name: "Zeronics Mechanical Mouse", revenue: 287936 },
 ];
 
 const topCustomers = [
-  { id: 1, name: "Prathamesh Enterprises", purchases: 24, totalSpent: 452000, city: "Nashik" },
-  { id: 2, name: "Gawali Traders", purchases: 18, totalSpent: 284000, city: "Nashik" },
-  { id: 3, name: "Sanchit Wholesale", purchases: 42, totalSpent: 267500, city: "Nashik" },
-  { id: 4, name: "Diksha Traders", purchases: 31, totalSpent: 198000, city: "Jalgaon" },
+  { id: 1, name: "Prathamesh Enterprises", purchases: 24, totalSpent: 452000 },
+  { id: 2, name: "Gawali Traders", purchases: 18, totalSpent: 284000 },
+  { id: 3, name: "Sanchit Wholesale", purchases: 42, totalSpent: 267500 },
+  { id: 4, name: "Diksha Traders", purchases: 31, totalSpent: 198000 },
 ];
 
 const dailyRevenueReport = [
@@ -77,54 +83,18 @@ const dailyRevenueReport = [
   { date: "2026-07-11", sales: 30, taxCollected: 21600, grossRevenue: 120000, status: "Completed" },
 ];
 
-// Helper to format currency consistently
 const fmt = (val) => `₹${Number(val).toLocaleString("en-IN")}`;
 
 export default function Revenue() {
   const [timeframe, setTimeframe] = useState("This Week");
 
+  // Calculate total outstanding balance from aging layout metrics
+  const totalOutstanding = agingInvoicesData.reduce((acc, curr) => acc + curr.amount, 0);
+
   return (
     <div className="space-y-6">
-      {/* Upper Action Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Revenue Analytics Hub</h2>
-          <p className="text-xs text-slate-500">Real-time fiscal monitoring, tax summaries, and product performance analysis.</p>
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:flex-initial">
-            <select
-              value={timeframe}
-              onChange={(e) => setTimeframe(e.target.value)}
-              className="w-full sm:w-40 appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer pr-8"
-            >
-              <option>Today</option>
-              <option>This Week</option>
-              <option>This Month</option>
-              <option>Year to Date</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-          <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-all cursor-pointer shadow-sm active:scale-95">
-            <Download className="w-4 h-4" />
-            <span>Export PDF</span>
-          </button>
-        </div>
-      </div>
-
       {/* Grid: Summary Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-            <DollarSign className="w-5 h-5" />
-          </div>
-          <p className="text-xl font-bold text-slate-900 mb-1">{fmt(1100000)}</p>
-          <p className="text-xs text-slate-500">Weekly Revenue</p>
-          <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 mt-2">
-            <ArrowUpRight className="w-3 h-3" /> 14.2% Growth
-          </span>
-        </div>
-
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
             <ShoppingCart className="w-5 h-5" />
@@ -137,24 +107,13 @@ export default function Revenue() {
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4">
-            <Users className="w-5 h-5" />
-          </div>
-          <p className="text-xl font-bold text-slate-900 mb-1">112 New</p>
-          <p className="text-xs text-slate-500">Customers Added</p>
-          <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 mt-2">
-            <ArrowUpRight className="w-3 h-3" /> 12.1% Growth
-          </span>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4">
             <FileText className="w-5 h-5" />
           </div>
           <p className="text-xl font-bold text-slate-900 mb-1">21 Open</p>
           <p className="text-xs text-slate-500">Pending Invoices</p>
           <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 mt-2">
-            <Calendar className="w-3 h-3" /> Due within 15 Days
+            <Calendar className="w-3 h-3" /> {fmt(totalOutstanding)} Total
           </span>
         </div>
 
@@ -171,7 +130,7 @@ export default function Revenue() {
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mb-4">
-            <TrendingUp className="w-5 h-5" />
+            <CheckCircle className="w-5 h-5" />
           </div>
           <p className="text-xl font-bold text-slate-900 mb-1">82.4%</p>
           <p className="text-xs text-slate-500">Growth Targets</p>
@@ -181,31 +140,37 @@ export default function Revenue() {
         </div>
       </div>
 
-      {/* Chart Block 1: Daily Trend Graph */}
+      {/* NEWLY ADDED: AGING INVOICES / OVERDUE TRACKER LAYOUT */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold text-slate-900 text-sm">Weekly Revenue Trend</h3>
-            <p className="text-xs text-slate-500">Daily breakdown of total inbound collections vs order volume.</p>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-blue-600 rounded-sm" /> Revenue (₹)</span>
-          </div>
+        <div className="flex items-center gap-2 mb-3">
+          <Clock className="w-4 h-4 text-slate-500" />
+          <h3 className="font-semibold text-slate-900 text-sm">Aging Invoices & Collections Breakdown</h3>
         </div>
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weeklyRevenueTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-              <XAxis dataKey="day" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
-              <Tooltip formatter={(value) => [fmt(value), "Revenue"]} contentStyle={{ background: "#0F172A", color: "#fff", borderRadius: "8px", fontSize: "12px", border: "none" }} />
-              <Bar dataKey="revenue" fill="#2563EB" radius={[4, 4, 0, 0]} maxBarSize={45} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {agingInvoicesData.map((item, i) => (
+            <div key={i} className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-semibold text-slate-600">{item.range}</span>
+                  {i === 2 && <AlertTriangle className="w-3.5 h-3.5 text-rose-500 animate-pulse" />}
+                </div>
+                <p className="text-lg font-extrabold text-slate-900 font-mono">{fmt(item.amount)}</p>
+              </div>
+              <div className="mt-3">
+                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mb-1">
+                  <div 
+                    className={`${item.color} h-full`} 
+                    style={{ width: `${(item.amount / totalOutstanding) * 100}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 font-medium">{item.count} Unpaid Statements</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Chart Block 2: Pie & Category Splits */}
+      {/* Chart Block: Pie & Category Splits */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
           <div>
@@ -264,43 +229,6 @@ export default function Revenue() {
         </div>
       </div>
 
-      {/* Target Progress & Business Milestones */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-        <h3 className="font-semibold text-slate-900 text-sm mb-3">Key Benchmarks & Goals</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
-              <Award className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Highest Peak Day</p>
-              <p className="text-sm font-bold text-slate-900 mt-0.5">Friday (₹2,10,000)</p>
-              <p className="text-[10px] text-slate-500 mt-1">Primarily driven by Electronics transactions</p>
-            </div>
-          </div>
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-slate-500 font-medium">Monthly Threshold Target</span>
-              <span className="text-xs font-bold text-blue-600">75% Achieved</span>
-            </div>
-            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-              <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: "75%" }} />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1.5">₹7,50,000 of target ₹10,000,000 reached</p>
-          </div>
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-between">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-slate-500 font-medium">Weekly Target Margin</span>
-              <span className="text-xs font-bold text-emerald-600">92%</span>
-            </div>
-            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: "92%" }} />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1.5">Approaching goal target limits successfully</p>
-          </div>
-        </div>
-      </div>
-
       {/* Data Tables Layout */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
@@ -313,15 +241,13 @@ export default function Revenue() {
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 text-xs">
                   <th className="text-left pb-2 font-semibold">Product Name</th>
-                  <th className="text-center pb-2 font-semibold">Sales (Units)</th>
-                  <th className="text-right pb-2 font-semibold">Total Profit/Inward</th>
+                  <th className="text-right pb-2 font-semibold">Total Revenue Generated</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {topProducts.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-2.5 text-slate-800 font-medium">{p.name}</td>
-                    <td className="py-2.5 text-center font-mono text-slate-600">{p.sales}</td>
                     <td className="py-2.5 text-right font-mono font-bold text-slate-900">{fmt(p.revenue)}</td>
                   </tr>
                 ))}
@@ -349,7 +275,6 @@ export default function Revenue() {
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-2.5">
                       <p className="text-slate-800 font-semibold">{c.name}</p>
-                      <p className="text-[10px] text-slate-400">{c.city}</p>
                     </td>
                     <td className="py-2.5 text-center font-mono text-slate-600">{c.purchases}</td>
                     <td className="py-2.5 text-right font-mono font-bold text-slate-900">{fmt(c.totalSpent)}</td>
