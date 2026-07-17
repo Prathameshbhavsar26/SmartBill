@@ -5,9 +5,6 @@ import {
   Filter,
   Download,
   Plus,
-  Eye,
-  Edit2,
-  Trash2,
   CheckCircle,
   XCircle,
 } from "lucide-react";
@@ -126,9 +123,34 @@ function planToVariant(plan) {
   }
 }
 
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-xl border border-slate-200 shadow-lg">
+        <div className="flex items-center justify-between p-5 border-b border-slate-100">
+          <h3 className="font-semibold text-slate-900">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 transition-colors"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function BusinessesNew() {
   const [search, setSearch] = useState("");
-  const [rows] = useState(INITIAL_BUSINESSES);
+  const [rows, setRows] = useState(INITIAL_BUSINESSES);
+
+  const [suspendModalOpen, setSuspendModalOpen] = useState(false);
+  const [suspendBusinessId, setSuspendBusinessId] = useState(null);
+  const [suspendReason, setSuspendReason] = useState("");
+  const [suspendReasonError, setSuspendReasonError] = useState("");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -153,6 +175,46 @@ export default function BusinessesNew() {
       );
     });
   }, [rows, search]);
+
+  const openSuspendModal = (businessId) => {
+    setSuspendBusinessId(businessId);
+    setSuspendReason("");
+    setSuspendReasonError("");
+    setSuspendModalOpen(true);
+  };
+
+  const confirmSuspend = () => {
+    const reason = suspendReason.trim();
+    if (!reason) {
+      setSuspendReasonError("Reason is required.");
+      return;
+    }
+    if (reason.length > 500) {
+      setSuspendReasonError("Reason is too long (max 500 characters).");
+      return;
+    }
+
+    setRows((prev) =>
+      prev.map((b) =>
+        b.id === suspendBusinessId
+          ? { ...b, status: "Suspended", suspensionReason: reason }
+          : b,
+      ),
+    );
+
+    setSuspendModalOpen(false);
+    setSuspendBusinessId(null);
+  };
+
+  const resumeBusiness = (businessId) => {
+    setRows((prev) =>
+      prev.map((b) =>
+        b.id === businessId
+          ? { ...b, status: "Active", suspensionReason: "" }
+          : b,
+      ),
+    );
+  };
 
   return (
     <div className="p-6 space-y-5 bg-white">
@@ -181,16 +243,6 @@ export default function BusinessesNew() {
           <button className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium bg-white border border-slate-200 text-slate-700 rounded-lg shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors">
             <Filter className="h-4 w-4 text-slate-500" />
             <span>Filter</span>
-          </button>
-
-          <button className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium bg-white border border-slate-200 text-slate-700 rounded-lg shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors">
-            <Download className="h-4 w-4 text-slate-500" />
-            <span>Export</span>
-          </button>
-
-          <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 active:bg-blue-800 transition-colors">
-            <Plus className="h-4 w-4" />
-            <span>Add Business</span>
           </button>
         </div>
       </div>
@@ -270,6 +322,69 @@ export default function BusinessesNew() {
         </div>
       </div>
 
+      {/* Suspend Modal */}
+      {suspendModalOpen && (
+        <Modal
+          title="Suspend business owner"
+          onClose={() => {
+            setSuspendModalOpen(false);
+            setSuspendBusinessId(null);
+          }}
+        >
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">
+                Reason required
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Enter the reason for suspending this business owner.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Suspension reason
+              </label>
+              <textarea
+                value={suspendReason}
+                onChange={(e) => {
+                  setSuspendReason(e.target.value);
+                  setSuspendReasonError("");
+                }}
+                rows={5}
+                className={`w-full border rounded-lg bg-white text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all p-3 ${
+                  suspendReasonError
+                    ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                    : "border-slate-200"
+                }`}
+                placeholder="e.g. repeated policy violations / billing issues / verification failed"
+              />
+              {suspendReasonError && (
+                <p className="text-xs text-red-600">{suspendReasonError}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setSuspendModalOpen(false);
+                  setSuspendBusinessId(null);
+                }}
+                className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmSuspend}
+                className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Suspend
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -331,31 +446,47 @@ export default function BusinessesNew() {
                     </td>
                     <td className="px-5 py-4 text-slate-600">{b.users}</td>
                     <td className="px-5 py-4">
-                      <Badge
-                        label={b.status}
-                        variant={statusToVariant(b.status)}
-                      />
+                      <div className="flex flex-col gap-1">
+                        <Badge
+                          label={b.status}
+                          variant={statusToVariant(b.status)}
+                        />
+                        {b.status === "Suspended" && (
+                          <p
+                            className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1"
+                            title={
+                              b.suspensionReason ||
+                              "Suspension reason not provided"
+                            }
+                          >
+                            {b.suspensionReason
+                              ? `Reason: ${b.suspensionReason}`
+                              : "Reason not provided"}
+                          </p>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2 text-slate-500">
-                        <button
-                          className="p-1.5 rounded-md hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                          title="View"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-md hover:bg-amber-50 hover:text-amber-600 transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-md hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {b.status === "Suspended" ? (
+                          <button
+                            className="p-1.5 rounded-md hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                            title="Resume"
+                            onClick={() => resumeBusiness(b.id)}
+                            type="button"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <button
+                            className="p-1.5 rounded-md hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                            title="Suspend (enter reason)"
+                            onClick={() => openSuspendModal(b.id)}
+                            type="button"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
