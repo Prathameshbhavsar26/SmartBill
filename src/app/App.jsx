@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import Revenue from "./components/revenue";
+import BusinessesNew from "./BusinessesNew";
 import {
   BrowserRouter,
   Routes,
@@ -521,6 +522,9 @@ const businesses = [
     id: 1,
     name: "Sharma Electronics",
     owner: "Vikram Sharma",
+    ownerEmail: "vikram.sharma@sharmaelectronics.in",
+    ownerPhone: "+91 8830164600",
+    ownerCity: "Nashik",
     plan: "Pro",
     users: 8,
     revenue: 245000,
@@ -531,6 +535,9 @@ const businesses = [
     id: 2,
     name: "Mumbai Textiles",
     owner: "Nirmala Patel",
+    ownerEmail: "nirmala.patel@mumbaitextiles.in",
+    ownerPhone: "+91 9765969840",
+    ownerCity: "Mumbai",
     plan: "Enterprise",
     users: 24,
     revenue: 1280000,
@@ -541,6 +548,9 @@ const businesses = [
     id: 3,
     name: "Delhi Grocers",
     owner: "Amar Singh",
+    ownerEmail: "amar.singh@delhigrocers.in",
+    ownerPhone: "+91 9922334455",
+    ownerCity: "Delhi",
     plan: "Starter",
     users: 3,
     revenue: 89000,
@@ -551,6 +561,9 @@ const businesses = [
     id: 4,
     name: "Pune Hardware Hub",
     owner: "Sanjay More",
+    ownerEmail: "sanjay.more@punehardware.in",
+    ownerPhone: "+91 9988776655",
+    ownerCity: "Pune",
     plan: "Pro",
     users: 6,
     revenue: 412000,
@@ -561,6 +574,9 @@ const businesses = [
     id: 5,
     name: "Chennai Pharma",
     owner: "Lakshmi Rajan",
+    ownerEmail: "lakshmi.rajan@chennai-pharma.in",
+    ownerPhone: "+91 8899001122",
+    ownerCity: "Chennai",
     plan: "Enterprise",
     users: 31,
     revenue: 2100000,
@@ -1076,12 +1092,13 @@ const NAV_GROUPS = [
 
 const SUPER_ADMIN_ITEMS = [
   { key: "super-dashboard", label: "Overview", icon: LayoutDashboard },
-  
+
+  { key: "businesses", label: "Businesses", icon: Building2 },
+
   { key: "revenue", label: "Revenue", icon: BarChart3 },
 
   { key: "settings", label: "Settings", icon: Settings },
 ];
-
 
 function Sidebar({ page, onNav, role, collapsed, onToggle }) {
   const isSuperAdmin = role === "superadmin";
@@ -1204,6 +1221,8 @@ function Sidebar({ page, onNav, role, collapsed, onToggle }) {
 const PAGE_LABELS = {
   dashboard: "Dashboard",
   "super-dashboard": "Admin Overview",
+  businesses: "Businesses",
+
   customers: "Customers",
   suppliers: "Suppliers",
   products: "Products",
@@ -2165,9 +2184,41 @@ function AuthScreen({ view, onNav, onLogin }) {
 
 // ─── SUPER ADMIN DASHBOARD ────────────────────────────────────────────────────
 
-
-
 function SuperAdminDashboard() {
+  const [timeRange, setTimeRange] = useState("6M");
+
+  const revenueByRange = {
+    "3M": [
+      { month: "Jan", businesses: 28, revenue: 420000 },
+      { month: "Feb", businesses: 34, revenue: 510000 },
+      { month: "Mar", businesses: 41, revenue: 605000 },
+    ],
+    "6M": [
+      { month: "Jan", businesses: 42, revenue: 520000 },
+      { month: "Feb", businesses: 58, revenue: 720000 },
+      { month: "Mar", businesses: 71, revenue: 880000 },
+      { month: "Apr", businesses: 89, revenue: 1100000 },
+      { month: "May", businesses: 104, revenue: 1280000 },
+      { month: "Jun", businesses: 128, revenue: 1560000 },
+    ],
+    "1Y": [
+      { month: "Jan", businesses: 32, revenue: 460000 },
+      { month: "Feb", businesses: 40, revenue: 580000 },
+      { month: "Mar", businesses: 52, revenue: 690000 },
+      { month: "Apr", businesses: 66, revenue: 820000 },
+      { month: "May", businesses: 78, revenue: 960000 },
+      { month: "Jun", businesses: 92, revenue: 1120000 },
+      { month: "Jul", businesses: 104, revenue: 1240000 },
+      { month: "Aug", businesses: 116, revenue: 1360000 },
+      { month: "Sep", businesses: 126, revenue: 1490000 },
+      { month: "Oct", businesses: 134, revenue: 1600000 },
+      { month: "Nov", businesses: 142, revenue: 1720000 },
+      { month: "Dec", businesses: 151, revenue: 1860000 },
+    ],
+  };
+
+  const activeAdminStats = revenueByRange[timeRange] ?? adminStats;
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2206,7 +2257,7 @@ function SuperAdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="lg:col-span-2 p-5">
+        <Card className="lg:col-span-3 p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-semibold text-slate-900">
@@ -2217,18 +2268,23 @@ function SuperAdminDashboard() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {["3M", "6M", "1Y"].map((t) => (
+              {[
+                ["3M", "3M"],
+                ["6M", "6M"],
+                ["1Y", "1Y"],
+              ].map(([key]) => (
                 <button
-                  key={t}
-                  className={`text-xs px-2.5 py-1 rounded-lg ${t === "6M" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
+                  key={key}
+                  onClick={() => setTimeRange(key)}
+                  className={`text-xs px-2.5 py-1 rounded-lg ${timeRange === key ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
                 >
-                  {t}
+                  {key}
                 </button>
               ))}
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={adminStats}>
+            <AreaChart data={activeAdminStats}>
               <defs>
                 <linearGradient id="adminGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
@@ -2270,7 +2326,7 @@ function SuperAdminDashboard() {
             </AreaChart>
           </ResponsiveContainer>
         </Card>
-        <Card className="p-5">
+        <Card className="lg:col-span-3 w-full p-5">
           <h3 className="font-semibold text-slate-900 mb-5">
             Plan Distribution
           </h3>
@@ -2321,8 +2377,6 @@ function SuperAdminDashboard() {
           </div>
         </Card>
       </div>
-
-
     </div>
   );
 }
@@ -3729,8 +3783,8 @@ function ProductsScreen() {
 
       {/* ADD NEW PRODUCT MODAL */}
       {showModal && (
-        <Modal 
-          title="Add New Product" 
+        <Modal
+          title="Add New Product"
           onClose={() => {
             setShowModal(false);
             setShowCategoryInput(false);
@@ -4416,31 +4470,29 @@ function PurchaseScreen() {
         const nextItem = { ...item, [field]: value };
 
         if (field === "product") {
-  const selectedProduct = products.find(
-    (p) => p.name === value
-  );
+          const selectedProduct = products.find((p) => p.name === value);
 
-  if (selectedProduct) {
-    nextItem.rate = selectedProduct.cost;
+          if (selectedProduct) {
+            nextItem.rate = selectedProduct.cost;
 
-    const qty = Number(nextItem.qty) || 0;
-    nextItem.amount = qty * nextItem.rate;
-  }
-}
+            const qty = Number(nextItem.qty) || 0;
+            nextItem.amount = qty * nextItem.rate;
+          }
+        }
 
-if (field === "qty") {
-  const qty = Number(value) || 0;
-  const rate = Number(nextItem.rate) || 0;
+        if (field === "qty") {
+          const qty = Number(value) || 0;
+          const rate = Number(nextItem.rate) || 0;
 
-  nextItem.amount = qty * rate;
-}
+          nextItem.amount = qty * rate;
+        }
 
-if (field === "rate") {
-  const qty = Number(nextItem.qty) || 0;
-  const rate = Number(value) || 0;
+        if (field === "rate") {
+          const qty = Number(nextItem.qty) || 0;
+          const rate = Number(value) || 0;
 
-  nextItem.amount = qty * rate;
-}
+          nextItem.amount = qty * rate;
+        }
 
         if (field === "qty" || field === "rate") {
           const qty =
@@ -4738,7 +4790,6 @@ if (field === "rate") {
                 </Btn>
               </div>
             </Card>
-            
           </div>
         </div>
       ) : (
@@ -4750,7 +4801,6 @@ if (field === "rate") {
               placeholder="Search purchases..."
               icon={<Search className="w-4 h-4" />}
             />
-            
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -5043,7 +5093,6 @@ function ReportsScreen() {
   );
 }
 
-
 // ─── EXPENSES SCREEN ──────────────────────────────────────────────────────────
 
 function ExpensesScreen() {
@@ -5284,81 +5333,38 @@ function UsersScreen() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-const [name, setName] = useState("");
-const [email, setEmail] = useState("");
-const [role, setRole] = useState("Cashier");
-const [department, setDepartment] = useState("");
-const [phone, setPhone] = useState("");
-const [password, setPassword] = useState("");
-const [passwordError, setPasswordError] = useState("");
-const [phoneError, setPhoneError] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Cashier");
+  const [department, setDepartment] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
 
-const handleSaveEmployee = () => {
+  const handleSaveEmployee = () => {
+    const updatedEmployee = {
+      id: editingId ?? Date.now(),
+      name,
+      email,
+      role,
+      department,
+      phone,
+      password,
+      status: "Active",
+      lastActive: "Just now",
+    };
 
-  const updatedEmployee = {
-    id: editingId ?? Date.now(),
-    name,
-    email,
-    role,
-    department,
-    phone,
-    password,
-    status: "Active",
-    lastActive: "Just now",
-  };
+    if (editingId !== null) {
+      setEmployeeList(
+        employeeList.map((emp) =>
+          emp.id === editingId ? updatedEmployee : emp,
+        ),
+      );
+    } else {
+      setEmployeeList([...employeeList, updatedEmployee]);
+    }
 
-  if (editingId !== null) {
-
-    setEmployeeList(
-      employeeList.map((emp) =>
-        emp.id === editingId ? updatedEmployee : emp
-      )
-    );
-
-  } else {
-
-    setEmployeeList([...employeeList, updatedEmployee]);
-
-  }
-
-  setEditingId(null);
-
-  setName("");
-  setEmail("");
-  setRole("Cashier");
-  setDepartment("");
-  setPhone("");
-  setPassword("");
-
-  setShowModal(false);
-
-};
-
-const handleEdit = (employee) => {
-  setName(employee.name);
-  setEmail(employee.email);
-  setRole(employee.role);
-  setDepartment(employee.department);
-  setPhone(employee.phone || "");
-  setPassword(employee.password || "");
-
-  setEditingId(employee.id);
-
-  setShowModal(true);
-};
-
-const handleDelete = (id) => {
-  if (window.confirm("Delete this employee?")) {
-    setEmployeeList(employeeList.filter((emp) => emp.id !== id));
-  }
-};
-
-  return (
-    <div className="space-y-5">
-      {showModal && (
-        <Modal
-  title={editingId ? "Update Employee" : "Add Employee"}
-  onClose={() => {
     setEditingId(null);
 
     setName("");
@@ -5369,65 +5375,102 @@ const handleDelete = (id) => {
     setPassword("");
 
     setShowModal(false);
-  }}
->
+  };
+
+  const handleEdit = (employee) => {
+    setName(employee.name);
+    setEmail(employee.email);
+    setRole(employee.role);
+    setDepartment(employee.department);
+    setPhone(employee.phone || "");
+    setPassword(employee.password || "");
+
+    setEditingId(employee.id);
+
+    setShowModal(true);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm("Delete this employee?")) {
+      setEmployeeList(employeeList.filter((emp) => emp.id !== id));
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      {showModal && (
+        <Modal
+          title={editingId ? "Update Employee" : "Add Employee"}
+          onClose={() => {
+            setEditingId(null);
+
+            setName("");
+            setEmail("");
+            setRole("Cashier");
+            setDepartment("");
+            setPhone("");
+            setPassword("");
+
+            setShowModal(false);
+          }}
+        >
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Input
-  label="Full Name"
-  placeholder="Priya Sharma"
-  value={name}
-  onChange={setName}
-/>
+                label="Full Name"
+                placeholder="Priya Sharma"
+                value={name}
+                onChange={setName}
+              />
               <Input
-  label="Email"
-  placeholder="priya@business.in"
-  value={email}
-  onChange={setEmail}
-  icon={<Mail className="w-4 h-4" />}
-/>
+                label="Email"
+                placeholder="priya@business.in"
+                value={email}
+                onChange={setEmail}
+                icon={<Mail className="w-4 h-4" />}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Select
-  label="Role"
-  value={role}
-  onChange={setRole}
-  options={["Owner", "Manager", "Cashier", "Accountant"]}
-/>
+                label="Role"
+                value={role}
+                onChange={setRole}
+                options={["Owner", "Manager", "Cashier", "Accountant"]}
+              />
               <Input
-  label="Department"
-  placeholder="Sales"
-  value={department}
-  onChange={setDepartment}
-/>
+                label="Department"
+                placeholder="Sales"
+                value={department}
+                onChange={setDepartment}
+              />
             </div>
             <Input
-  label="Phone"
-  placeholder="+91"
-  value={phone}
-  onChange={(value) => {
-    // Allow only digits
-    const digits = value.replace(/\D/g, "");
+              label="Phone"
+              placeholder="+91"
+              value={phone}
+              onChange={(value) => {
+                // Allow only digits
+                const digits = value.replace(/\D/g, "");
 
-    // Limit to 10 digits
-    if (digits.length <= 10) {
-      setPhone(digits);
-      setPhoneError("");
-    }
-  }}
-  error={phoneError}
-/>
+                // Limit to 10 digits
+                if (digits.length <= 10) {
+                  setPhone(digits);
+                  setPhoneError("");
+                }
+              }}
+              error={phoneError}
+            />
             <Input
-  label="Temporary Password"
-  type="password"
-  value={password}
-  onChange={(value) => {
-    setPassword(value);
-    setPasswordError("");
-  }}
-  icon={<Lock className="w-4 h-4" />}
-  error={passwordError}
-/>
+              label="Temporary Password"
+              type="password"
+              value={password}
+              onChange={(value) => {
+                setPassword(value);
+                setPasswordError("");
+              }}
+              icon={<Lock className="w-4 h-4" />}
+              error={passwordError}
+            />
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 Permissions
@@ -5458,28 +5501,25 @@ const handleDelete = (id) => {
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
-                  onClick={() => {
-  setEditingId(null);
+                onClick={() => {
+                  setEditingId(null);
 
-  setName("");
-  setEmail("");
-  setRole("Cashier");
-  setDepartment("");
-  setPhone("");
-  setPassword("");
+                  setName("");
+                  setEmail("");
+                  setRole("Cashier");
+                  setDepartment("");
+                  setPhone("");
+                  setPassword("");
 
-  setShowModal(false);
-}}
+                  setShowModal(false);
+                }}
                 className="flex-1 justify-center"
               >
                 Cancel
               </Btn>
-              <Btn
-  variant="primary"
-  onClick={handleSaveEmployee}
->
-  {editingId ? "Update Employee" : "Add Employee"}
-</Btn>
+              <Btn variant="primary" onClick={handleSaveEmployee}>
+                {editingId ? "Update Employee" : "Add Employee"}
+              </Btn>
             </div>
           </div>
         </Modal>
@@ -5490,23 +5530,22 @@ const handleDelete = (id) => {
           variant="primary"
           size="md"
           onClick={() => {
-  setEditingId(null);
+            setEditingId(null);
 
-  setName("");
-  setEmail("");
-  setRole("Cashier");
-  setDepartment("");
-  setPhone("");
-  setPassword("");
+            setName("");
+            setEmail("");
+            setRole("Cashier");
+            setDepartment("");
+            setPhone("");
+            setPassword("");
 
-  setShowModal(true);
-}}
+            setShowModal(true);
+          }}
           icon={<Plus className="w-4 h-4" />}
         >
           Add Employee
         </Btn>
       </div>
-
 
       <Card>
         <table className="w-full text-sm">
@@ -5550,24 +5589,28 @@ const handleDelete = (id) => {
                   </div>
                 </td>
                 <td className="px-5 py-4 text-slate-500 text-xs">{e.email}</td>
-                <td className="px-5 py-4 text-slate-700 font-medium">{e.role}</td>
+                <td className="px-5 py-4 text-slate-700 font-medium">
+                  {e.role}
+                </td>
                 <td className="px-5 py-4 text-slate-600">{e.department}</td>
-                <td className="px-5 py-4 text-slate-500 text-xs">{e.lastActive}</td>
+                <td className="px-5 py-4 text-slate-500 text-xs">
+                  {e.lastActive}
+                </td>
                 <td className="px-5 py-4">{statusBadge(e.status)}</td>
                 <td className="px-5 py-4">
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Btn
-  variant="ghost"
-  size="sm"
-  onClick={() => handleEdit(e)}
-  icon={<Edit2 className="w-3.5 h-3.5" />}
-/>
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEdit(e)}
+                      icon={<Edit2 className="w-3.5 h-3.5" />}
+                    />
                     <Btn
-  variant="ghost"
-  size="sm"
-  onClick={() => handleDelete(e.id)}
-  icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-/>
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(e.id)}
+                      icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                    />
                   </div>
                 </td>
               </tr>
@@ -5580,6 +5623,129 @@ const handleDelete = (id) => {
 }
 
 // ─── SUPER ADMIN SETTINGS SCREEN ──────────────────────────────────────────────
+
+function BusinessesScreen({ onOpenBusiness }) {
+  // NOTE: This legacy screen is kept for backward compatibility.
+  // The super-admin "Businesses" route should render BusinessesNew instead.
+
+  const [search, setSearch] = useState("");
+
+  const filtered = businesses.filter((b) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(b.name ?? "")
+        .toLowerCase()
+        .includes(q) ||
+      String(b.owner ?? "")
+        .toLowerCase()
+        .includes(q) ||
+      String(b.plan ?? "")
+        .toLowerCase()
+        .includes(q) ||
+      String(b.status ?? "")
+        .toLowerCase()
+        .includes(q)
+    );
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 min-w-48">
+          <Input
+            value={search}
+            onChange={setSearch}
+            placeholder="Search business, owner, plan..."
+            icon={<Search className="w-4 h-4" />}
+          />
+        </div>
+        <div className="flex gap-2 text-xs text-slate-500">
+          <span className="font-semibold text-slate-900">
+            {filtered.length}
+          </span>
+          <span>results</span>
+        </div>
+      </div>
+
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100">
+                {[
+                  "Business Name",
+                  "Business Owner",
+                  "Email",
+                  "Phone Number",
+                  "City",
+                  "Subscription Plan",
+                  "Joining Date",
+                  "Revenue",
+                  "Employees",
+                  "Status",
+                  "Actions",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-10"></td>
+                </tr>
+              ) : (
+                filtered.map((b) => (
+                  <tr
+                    key={b.id}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-slate-900">{b.name}</p>
+                    </td>
+                    <td className="px-5 py-4 text-slate-700">{b.owner}</td>
+                    <td className="px-5 py-4 text-slate-600">{b.ownerEmail}</td>
+                    <td className="px-5 py-4 text-slate-600 font-mono text-xs">
+                      {b.ownerPhone}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{b.ownerCity}</td>
+                    <td className="px-5 py-4">
+                      <Badge label={b.plan} variant="blue" />
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{b.joined}</td>
+                    <td className="px-5 py-4 font-semibold text-slate-900">
+                      {fmt(b.revenue)}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{b.users}</td>
+                    <td className="px-5 py-4">{statusBadge(b.status)}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1">
+                        <Btn variant="ghost" size="sm" onClick={() => {}}>
+                          View
+                        </Btn>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
+          <p className="text-xs text-slate-500">
+            Showing {filtered.length} of {businesses.length} businesses
+          </p>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 function SuperAdminSettingsScreen() {
   const [activeTab, setActiveTab] = useState("system");
@@ -8031,6 +8197,8 @@ function AppShell({ role, onLogout, page, onNav }) {
     switch (page) {
       case "super-dashboard":
         return <SuperAdminDashboard />;
+      case "businesses":
+        return <BusinessesNew />;
       case "dashboard":
         return <BusinessDashboard onNav={onNav} />;
       case "customers":
@@ -8039,8 +8207,8 @@ function AppShell({ role, onLogout, page, onNav }) {
         return <SuppliersScreen />;
       case "products":
         return <ProductsScreen />;
-        case "revenue":
-      return <Revenue />;
+      case "revenue":
+        return <Revenue />;
       case "pos":
         return <POSScreen />;
       case "purchase":
@@ -8099,6 +8267,8 @@ function AppShell({ role, onLogout, page, onNav }) {
 const APP_PAGES = [
   "dashboard",
   "super-dashboard",
+  "businesses",
+  "revenue",
   "customers",
   "suppliers",
   "products",
@@ -8141,9 +8311,7 @@ function AppRoutes() {
     }
 
     // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
-    if (routePage) {
-      setPage(routePage);
-    }
+    if (routePage) setPage(routePage);
   }, [location.pathname, role]);
 
   const handleLogin = (r) => {
@@ -8167,7 +8335,7 @@ function AppRoutes() {
 
   const navApp = useCallback(
     (p) => {
-      setPage(p);
+      // Navigation source of truth is the URL. Page state is derived in AppRoutes.
       if (p === "dashboard" || p === "super-dashboard") navigate("/app");
       else navigate(`/app/${p}`);
     },
