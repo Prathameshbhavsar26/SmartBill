@@ -5625,8 +5625,8 @@ function UsersScreen() {
 // ─── SUPER ADMIN SETTINGS SCREEN ──────────────────────────────────────────────
 
 function BusinessesScreen({ onOpenBusiness }) {
-  // NOTE: This legacy screen is kept for backward compatibility.
-  // The super-admin "Businesses" route should render BusinessesNew instead.
+  // Business-owner should never land here on refresh.
+  // Kept only for legacy compatibility routes.
 
   const [search, setSearch] = useState("");
 
@@ -5718,7 +5718,9 @@ function BusinessesScreen({ onOpenBusiness }) {
                     <td className="px-5 py-4">
                       <Badge label={b.plan} variant="blue" />
                     </td>
-                    <td className="px-5 py-4 text-slate-600">{b.joined}</td>
+                    <td className="px-5 py-4 text-slate-600 whitespace-nowrap align-top">
+                      <div className="w-fit whitespace-nowrap">{b.joined}</div>
+                    </td>
                     <td className="px-5 py-4 font-semibold text-slate-900">
                       {fmt(b.revenue)}
                     </td>
