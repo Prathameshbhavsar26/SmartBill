@@ -6592,6 +6592,19 @@ function SuperAdminSettingsScreen() {
 
 function SettingsScreen() {
   const [activeTab, setActiveTab] = useState("business");
+  const [businessInfo, setBusinessInfo] = useState({
+  businessName: "Sharma Traders",
+  ownerName: "Vikram Sharma",
+  phone: "+91 9876543210",
+  email: "contact@sharmatraders.in",
+  businessType: "Retail",
+  financialYear: "April (Standard India)",
+  address: "Shop No.14, Sadar Bazaar, Nagpur",
+  city: "Nagpur",
+  state: "Maharashtra",
+  pincode: "440001",
+  country: "India",
+});
 
   // GST & Tax toggle states
   const [enableIgst, setEnableIgst] = useState(true);
@@ -6731,6 +6744,16 @@ function SettingsScreen() {
     );
     alert("✓ Customization settings saved successfully!");
   };
+  const handleSaveBusiness = () => {
+  console.log(businessInfo);
+
+  localStorage.setItem(
+    "businessInfo",
+    JSON.stringify(businessInfo)
+  );
+
+  alert("Business Information Saved");
+};
 
   // Handle GST settings save
   const handleSaveGstSettings = () => {
@@ -6876,7 +6899,7 @@ function SettingsScreen() {
     alert("✓ Security settings saved successfully!");
   };
 
-  // Navin safe tabs configuration
+  // Naw safe tabs configuration
   const tabs = [
     { key: "business", label: "Business Profile", icon: Building2 },
     { key: "gst", label: "GST & Tax", icon: Percent },
@@ -6891,6 +6914,40 @@ function SettingsScreen() {
     { key: "payment", label: "Payment Methods", icon: CreditCard },
     { key: "users", label: "Security & Access", icon: Lock },
   ];
+  const handleBusinessChange = (field, value) => {
+  setBusinessInfo((prev) => ({
+    ...prev,
+    [field]: value,
+  }));
+};
+
+  const [gstSettings, setGstSettings] = useState({
+  gstin: "SFGGYT376432123",
+  pan: "23456789DFGHJK",
+  registrationType: "Regular",
+  defaultRate: "18",
+  enableIgst: true,
+  enableCess: false,
+});
+
+const handleGstChange = (field, value) => {
+  setGstSettings((prev) => ({
+    ...prev,
+    [field]: value,
+  }));
+};
+
+  const [transactionSettings, setTransactionSettings] = useState({
+  salePrice: "Retail Price",
+  discountType: "Percentage",
+});
+
+const handleTransactionChange = (field, value) => {
+  setTransactionSettings((prev) => ({
+    ...prev,
+    [field]: value,
+  }));
+};
 
   return (
     <div className="flex gap-6">
@@ -6933,16 +6990,17 @@ function SettingsScreen() {
                 </div>
               </div>
               <div className="flex-1 grid grid-cols-2 gap-4">
-                <Input label="Business Name" value="Sharma Traders" />
-                <Input label="Owner Name" value="Vikram Sharma" />
+                <Input label="Business Name" value={businessInfo.businessName} onChange={(value) => handleBusinessChange("businessName", value)} />
+                <Input label="Owner Name" value={businessInfo.ownerName} onChange={(value) => handleBusinessChange("ownerName", value)} />
                 <Input
                   label="Phone"
-                  value="+91 98765 43210"
+                  value={businessInfo.phone} onChange={(value) => handleBusinessChange("phone", value)}
                   icon={<Phone className="w-4 h-4" />}
                 />
                 <Input
                   label="Email"
-                  value="contact@sharmatraders.in"
+                  value={businessInfo.email} onChange={(value) => handleBusinessChange("email", value)}
+
                   icon={<Mail className="w-4 h-4" />}
                 />
               </div>
@@ -6950,27 +7008,28 @@ function SettingsScreen() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <Select
                 label="Business Type"
-                value="Retail"
+                value={businessInfo.businessType} onChange={(value) => handleBusinessChange("businessType", value)}
                 options={["Retail", "Wholesale", "Manufacturing", "Services"]}
               />
               <Select
                 label="Financial Year Start"
-                value="April (Standard India)"
+                value={businessInfo.financialYear} onChange={(value) => handleBusinessChange("financialYear", value)}
                 options={["April (Standard India)", "January"]}
               />
               <div className="col-span-2">
                 <Input
                   label="Address"
-                  value="Shop No. 14, Sadar Bazaar, Nagpur"
+                  value={businessInfo.address}
                   icon={<MapPin className="w-4 h-4" />}
+                  onChange={(value) => handleBusinessChange("address", value)}
                 />
               </div>
-              <Input label="City" value="Nagpur" />
-              <Input label="State" value="Maharashtra" />
-              <Input label="Pincode" value="440001" />
-              <Select label="Country" value="India" options={["India"]} />
+              <Input label="City" value={businessInfo.city} onChange={(value) => handleBusinessChange("city", value)} />
+              <Input label="State" value={businessInfo.state} onChange={(value) => handleBusinessChange("state", value)} />
+              <Input label="Pincode" value={businessInfo.pincode} onChange={(value) => handleBusinessChange("pincode", value)} />
+              <Select label="Country" value={businessInfo.country} onChange={(value) => handleBusinessChange("country", value)} options={["India"]} />
             </div>
-            <Btn variant="primary" icon={<Check className="w-4 h-4" />}>
+            <Btn variant="primary" icon={<Check className="w-4 h-4" />}onClick={handleSaveBusiness} >
               Save Changes
             </Btn>
           </div>
@@ -6983,19 +7042,18 @@ function SettingsScreen() {
               GST & Tax Settings
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="GSTIN" value="27AAPCS0510Q1Z6" />
+              <Input label="GSTIN" value={businessInfo.gstin} onChange={(value) => handleBusinessChange("gstin", value)} />
               <Select
                 label="GST Registration Type"
-                value={isComposition ? "Composition" : "Regular"}
-                onChange={(e) =>
-                  setIsComposition(e.target.value === "Composition")
-                }
+                value={gstSettings.registrationType}
+                onChange={(value) => handleGstChange("registrationType", value) } 
                 options={["Regular", "Composition", "Unregistered"]}
               />
-              <Input label="PAN Number" value="AAPCS0510Q" />
+              <Input label="PAN Number" value={businessInfo.panNumber} onChange={(value) => handleBusinessChange("panNumber", value)} />
               <Select
                 label="Default GST Rate %"
-                value="18"
+                value={gstSettings.defaultRate} 
+                onChange={(value) => handleGstChange("defaultRate", value)}
                 options={["0", "5", "12", "18", "28"]}
               />
             </div>
