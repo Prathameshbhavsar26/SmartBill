@@ -1256,15 +1256,6 @@ function Topbar({ page, onLogout, onNav, role, notifCount }) {
         </p>
       </div>
 
-      <div className="flex items-center bg-slate-100 rounded-lg px-3 py-2 border border-slate-200 w-52">
-        <Search className="w-3.5 h-3.5 text-slate-400 mr-2 flex-shrink-0" />
-        <input
-          type="text"
-          placeholder="Search anything..."
-          className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
-        />
-      </div>
-
       {role === "owner" && (
         <Btn
           variant="primary"
@@ -2619,7 +2610,6 @@ function CustomersScreen() {
     email: "",
     city: "",
     gst: "",
-    openingBalance: "0",
   });
 
   const filtered = customerList.filter(
@@ -2842,13 +2832,13 @@ function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Business Name"
-                placeholder="Raj Enterprises"
+                placeholder=""
                 value={form.name}
                 onChange={(v) => setForm((f) => ({ ...f, name: v }))}
               />
               <Input
                 label="Contact Person"
-                placeholder="Rajesh Kumar"
+                placeholder=""
                 value={form.contact}
                 onChange={(v) => setForm((f) => ({ ...f, contact: v }))}
               />
@@ -2856,14 +2846,14 @@ function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Phone"
-                placeholder="+91 98765 43210"
+                placeholder=""
                 icon={<Phone className="w-4 h-4" />}
                 value={form.phone}
                 onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
               />
               <Input
                 label="Email"
-                placeholder="rajesh@raj.in"
+                placeholder=""
                 icon={<Mail className="w-4 h-4" />}
                 value={form.email}
                 onChange={(v) => setForm((f) => ({ ...f, email: v }))}
@@ -2871,22 +2861,16 @@ function CustomersScreen() {
             </div>
             <Input
               label="City"
-              placeholder="Mumbai"
+              placeholder=""
               icon={<MapPin className="w-4 h-4" />}
               value={form.city}
               onChange={(v) => setForm((f) => ({ ...f, city: v }))}
             />
             <Input
               label="GST Number"
-              placeholder="27AAPCS0510Q1Z6"
+              placeholder=""
               value={form.gst}
               onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
-            />
-            <Input
-              label="Opening Balance (₹)"
-              placeholder="0"
-              value={form.openingBalance}
-              onChange={(v) => setForm((f) => ({ ...f, openingBalance: v }))}
             />
             <div className="flex gap-3 pt-2">
               <Btn
@@ -2904,8 +2888,6 @@ function CustomersScreen() {
                       ? Math.max(...customerList.map((x) => x.id)) + 1
                       : 1;
 
-                  const opening = Number(form.openingBalance || 0);
-
                   const newCustomer = {
                     id: newId,
                     name: form.name || "New Customer",
@@ -2913,7 +2895,7 @@ function CustomersScreen() {
                     phone: form.phone || "",
                     email: form.email || "",
                     city: form.city || "",
-                    balance: Number.isFinite(opening) ? opening : 0,
+                    balance: 0,
                     status: "Active",
                     invoices: 0,
                   };
@@ -3138,6 +3120,7 @@ function SuppliersScreen() {
     email: "",
     city: "",
     gst: "",
+    balanceDue: "0",
   });
 
   const filtered = supplierList.filter((s) =>
@@ -3332,20 +3315,20 @@ function SuppliersScreen() {
           <div className="space-y-4">
             <Input
               label="Company Name"
-              placeholder="TechVision Pvt Ltd"
+              placeholder=""
               value={form.name}
               onChange={(v) => setForm((f) => ({ ...f, name: v }))}
             />
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Contact Person"
-                placeholder="Arun Verma"
+                placeholder=""
                 value={form.contact}
                 onChange={(v) => setForm((f) => ({ ...f, contact: v }))}
               />
               <Input
                 label="Phone"
-                placeholder="+91 98765 43210"
+                placeholder="+91 "
                 icon={<Phone className="w-4 h-4" />}
                 value={form.phone}
                 onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
@@ -3353,7 +3336,7 @@ function SuppliersScreen() {
             </div>
             <Input
               label="Email"
-              placeholder="arun@techvision.in"
+              placeholder=""
               icon={<Mail className="w-4 h-4" />}
               value={form.email}
               onChange={(v) => setForm((f) => ({ ...f, email: v }))}
@@ -3361,17 +3344,23 @@ function SuppliersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="City"
-                placeholder="Bangalore"
+                placeholder=""
                 value={form.city}
                 onChange={(v) => setForm((f) => ({ ...f, city: v }))}
               />
               <Input
                 label="GST Number"
-                placeholder="29ABCDE1234F1Z5"
+                placeholder=""
                 value={form.gst}
                 onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
               />
             </div>
+            <Input
+              label="Balance Due (₹)"
+              placeholder=""
+              value={form.balanceDue}
+              onChange={(v) => setForm((f) => ({ ...f, balanceDue: v }))}
+            />
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -6622,6 +6611,19 @@ function SuperAdminSettingsScreen() {
 
 function SettingsScreen() {
   const [activeTab, setActiveTab] = useState("business");
+  const [businessInfo, setBusinessInfo] = useState({
+    businessName: "Sharma Traders",
+    ownerName: "Vikram Sharma",
+    phone: "+91 9876543210",
+    email: "contact@sharmatraders.in",
+    businessType: "Retail",
+    financialYear: "April (Standard India)",
+    address: "Shop No.14, Sadar Bazaar, Nagpur",
+    city: "Nagpur",
+    state: "Maharashtra",
+    pincode: "440001",
+    country: "India",
+  });
 
   // GST & Tax toggle states
   const [enableIgst, setEnableIgst] = useState(true);
@@ -6760,6 +6762,13 @@ function SettingsScreen() {
       }),
     );
     alert("✓ Customization settings saved successfully!");
+  };
+  const handleSaveBusiness = () => {
+    console.log(businessInfo);
+
+    localStorage.setItem("businessInfo", JSON.stringify(businessInfo));
+
+    alert("Business Information Saved");
   };
 
   // Handle GST settings save
@@ -6906,7 +6915,7 @@ function SettingsScreen() {
     alert("✓ Security settings saved successfully!");
   };
 
-  // Navin safe tabs configuration
+  // Naw safe tabs configuration
   const tabs = [
     { key: "business", label: "Business Profile", icon: Building2 },
     { key: "gst", label: "GST & Tax", icon: Percent },
@@ -6921,6 +6930,40 @@ function SettingsScreen() {
     { key: "payment", label: "Payment Methods", icon: CreditCard },
     { key: "users", label: "Security & Access", icon: Lock },
   ];
+  const handleBusinessChange = (field, value) => {
+    setBusinessInfo((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const [gstSettings, setGstSettings] = useState({
+    gstin: "SFGGYT376432123",
+    pan: "23456789DFGHJK",
+    registrationType: "Regular",
+    defaultRate: "18",
+    enableIgst: true,
+    enableCess: false,
+  });
+
+  const handleGstChange = (field, value) => {
+    setGstSettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const [transactionSettings, setTransactionSettings] = useState({
+    salePrice: "Retail Price",
+    discountType: "Percentage",
+  });
+
+  const handleTransactionChange = (field, value) => {
+    setTransactionSettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   return (
     <div className="flex gap-6">
@@ -6963,16 +7006,28 @@ function SettingsScreen() {
                 </div>
               </div>
               <div className="flex-1 grid grid-cols-2 gap-4">
-                <Input label="Business Name" value="Sharma Traders" />
-                <Input label="Owner Name" value="Vikram Sharma" />
+                <Input
+                  label="Business Name"
+                  value={businessInfo.businessName}
+                  onChange={(value) =>
+                    handleBusinessChange("businessName", value)
+                  }
+                />
+                <Input
+                  label="Owner Name"
+                  value={businessInfo.ownerName}
+                  onChange={(value) => handleBusinessChange("ownerName", value)}
+                />
                 <Input
                   label="Phone"
-                  value="+91 98765 43210"
+                  value={businessInfo.phone}
+                  onChange={(value) => handleBusinessChange("phone", value)}
                   icon={<Phone className="w-4 h-4" />}
                 />
                 <Input
                   label="Email"
-                  value="contact@sharmatraders.in"
+                  value={businessInfo.email}
+                  onChange={(value) => handleBusinessChange("email", value)}
                   icon={<Mail className="w-4 h-4" />}
                 />
               </div>
@@ -6980,27 +7035,55 @@ function SettingsScreen() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <Select
                 label="Business Type"
-                value="Retail"
+                value={businessInfo.businessType}
+                onChange={(value) =>
+                  handleBusinessChange("businessType", value)
+                }
                 options={["Retail", "Wholesale", "Manufacturing", "Services"]}
               />
               <Select
                 label="Financial Year Start"
-                value="April (Standard India)"
+                value={businessInfo.financialYear}
+                onChange={(value) =>
+                  handleBusinessChange("financialYear", value)
+                }
                 options={["April (Standard India)", "January"]}
               />
               <div className="col-span-2">
                 <Input
                   label="Address"
-                  value="Shop No. 14, Sadar Bazaar, Nagpur"
+                  value={businessInfo.address}
                   icon={<MapPin className="w-4 h-4" />}
+                  onChange={(value) => handleBusinessChange("address", value)}
                 />
               </div>
-              <Input label="City" value="Nagpur" />
-              <Input label="State" value="Maharashtra" />
-              <Input label="Pincode" value="440001" />
-              <Select label="Country" value="India" options={["India"]} />
+              <Input
+                label="City"
+                value={businessInfo.city}
+                onChange={(value) => handleBusinessChange("city", value)}
+              />
+              <Input
+                label="State"
+                value={businessInfo.state}
+                onChange={(value) => handleBusinessChange("state", value)}
+              />
+              <Input
+                label="Pincode"
+                value={businessInfo.pincode}
+                onChange={(value) => handleBusinessChange("pincode", value)}
+              />
+              <Select
+                label="Country"
+                value={businessInfo.country}
+                onChange={(value) => handleBusinessChange("country", value)}
+                options={["India"]}
+              />
             </div>
-            <Btn variant="primary" icon={<Check className="w-4 h-4" />}>
+            <Btn
+              variant="primary"
+              icon={<Check className="w-4 h-4" />}
+              onClick={handleSaveBusiness}
+            >
               Save Changes
             </Btn>
           </div>
@@ -7013,19 +7096,26 @@ function SettingsScreen() {
               GST & Tax Settings
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="GSTIN" value="27AAPCS0510Q1Z6" />
+              <Input
+                label="GSTIN"
+                value={businessInfo.gstin}
+                onChange={(value) => handleBusinessChange("gstin", value)}
+              />
               <Select
                 label="GST Registration Type"
-                value={isComposition ? "Composition" : "Regular"}
-                onChange={(e) =>
-                  setIsComposition(e.target.value === "Composition")
-                }
+                value={gstSettings.registrationType}
+                onChange={(value) => handleGstChange("registrationType", value)}
                 options={["Regular", "Composition", "Unregistered"]}
               />
-              <Input label="PAN Number" value="AAPCS0510Q" />
+              <Input
+                label="PAN Number"
+                value={businessInfo.panNumber}
+                onChange={(value) => handleBusinessChange("panNumber", value)}
+              />
               <Select
                 label="Default GST Rate %"
-                value="18"
+                value={gstSettings.defaultRate}
+                onChange={(value) => handleGstChange("defaultRate", value)}
                 options={["0", "5", "12", "18", "28"]}
               />
             </div>

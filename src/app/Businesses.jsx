@@ -386,6 +386,9 @@ export default function BusinessesPage() {
                   {/* Joining Date */}
                   <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
                     {business.joined}
+                    <span className="block text-[11px] text-slate-400 leading-tight">
+                      Joined
+                    </span>
                   </td>
 
                   {/* Revenue */}
