@@ -6692,6 +6692,8 @@ function SettingsScreen() {
     alert("✓ Low stock alert settings saved successfully!");
   };
 
+  
+
   // Handle permission update
   const handlePermissionToggle = (empId, module) => {
     setEmployees(
@@ -6732,17 +6734,36 @@ function SettingsScreen() {
   };
 
   // Handle security settings save
-  const handleSaveSecuritySettings = () => {
-    localStorage.setItem(
-      "securitySettings",
-      JSON.stringify({
-        twoFactorAuth,
-        sessionTimeout,
-      }),
-    );
-    alert("✓ Security settings saved successfully!");
-  };
+  const handleUpdatePassword = () => {
+  const errors = {};
 
+  if (!validatePassword(passwordData.newPassword)) {
+    errors.newPassword =
+      "Password must be 8-12 characters with 1 uppercase, 1 lowercase, 1 number and 1 special character.";
+  }
+
+  if (passwordData.newPassword !== passwordData.confirmPassword) {
+    errors.confirmPassword = "Passwords do not match.";
+  }
+
+  if (Object.keys(errors).length > 0) {
+    setPasswordErrors(errors);
+    return;
+  }
+
+  alert("Password Updated Successfully!");
+
+  setPasswordData({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  setPasswordErrors({
+    newPassword: "",
+    confirmPassword: "",
+  });
+};
   // Naw safe tabs configuration
   const tabs = [
     { key: "business", label: "Business Profile", icon: Building2 },
@@ -6781,6 +6802,7 @@ function SettingsScreen() {
     }));
   };
 
+  
   const [transactionSettings, setTransactionSettings] = useState({
     salePrice: "Retail Price",
     discountType: "Percentage",
@@ -6792,6 +6814,65 @@ function SettingsScreen() {
       [field]: value,
     }));
   };
+
+  const [invoiceSettings, setInvoiceSettings] = useState({
+  invoicePrefix: "INV-",
+  startingNumber: "1001",
+  invoiceFooter: "Thank you for your business!",
+  paperSize: "Regular A4",
+  bankName: "State Bank of India",
+  accountNumber: "34001294811",
+  ifscCode: "SBIN0001042",
+  template: "Modern",
+});
+
+const handleInvoiceChange = (field, value) => {
+  setInvoiceSettings((prev) => ({
+    ...prev,
+    [field]: value,
+  }));
+};
+
+const [inventorySettings, setInventorySettings] = useState({
+  stockValueFormula: "FIFO Method",
+  lowStockAlert: "10 Units Remaining",
+});
+
+const handleInventoryChange = (field, value) => {
+  setInventorySettings((prev) => ({
+    ...prev,
+    [field]: value,
+  }));
+};
+const validatePassword = (password) => {
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$%^&*!])[A-Za-z\d@#$%^&*!]{8,12}$/;
+
+  return passwordRegex.test(password);
+};
+
+const [passwordData, setPasswordData] = useState({
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+});
+
+const [passwordErrors, setPasswordErrors] = useState({
+  newPassword: "",
+  confirmPassword: "",
+});
+
+const handlePasswordChange = (field, value) => {
+  setPasswordData((prev) => ({
+    ...prev,
+    [field]: value,
+  }));
+
+  setPasswordErrors((prev) => ({
+    ...prev,
+    [field]: "",
+  }));
+};
 
   return (
     <div className="flex gap-6">
@@ -7023,7 +7104,8 @@ function SettingsScreen() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <Select
                 label="Default Sale Price"
-                value="Retail Price"
+                value={transactionSettings.salePrice}
+                onChange={(value)=> handleTransactionChange("salePrice",value)}
                 options={[
                   "Retail Price",
                   "Wholesale Price",
@@ -7032,7 +7114,8 @@ function SettingsScreen() {
               />
               <Select
                 label="Discount Type"
-                value="Percentage"
+                value={transactionSettings.discountType}
+                onChange={(value)=>handleTransactionChange("discountType",value)}
                 options={["Percentage", "Flat Amount", "None"]}
               />
             </div>
@@ -7110,16 +7193,37 @@ function SettingsScreen() {
               Invoice Settings
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Invoice Prefix" value="INV-" />
-              <Input label="Starting Number" value="1001" />
+              <Input label="Invoice Prefix"
+                    value={invoiceSettings.invoicePrefix}
+                    onChange={(value) =>
+                    handleInvoiceChange("invoicePrefix", value)
+                  }
+              />
               <Input
-                label="Invoice Footer"
-                value="Thank you for your business!"
+                 label="Starting Number"
+                value={invoiceSettings.startingNumber}
+                onChange={(value) =>
+                handleInvoiceChange("startingNumber", value)
+              }
+              /> 
+              <Input
+                  label="Invoice Footer"
+                  value={invoiceSettings.invoiceFooter}
+                  onChange={(value) =>
+                  handleInvoiceChange("invoiceFooter", value)
+               }
               />
               <Select
-                label="Invoice Print Paper Size"
-                value="Regular A4"
-                options={["Regular A4", "Compact A5", "3-Inch Thermal Roll"]}
+                 label="Invoice Print Paper Size"
+                  value={invoiceSettings.paperSize}
+                onChange={(value) =>
+                 handleInvoiceChange("paperSize", value)
+                }
+                options={[
+                "Regular A4",
+                "Compact A5",
+                "3-Inch Thermal Roll",
+               ]}
               />
             </div>
 
@@ -7187,9 +7291,27 @@ function SettingsScreen() {
 
             {showBank && (
               <div className="grid grid-cols-3 gap-4 mt-3 p-4 bg-slate-50 rounded-xl border">
-                <Input label="Bank Name" value="State Bank of India" />
-                <Input label="Account Number" value="34001294811" />
-                <Input label="IFSC Code" value="SBIN0001042" />
+                <Input
+                   label="Bank Name"
+                    value={invoiceSettings.bankName}
+                    onChange={(value) =>
+                    handleInvoiceChange("bankName", value)
+                       }
+                />
+                <Input
+                    label="Account Number"
+                    value={invoiceSettings.accountNumber}
+                    onChange={(value) =>
+                     handleInvoiceChange("accountNumber", value)
+                      }
+                />
+                <Input
+                    label="IFSC Code"
+                    value={invoiceSettings.ifscCode}
+                   onChange={(value) =>
+                   handleInvoiceChange("ifscCode", value)
+                   }
+                />
               </div>
             )}
 
@@ -7198,15 +7320,20 @@ function SettingsScreen() {
                 Invoice Template
               </p>
               <div className="grid grid-cols-3 gap-3">
-                {["Classic", "Modern", "Minimal"].map((t, i) => (
+                {["Classic", "Modern", "Minimal"].map((t) => (
                   <button
                     key={t}
-                    className={`border-2 rounded-xl p-3 text-center transition-all ${i === 1 ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}
+                    onClick={() => handleInvoiceChange("template", t)}
+                    className={`border-2 rounded-xl p-3 text-center transition-all ${
+                      invoiceSettings.template === t
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
                   >
                     <div className="h-16 bg-slate-100 rounded-lg mb-2" />
                     <p className="text-xs font-medium text-slate-700">{t}</p>
                   </button>
-                ))}
+                    ))}
               </div>
             </div>
             <Btn
@@ -7304,14 +7431,23 @@ function SettingsScreen() {
             </h3>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <Select
-                label="Stock Value Formula"
-                value="FIFO Method"
-                options={["FIFO Method", "Average Base Price Code"]}
+                  label="Stock Value Formula"
+                  value={inventorySettings.stockValueFormula}
+                  onChange={(value) =>
+                    handleInventoryChange("stockValueFormula", value)
+                  }
+                  options={[
+                    "FIFO Method",
+                    "Average Base Price Code",
+                  ]}
               />
-              <Input
-                label="Low Stock Warning Counter Alert"
-                value="10 Units Remaining"
-              />
+             <Input
+              label="Low Stock Warning Counter Alert"
+              value={inventorySettings.lowStockAlert}
+              onChange={(value) =>
+                handleInventoryChange("lowStockAlert", value)
+              }
+            />
             </div>
             <div className="space-y-3">
               <div className="flex items-start justify-between py-3 border-b border-slate-100">
@@ -7926,18 +8062,25 @@ function SettingsScreen() {
                   type="password"
                   placeholder="••••••••"
                   icon={<Lock className="w-4 h-4" />}
+                  value={passwordData.currentPassword}
+                  onChange={(value) => handlePasswordChange("currentPassword", value)}
+
                 />
                 <Input
                   label="New Password"
                   type="password"
                   placeholder="Min. 8 characters"
-                  icon={<Lock className="w-4 h-4" />}
+                  value={passwordData.newPassword}
+                  onChange={(value) => handlePasswordChange("newPassword", value)}
+                  error={passwordErrors.newPassword}
                 />
                 <Input
                   label="Confirm New Password"
                   type="password"
                   placeholder="Re-enter new password"
-                  icon={<Lock className="w-4 h-4" />}
+                  value={passwordData.confirmPassword}
+                  onChange={(value) => handlePasswordChange("confirmPassword", value)}
+                  error={passwordErrors.confirmPassword}
                 />
               </div>
               <div className="space-y-3 pt-2">
@@ -7980,7 +8123,7 @@ function SettingsScreen() {
               </div>
               <Btn
                 variant="primary"
-                onClick={handleSaveSecuritySettings}
+                onClick={handleUpdatePassword}
                 icon={<Lock className="w-4 h-4" />}
               >
                 Update Password
