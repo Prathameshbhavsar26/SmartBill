@@ -2597,7 +2597,7 @@ function CustomersScreen() {
     email: "",
     city: "",
     gst: "",
-    openingBalance: "0",
+    Balance: "0",
   });
 
   const [toast, setToast] = useState(null);
@@ -2612,6 +2612,7 @@ function CustomersScreen() {
     email: "",
     city: "",
     gst: "",
+    Balance:"0",
   });
 
   const filtered = customerList.filter(
@@ -2777,7 +2778,7 @@ function CustomersScreen() {
             />
 
             <Input
-              label="Opening Balance (₹)"
+              label="Balance (₹)"
               placeholder="0"
               value={editForm.openingBalance}
               onChange={(v) =>
@@ -2873,6 +2874,14 @@ function CustomersScreen() {
               placeholder=""
               value={form.gst}
               onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
+            />
+            <Input
+              label="Balance (₹)"
+              placeholder="0"
+              value={editForm.openingBalance}
+              onChange={(v) =>
+                setEditForm((f) => ({ ...f, openingBalance: v }))
+              }
             />
             <div className="flex gap-3 pt-2">
               <Btn
