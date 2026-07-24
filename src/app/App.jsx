@@ -76,6 +76,7 @@ import {
   Info,
   LogIn,
   AlertCircle,
+  EyeOff,
 } from "lucide-react";
 import {
   AreaChart,
@@ -1760,6 +1761,7 @@ function AuthScreen({ view, onNav, onLogin }) {
   );
   const [password, setPassword] = useState("");
   const [biz, setBiz] = useState("");
+  const [businessType, setBusinessType] = useState("Retail");
   const [phone, setPhone] = useState("+91 ");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -2078,8 +2080,8 @@ function AuthScreen({ view, onNav, onLogin }) {
                 />
                 <Select
                   label="Business Type"
-                  value="Retail"
-                  onChange={() => {}}
+                  value={businessType}
+                  onChange={setBusinessType}
                   options={[
                     "Retail",
                     "Wholesale",
@@ -5779,13 +5781,6 @@ function SuperAdminSettingsScreen() {
   ]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
-  // API Settings states
-  const [apiKey, setApiKey] = useState("sk_live_51ABC123XYZ");
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [rateLimit, setRateLimit] = useState("1000");
-  const [webhooksEnabled, setWebhooksEnabled] = useState(true);
-  const [ipWhitelist, setIpWhitelist] = useState("");
-
   // Subscription Plans states
   const [plans, setPlans] = useState([
     {
@@ -5815,13 +5810,6 @@ function SuperAdminSettingsScreen() {
   ]);
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanPrice, setNewPlanPrice] = useState("");
-
-  // Payment Gateway states
-  const [paymentGateway, setPaymentGateway] = useState("razorpay");
-  const [razorpayKey, setRazorpayKey] = useState("rzp_test_123ABC");
-  const [stripeKey, setStripeKey] = useState("sk_test_123ABC");
-  const [enablePaypal, setEnablePaypal] = useState(false);
-  const [enableStripe, setEnableStripe] = useState(false);
 
   // User Management states
   const [adminUsers, setAdminUsers] = useState([
