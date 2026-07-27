@@ -1,14 +1,31 @@
-# TODO: Delete Payment Gateway and API Settings from Settings Module
+# Project Restructuring Plan
 
-## Steps:
+## Phase 1: Create Directory Structure
 
-1. [x] Gather information about the SuperAdminSettingsScreen component
-2. [x] Plan the changes
-3. [ ] Edit src/app/App.jsx:
-   - [ ] Remove API Settings state declarations
-   - [ ] Remove Payment Gateway state declarations
-   - [ ] Remove handleSaveApiSettings function
-   - [ ] Remove handleSavePaymentSettings function
-   - [ ] Remove API Settings and Payment Gateway tabs from tabs array
-   - [ ] Remove API Settings tab content block
-   - [ ] Remove Payment Gateway tab content block
+- Create pages/commerce/ (Products, Customers, Suppliers)
+- Create pages/transactions/ (POS, Purchase, Inventory, Expenses)
+- Create pages/dashboard/ (BusinessDashboard, SuperAdminDashboard)
+- Create pages/admin/ (Businesses, BusinessesNew, Revenue, SuperAdminSettings)
+- Create pages/public/ (LandingPage, AuthScreen)
+- Create pages/settings/ (SettingsScreen, ProfileScreen)
+- Create pages/users/ (UsersScreen, NotificationsScreen)
+- Create pages/reports/ (all report screens)
+- Create layouts/ (Sidebar, Topbar, navConfig)
+
+## Phase 2: Move Files
+
+- Move pages to subdirectories
+- Move components/layout/ to layouts/
+- Move components/revenue.jsx to pages/admin/
+- Move businesses-related files to pages/admin/
+
+## Phase 3: Update Import Paths
+
+- Update AppShell.jsx
+- Update AppRouter.jsx
+- Update all moved page files
+
+## Phase 4: Clean Up
+
+- Remove App.jsx.backup
+- Verify all imports work
