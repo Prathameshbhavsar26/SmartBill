@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import Revenue from "./components/revenue";
+import BusinessesNew from "./BusinessesNew";
 import {
   BrowserRouter,
   Routes,
@@ -74,6 +76,7 @@ import {
   Info,
   LogIn,
   AlertCircle,
+  EyeOff,
 } from "lucide-react";
 import {
   AreaChart,
@@ -520,6 +523,9 @@ const businesses = [
     id: 1,
     name: "Sharma Electronics",
     owner: "Vikram Sharma",
+    ownerEmail: "vikram.sharma@sharmaelectronics.in",
+    ownerPhone: "+91 8830164600",
+    ownerCity: "Nashik",
     plan: "Pro",
     users: 8,
     revenue: 245000,
@@ -530,6 +536,9 @@ const businesses = [
     id: 2,
     name: "Mumbai Textiles",
     owner: "Nirmala Patel",
+    ownerEmail: "nirmala.patel@mumbaitextiles.in",
+    ownerPhone: "+91 9765969840",
+    ownerCity: "Mumbai",
     plan: "Enterprise",
     users: 24,
     revenue: 1280000,
@@ -540,6 +549,9 @@ const businesses = [
     id: 3,
     name: "Delhi Grocers",
     owner: "Amar Singh",
+    ownerEmail: "amar.singh@delhigrocers.in",
+    ownerPhone: "+91 9922334455",
+    ownerCity: "Delhi",
     plan: "Starter",
     users: 3,
     revenue: 89000,
@@ -550,6 +562,9 @@ const businesses = [
     id: 4,
     name: "Pune Hardware Hub",
     owner: "Sanjay More",
+    ownerEmail: "sanjay.more@punehardware.in",
+    ownerPhone: "+91 9988776655",
+    ownerCity: "Pune",
     plan: "Pro",
     users: 6,
     revenue: 412000,
@@ -560,6 +575,9 @@ const businesses = [
     id: 5,
     name: "Chennai Pharma",
     owner: "Lakshmi Rajan",
+    ownerEmail: "lakshmi.rajan@chennai-pharma.in",
+    ownerPhone: "+91 8899001122",
+    ownerCity: "Chennai",
     plan: "Enterprise",
     users: 31,
     revenue: 2100000,
@@ -1075,9 +1093,11 @@ const NAV_GROUPS = [
 
 const SUPER_ADMIN_ITEMS = [
   { key: "super-dashboard", label: "Overview", icon: LayoutDashboard },
-  { key: "customers", label: "Businesses", icon: Building2 },
-  { key: "users", label: "Users", icon: Users },
-  { key: "reports", label: "Revenue", icon: BarChart3 },
+
+  { key: "businesses", label: "Businesses", icon: Building2 },
+
+  { key: "revenue", label: "Revenue", icon: BarChart3 },
+
   { key: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -1202,6 +1222,8 @@ function Sidebar({ page, onNav, role, collapsed, onToggle }) {
 const PAGE_LABELS = {
   dashboard: "Dashboard",
   "super-dashboard": "Admin Overview",
+  businesses: "Businesses",
+
   customers: "Customers",
   suppliers: "Suppliers",
   products: "Products",
@@ -1233,15 +1255,6 @@ function Topbar({ page, onLogout, onNav, role, notifCount }) {
             day: "numeric",
           })}
         </p>
-      </div>
-
-      <div className="flex items-center bg-slate-100 rounded-lg px-3 py-2 border border-slate-200 w-52">
-        <Search className="w-3.5 h-3.5 text-slate-400 mr-2 flex-shrink-0" />
-        <input
-          type="text"
-          placeholder="Search anything..."
-          className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none"
-        />
       </div>
 
       {role === "owner" && (
@@ -1748,6 +1761,7 @@ function AuthScreen({ view, onNav, onLogin }) {
   );
   const [password, setPassword] = useState("");
   const [biz, setBiz] = useState("");
+  const [businessType, setBusinessType] = useState("Retail");
   const [phone, setPhone] = useState("+91 ");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -2066,8 +2080,8 @@ function AuthScreen({ view, onNav, onLogin }) {
                 />
                 <Select
                   label="Business Type"
-                  value="Retail"
-                  onChange={() => {}}
+                  value={businessType}
+                  onChange={setBusinessType}
                   options={[
                     "Retail",
                     "Wholesale",
@@ -2164,6 +2178,40 @@ function AuthScreen({ view, onNav, onLogin }) {
 // ─── SUPER ADMIN DASHBOARD ────────────────────────────────────────────────────
 
 function SuperAdminDashboard() {
+  const [timeRange, setTimeRange] = useState("6M");
+
+  const revenueByRange = {
+    "3M": [
+      { month: "Jan", businesses: 28, revenue: 420000 },
+      { month: "Feb", businesses: 34, revenue: 510000 },
+      { month: "Mar", businesses: 41, revenue: 605000 },
+    ],
+    "6M": [
+      { month: "Jan", businesses: 42, revenue: 520000 },
+      { month: "Feb", businesses: 58, revenue: 720000 },
+      { month: "Mar", businesses: 71, revenue: 880000 },
+      { month: "Apr", businesses: 89, revenue: 1100000 },
+      { month: "May", businesses: 104, revenue: 1280000 },
+      { month: "Jun", businesses: 128, revenue: 1560000 },
+    ],
+    "1Y": [
+      { month: "Jan", businesses: 32, revenue: 460000 },
+      { month: "Feb", businesses: 40, revenue: 580000 },
+      { month: "Mar", businesses: 52, revenue: 690000 },
+      { month: "Apr", businesses: 66, revenue: 820000 },
+      { month: "May", businesses: 78, revenue: 960000 },
+      { month: "Jun", businesses: 92, revenue: 1120000 },
+      { month: "Jul", businesses: 104, revenue: 1240000 },
+      { month: "Aug", businesses: 116, revenue: 1360000 },
+      { month: "Sep", businesses: 126, revenue: 1490000 },
+      { month: "Oct", businesses: 134, revenue: 1600000 },
+      { month: "Nov", businesses: 142, revenue: 1720000 },
+      { month: "Dec", businesses: 151, revenue: 1860000 },
+    ],
+  };
+
+  const activeAdminStats = revenueByRange[timeRange] ?? adminStats;
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2202,7 +2250,7 @@ function SuperAdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="lg:col-span-2 p-5">
+        <Card className="lg:col-span-3 p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-semibold text-slate-900">
@@ -2213,18 +2261,23 @@ function SuperAdminDashboard() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {["3M", "6M", "1Y"].map((t) => (
+              {[
+                ["3M", "3M"],
+                ["6M", "6M"],
+                ["1Y", "1Y"],
+              ].map(([key]) => (
                 <button
-                  key={t}
-                  className={`text-xs px-2.5 py-1 rounded-lg ${t === "6M" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
+                  key={key}
+                  onClick={() => setTimeRange(key)}
+                  className={`text-xs px-2.5 py-1 rounded-lg ${timeRange === key ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
                 >
-                  {t}
+                  {key}
                 </button>
               ))}
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={adminStats}>
+            <AreaChart data={activeAdminStats}>
               <defs>
                 <linearGradient id="adminGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
@@ -2266,7 +2319,7 @@ function SuperAdminDashboard() {
             </AreaChart>
           </ResponsiveContainer>
         </Card>
-        <Card className="p-5">
+        <Card className="lg:col-span-3 w-full p-5">
           <h3 className="font-semibold text-slate-900 mb-5">
             Plan Distribution
           </h3>
@@ -2317,71 +2370,6 @@ function SuperAdminDashboard() {
           </div>
         </Card>
       </div>
-
-      <Card>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="font-semibold text-slate-900">Business Management</h3>
-          <div className="flex gap-2">
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<Filter className="w-3.5 h-3.5" />}
-            >
-              Filter
-            </Btn>
-            <Btn
-              variant="outline"
-              size="sm"
-              icon={<Download className="w-3.5 h-3.5" />}
-            >
-              Export
-            </Btn>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  "Business",
-                  "Owner",
-                  "Plan",
-                  "Users",
-                  "Revenue",
-                  "Status",
-                  "Joined",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {businesses.map((b) => (
-                <tr key={b.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-slate-900">
-                    {b.name}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-600">{b.owner}</td>
-                  <td className="px-5 py-3.5">{statusBadge(b.plan)}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{b.users}</td>
-                  <td className="px-5 py-3.5 font-medium text-slate-900">
-                    {fmt(b.revenue)}
-                  </td>
-                  <td className="px-5 py-3.5">{statusBadge(b.status)}</td>
-                  <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
-                    {b.joined}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
     </div>
   );
 }
@@ -2609,7 +2597,7 @@ function CustomersScreen() {
     email: "",
     city: "",
     gst: "",
-    openingBalance: "0",
+    Balance: "0",
   });
 
   const [toast, setToast] = useState(null);
@@ -2624,7 +2612,7 @@ function CustomersScreen() {
     email: "",
     city: "",
     gst: "",
-    openingBalance: "0",
+    Balance:"0",
   });
 
   const filtered = customerList.filter(
@@ -2790,7 +2778,7 @@ function CustomersScreen() {
             />
 
             <Input
-              label="Opening Balance (₹)"
+              label="Balance (₹)"
               placeholder="0"
               value={editForm.openingBalance}
               onChange={(v) =>
@@ -2847,13 +2835,13 @@ function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Business Name"
-                placeholder="Raj Enterprises"
+                placeholder=""
                 value={form.name}
                 onChange={(v) => setForm((f) => ({ ...f, name: v }))}
               />
               <Input
                 label="Contact Person"
-                placeholder="Rajesh Kumar"
+                placeholder=""
                 value={form.contact}
                 onChange={(v) => setForm((f) => ({ ...f, contact: v }))}
               />
@@ -2861,14 +2849,14 @@ function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Phone"
-                placeholder="+91 98765 43210"
+                placeholder=""
                 icon={<Phone className="w-4 h-4" />}
                 value={form.phone}
                 onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
               />
               <Input
                 label="Email"
-                placeholder="rajesh@raj.in"
+                placeholder=""
                 icon={<Mail className="w-4 h-4" />}
                 value={form.email}
                 onChange={(v) => setForm((f) => ({ ...f, email: v }))}
@@ -2876,22 +2864,24 @@ function CustomersScreen() {
             </div>
             <Input
               label="City"
-              placeholder="Mumbai"
+              placeholder=""
               icon={<MapPin className="w-4 h-4" />}
               value={form.city}
               onChange={(v) => setForm((f) => ({ ...f, city: v }))}
             />
             <Input
               label="GST Number"
-              placeholder="27AAPCS0510Q1Z6"
+              placeholder=""
               value={form.gst}
               onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
             />
             <Input
-              label="Opening Balance (₹)"
+              label="Balance (₹)"
               placeholder="0"
-              value={form.openingBalance}
-              onChange={(v) => setForm((f) => ({ ...f, openingBalance: v }))}
+              value={editForm.openingBalance}
+              onChange={(v) =>
+                setEditForm((f) => ({ ...f, openingBalance: v }))
+              }
             />
             <div className="flex gap-3 pt-2">
               <Btn
@@ -2909,8 +2899,6 @@ function CustomersScreen() {
                       ? Math.max(...customerList.map((x) => x.id)) + 1
                       : 1;
 
-                  const opening = Number(form.openingBalance || 0);
-
                   const newCustomer = {
                     id: newId,
                     name: form.name || "New Customer",
@@ -2918,7 +2906,7 @@ function CustomersScreen() {
                     phone: form.phone || "",
                     email: form.email || "",
                     city: form.city || "",
-                    balance: Number.isFinite(opening) ? opening : 0,
+                    balance: 0,
                     status: "Active",
                     invoices: 0,
                   };
@@ -3143,6 +3131,7 @@ function SuppliersScreen() {
     email: "",
     city: "",
     gst: "",
+    balanceDue: "0",
   });
 
   const filtered = supplierList.filter((s) =>
@@ -3337,20 +3326,20 @@ function SuppliersScreen() {
           <div className="space-y-4">
             <Input
               label="Company Name"
-              placeholder="TechVision Pvt Ltd"
+              placeholder=""
               value={form.name}
               onChange={(v) => setForm((f) => ({ ...f, name: v }))}
             />
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Contact Person"
-                placeholder="Arun Verma"
+                placeholder=""
                 value={form.contact}
                 onChange={(v) => setForm((f) => ({ ...f, contact: v }))}
               />
               <Input
                 label="Phone"
-                placeholder="+91 98765 43210"
+                placeholder="+91 "
                 icon={<Phone className="w-4 h-4" />}
                 value={form.phone}
                 onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
@@ -3358,7 +3347,7 @@ function SuppliersScreen() {
             </div>
             <Input
               label="Email"
-              placeholder="arun@techvision.in"
+              placeholder=""
               icon={<Mail className="w-4 h-4" />}
               value={form.email}
               onChange={(v) => setForm((f) => ({ ...f, email: v }))}
@@ -3366,17 +3355,23 @@ function SuppliersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="City"
-                placeholder="Bangalore"
+                placeholder=""
                 value={form.city}
                 onChange={(v) => setForm((f) => ({ ...f, city: v }))}
               />
               <Input
                 label="GST Number"
-                placeholder="29ABCDE1234F1Z5"
+                placeholder=""
                 value={form.gst}
                 onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
               />
             </div>
+            <Input
+              label="Balance Due (₹)"
+              placeholder=""
+              value={form.balanceDue}
+              onChange={(v) => setForm((f) => ({ ...f, balanceDue: v }))}
+            />
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -3562,7 +3557,17 @@ function ProductsScreen() {
   // Make products editable so "Save Product" updates the table below.
   const [productList, setProductList] = useState(products);
 
-  const cats = ["All", "Electronics", "Clothing", "Groceries", "Hardware"];
+  // --- ADDED FOR DYNAMIC CATEGORIES IN PROJECT 1 ---
+  const [categories, setCategories] = useState([
+    "Electronics",
+    "Clothing",
+    "Groceries",
+    "Hardware",
+  ]);
+  const [newCategory, setNewCategory] = useState("");
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
+  const [showEditCategoryInput, setShowEditCategoryInput] = useState(false);
+  // -------------------------------------------------
 
   const [form, setForm] = useState({
     name: "",
@@ -3608,12 +3613,14 @@ function ProductsScreen() {
         />
       )}
 
+      {/* EDIT PRODUCT MODAL */}
       {showEditModal && editId !== null && (
         <Modal
           title="Edit Product"
           onClose={() => {
             setShowEditModal(false);
             setEditId(null);
+            setShowEditCategoryInput(false);
           }}
         >
           <div className="space-y-4">
@@ -3634,10 +3641,43 @@ function ProductsScreen() {
               <Select
                 label="Category"
                 value={editForm.category}
-                onChange={(v) => setEditForm((f) => ({ ...f, category: v }))}
-                options={cats.slice(1)}
+                onChange={(v) => {
+                  if (v === "+ Add Category") {
+                    setShowEditCategoryInput(true);
+                  } else {
+                    setEditForm((f) => ({ ...f, category: v }));
+                    setShowEditCategoryInput(false);
+                  }
+                }}
+                options={[...categories, "+ Add Category"]}
               />
             </div>
+
+            {/* Conditionally rendered Add Category field in Edit Modal */}
+            {showEditCategoryInput && (
+              <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                <Input
+                  label="New Category"
+                  value={newCategory}
+                  onChange={setNewCategory}
+                  placeholder="Enter category name"
+                />
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (newCategory.trim()) {
+                      setCategories([...categories, newCategory]);
+                      setEditForm((f) => ({ ...f, category: newCategory }));
+                      setNewCategory("");
+                      setShowEditCategoryInput(false);
+                    }
+                  }}
+                >
+                  Save Category
+                </Btn>
+              </div>
+            )}
 
             <Select
               label="Supplier"
@@ -3695,6 +3735,7 @@ function ProductsScreen() {
                 onClick={() => {
                   setShowEditModal(false);
                   setEditId(null);
+                  setShowEditCategoryInput(false);
                 }}
                 className="flex-1 justify-center"
               >
@@ -3728,6 +3769,7 @@ function ProductsScreen() {
                   );
                   setShowEditModal(false);
                   setEditId(null);
+                  setShowEditCategoryInput(false);
                   showToast("Product updated successfully", "success");
                 }}
                 className="flex-1 justify-center"
@@ -3739,8 +3781,15 @@ function ProductsScreen() {
         </Modal>
       )}
 
+      {/* ADD NEW PRODUCT MODAL */}
       {showModal && (
-        <Modal title="Add New Product" onClose={() => setShowModal(false)}>
+        <Modal
+          title="Add New Product"
+          onClose={() => {
+            setShowModal(false);
+            setShowCategoryInput(false);
+          }}
+        >
           <div className="space-y-4">
             <Input
               label="Product Name"
@@ -3759,10 +3808,44 @@ function ProductsScreen() {
               <Select
                 label="Category"
                 value={form.category}
-                onChange={(v) => setForm((f) => ({ ...f, category: v }))}
-                options={cats.slice(1)}
+                onChange={(v) => {
+                  if (v === "+ Add Category") {
+                    setShowCategoryInput(true);
+                  } else {
+                    setForm((f) => ({ ...f, category: v }));
+                    setShowCategoryInput(false);
+                  }
+                }}
+                options={[...categories, "+ Add Category"]}
               />
             </div>
+
+            {/* Conditionally rendered Add Category field in Add Modal */}
+            {showCategoryInput && (
+              <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                <Input
+                  label="New Category"
+                  value={newCategory}
+                  onChange={setNewCategory}
+                  placeholder="Enter category name"
+                />
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (newCategory.trim()) {
+                      setCategories([...categories, newCategory]);
+                      setForm((f) => ({ ...f, category: newCategory }));
+                      setNewCategory("");
+                      setShowCategoryInput(false);
+                    }
+                  }}
+                >
+                  Save Category
+                </Btn>
+              </div>
+            )}
+
             <Select
               label="Supplier"
               value={form.supplier}
@@ -3814,6 +3897,7 @@ function ProductsScreen() {
                 variant="outline"
                 onClick={() => {
                   setShowModal(false);
+                  setShowCategoryInput(false);
                 }}
                 className="flex-1 justify-center"
               >
@@ -3849,6 +3933,7 @@ function ProductsScreen() {
                   ]);
 
                   setShowModal(false);
+                  setShowCategoryInput(false);
                   setForm({
                     name: "",
                     sku: "",
@@ -3871,6 +3956,7 @@ function ProductsScreen() {
         </Modal>
       )}
 
+      {/* FILTER AND HEADER CONTROLS */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-48">
           <Input
@@ -3881,7 +3967,7 @@ function ProductsScreen() {
           />
         </div>
         <div className="flex items-center gap-2">
-          {cats.map((c) => (
+          {["All", ...categories].map((c) => (
             <button
               key={c}
               onClick={() => setCatFilter(c)}
@@ -3904,6 +3990,7 @@ function ProductsScreen() {
         </Btn>
       </div>
 
+      {/* TABLE SECTION */}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -4025,7 +4112,6 @@ function ProductsScreen() {
     </div>
   );
 }
-
 // ─── POS / BILLING SCREEN ─────────────────────────────────────────────────────
 
 function POSScreen() {
@@ -4383,6 +4469,31 @@ function PurchaseScreen() {
 
         const nextItem = { ...item, [field]: value };
 
+        if (field === "product") {
+          const selectedProduct = products.find((p) => p.name === value);
+
+          if (selectedProduct) {
+            nextItem.rate = selectedProduct.cost;
+
+            const qty = Number(nextItem.qty) || 0;
+            nextItem.amount = qty * nextItem.rate;
+          }
+        }
+
+        if (field === "qty") {
+          const qty = Number(value) || 0;
+          const rate = Number(nextItem.rate) || 0;
+
+          nextItem.amount = qty * rate;
+        }
+
+        if (field === "rate") {
+          const qty = Number(nextItem.qty) || 0;
+          const rate = Number(value) || 0;
+
+          nextItem.amount = qty * rate;
+        }
+
         if (field === "qty" || field === "rate") {
           const qty =
             field === "qty"
@@ -4679,18 +4790,6 @@ function PurchaseScreen() {
                 </Btn>
               </div>
             </Card>
-            <Card className="p-4">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-                Notes
-              </h4>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add notes or terms..."
-                rows={3}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
-            </Card>
           </div>
         </div>
       ) : (
@@ -4702,22 +4801,6 @@ function PurchaseScreen() {
               placeholder="Search purchases..."
               icon={<Search className="w-4 h-4" />}
             />
-            <div className="flex gap-2 ml-3">
-              <Btn
-                variant="outline"
-                size="sm"
-                icon={<Filter className="w-3.5 h-3.5" />}
-              >
-                Filter
-              </Btn>
-              <Btn
-                variant="outline"
-                size="sm"
-                icon={<Download className="w-3.5 h-3.5" />}
-              >
-                Export
-              </Btn>
-            </div>
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -5016,15 +5099,42 @@ function ReportsScreen() {
 function ExpensesScreen() {
   const [showModal, setShowModal] = useState(false);
 
+  // Local editable list so added expenses appear in the table below.
+  const [expenseList, setExpenseList] = useState(expenses);
+
+  const [form, setForm] = useState({
+    category: "Rent",
+    description: "",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    paymentMode: "Bank Transfer",
+    reference: "",
+  });
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type) => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   return (
     <div className="space-y-5">
+      {toast && (
+        <Toast
+          message={toast.msg}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {showModal && (
         <Modal title="Add Expense" onClose={() => setShowModal(false)}>
           <div className="space-y-4">
             <Select
               label="Category"
-              value="Rent"
-              onChange={() => {}}
+              value={form.category}
+              onChange={(v) => setForm((f) => ({ ...f, category: v }))}
               options={[
                 "Rent",
                 "Utilities",
@@ -5035,19 +5145,30 @@ function ExpensesScreen() {
                 "Other",
               ]}
             />
-            <Input label="Description" placeholder="August rent payment" />
+            <Input
+              label="Description"
+              placeholder="August rent payment"
+              value={form.description}
+              onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+            />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Amount (₹)" placeholder="45000" />
+              <Input
+                label="Amount (₹)"
+                placeholder="45000"
+                value={form.amount}
+                onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
+              />
               <Input
                 label="Date"
                 type="date"
-                value={new Date().toISOString().slice(0, 10)}
+                value={form.date}
+                onChange={(v) => setForm((f) => ({ ...f, date: v }))}
               />
             </div>
             <Select
               label="Payment Mode"
-              value="Bank Transfer"
-              onChange={() => {}}
+              value={form.paymentMode}
+              onChange={(v) => setForm((f) => ({ ...f, paymentMode: v }))}
               options={[
                 "Cash",
                 "Bank Transfer",
@@ -5056,7 +5177,12 @@ function ExpensesScreen() {
                 "Cheque",
               ]}
             />
-            <Input label="Reference / Receipt No." placeholder="REF-001" />
+            <Input
+              label="Reference / Receipt No."
+              placeholder="REF-001"
+              value={form.reference}
+              onChange={(v) => setForm((f) => ({ ...f, reference: v }))}
+            />
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -5067,7 +5193,45 @@ function ExpensesScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  const amountNum = Number(form.amount || 0);
+                  if (!form.description.trim()) {
+                    showToast("Description is required", "error");
+                    return;
+                  }
+                  if (!Number.isFinite(amountNum) || amountNum <= 0) {
+                    showToast("Amount must be greater than 0", "error");
+                    return;
+                  }
+
+                  const newId =
+                    expenseList.length > 0
+                      ? Math.max(...expenseList.map((x) => x.id)) + 1
+                      : 1;
+
+                  const newExpense = {
+                    id: newId,
+                    category: form.category,
+                    description: form.description,
+                    date: form.date,
+                    amount: amountNum,
+                    paymentMode: form.paymentMode,
+                    reference: form.reference || "",
+                    status: "Paid",
+                  };
+
+                  setExpenseList((prev) => [newExpense, ...prev]);
+                  setShowModal(false);
+                  setForm({
+                    category: "Rent",
+                    description: "",
+                    date: new Date().toISOString().slice(0, 10),
+                    amount: "",
+                    paymentMode: "Bank Transfer",
+                    reference: "",
+                  });
+                  showToast("Expense saved successfully", "success");
+                }}
                 className="flex-1 justify-center"
               >
                 Save Expense
@@ -5080,8 +5244,8 @@ function ExpensesScreen() {
       <div className="grid grid-cols-3 gap-4">
         <StatCard
           label="Total Expenses (Aug)"
-          value="₹2.06L"
-          sub="+8% vs last month"
+          value={`₹${Number(expenseList.reduce((s, e) => s + (Number(e.amount) || 0), 0)).toLocaleString("en-IN")}`}
+          sub=""
           trend="up"
           icon={<Wallet className="w-5 h-5" />}
           color="bg-red-50 text-red-500"
@@ -5137,7 +5301,7 @@ function ExpensesScreen() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {expenses.map((e) => (
+            {expenseList.map((e) => (
               <tr
                 key={e.id}
                 className="hover:bg-slate-50 transition-colors group"
@@ -5167,40 +5331,147 @@ function ExpensesScreen() {
 // ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
 
 function UsersScreen() {
+  const [employeeList, setEmployeeList] = useState(employees);
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Cashier");
+  const [department, setDepartment] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+
+  const handleSaveEmployee = () => {
+    const updatedEmployee = {
+      id: editingId ?? Date.now(),
+      name,
+      email,
+      role,
+      department,
+      phone,
+      password,
+      status: "Active",
+      lastActive: "Just now",
+    };
+
+    if (editingId !== null) {
+      setEmployeeList(
+        employeeList.map((emp) =>
+          emp.id === editingId ? updatedEmployee : emp,
+        ),
+      );
+    } else {
+      setEmployeeList([...employeeList, updatedEmployee]);
+    }
+
+    setEditingId(null);
+
+    setName("");
+    setEmail("");
+    setRole("Cashier");
+    setDepartment("");
+    setPhone("");
+    setPassword("");
+
+    setShowModal(false);
+  };
+
+  const handleEdit = (employee) => {
+    setName(employee.name);
+    setEmail(employee.email);
+    setRole(employee.role);
+    setDepartment(employee.department);
+    setPhone(employee.phone || "");
+    setPassword(employee.password || "");
+
+    setEditingId(employee.id);
+
+    setShowModal(true);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm("Delete this employee?")) {
+      setEmployeeList(employeeList.filter((emp) => emp.id !== id));
+    }
+  };
 
   return (
     <div className="space-y-5">
       {showModal && (
-        <Modal title="Add Employee" onClose={() => setShowModal(false)}>
+        <Modal
+          title={editingId ? "Update Employee" : "Add Employee"}
+          onClose={() => {
+            setEditingId(null);
+
+            setName("");
+            setEmail("");
+            setRole("Cashier");
+            setDepartment("");
+            setPhone("");
+            setPassword("");
+
+            setShowModal(false);
+          }}
+        >
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Full Name" placeholder="Priya Sharma" />
+              <Input
+                label="Full Name"
+                placeholder="Priya Sharma"
+                value={name}
+                onChange={setName}
+              />
               <Input
                 label="Email"
                 placeholder="priya@business.in"
+                value={email}
+                onChange={setEmail}
                 icon={<Mail className="w-4 h-4" />}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Select
                 label="Role"
-                value="Cashier"
-                onChange={() => {}}
+                value={role}
+                onChange={setRole}
                 options={["Owner", "Manager", "Cashier", "Accountant"]}
               />
-              <Input label="Department" placeholder="Sales" />
+              <Input
+                label="Department"
+                placeholder="Sales"
+                value={department}
+                onChange={setDepartment}
+              />
             </div>
             <Input
               label="Phone"
-              placeholder="+91 "
-              icon={<Phone className="w-4 h-4" />}
+              placeholder="+91"
+              value={phone}
+              onChange={(value) => {
+                // Allow only digits
+                const digits = value.replace(/\D/g, "");
+
+                // Limit to 10 digits
+                if (digits.length <= 10) {
+                  setPhone(digits);
+                  setPhoneError("");
+                }
+              }}
+              error={phoneError}
             />
             <Input
               label="Temporary Password"
               type="password"
-              placeholder="Min. 8 characters"
+              value={password}
+              onChange={(value) => {
+                setPassword(value);
+                setPasswordError("");
+              }}
               icon={<Lock className="w-4 h-4" />}
+              error={passwordError}
             />
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -5232,17 +5503,24 @@ function UsersScreen() {
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setEditingId(null);
+
+                  setName("");
+                  setEmail("");
+                  setRole("Cashier");
+                  setDepartment("");
+                  setPhone("");
+                  setPassword("");
+
+                  setShowModal(false);
+                }}
                 className="flex-1 justify-center"
               >
                 Cancel
               </Btn>
-              <Btn
-                variant="primary"
-                onClick={() => setShowModal(false)}
-                className="flex-1 justify-center"
-              >
-                Add Employee
+              <Btn variant="primary" onClick={handleSaveEmployee}>
+                {editingId ? "Update Employee" : "Add Employee"}
               </Btn>
             </div>
           </div>
@@ -5253,25 +5531,22 @@ function UsersScreen() {
         <Btn
           variant="primary"
           size="md"
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setEditingId(null);
+
+            setName("");
+            setEmail("");
+            setRole("Cashier");
+            setDepartment("");
+            setPhone("");
+            setPassword("");
+
+            setShowModal(true);
+          }}
           icon={<Plus className="w-4 h-4" />}
         >
           Add Employee
         </Btn>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {[
-          ["4", "Total Users"],
-          ["3", "Active"],
-          ["1", "Inactive"],
-          ["3", "Roles Used"],
-        ].map(([v, l]) => (
-          <Card key={l} className="p-4 text-center">
-            <p className="text-xl font-bold text-slate-900">{v}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{l}</p>
-          </Card>
-        ))}
       </div>
 
       <Card>
@@ -5281,7 +5556,7 @@ function UsersScreen() {
               {[
                 "Employee",
                 "Email",
-                "Role",
+                "role",
                 "Department",
                 "Last Active",
                 "Status",
@@ -5297,7 +5572,7 @@ function UsersScreen() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {employees.map((e) => (
+            {employeeList.map((e) => (
               <tr
                 key={e.id}
                 className="hover:bg-slate-50 transition-colors group"
@@ -5316,25 +5591,8 @@ function UsersScreen() {
                   </div>
                 </td>
                 <td className="px-5 py-4 text-slate-500 text-xs">{e.email}</td>
-                <td className="px-5 py-4">
-                  {statusBadge(
-                    e.role === "Manager"
-                      ? "Pro"
-                      : e.role === "Accountant"
-                        ? "blue"
-                        : "gray",
-                  ) || (
-                    <Badge
-                      label={e.role}
-                      variant={
-                        e.role === "Manager"
-                          ? "purple"
-                          : e.role === "Accountant"
-                            ? "blue"
-                            : "gray"
-                      }
-                    />
-                  )}
+                <td className="px-5 py-4 text-slate-700 font-medium">
+                  {e.role}
                 </td>
                 <td className="px-5 py-4 text-slate-600">{e.department}</td>
                 <td className="px-5 py-4 text-slate-500 text-xs">
@@ -5346,11 +5604,13 @@ function UsersScreen() {
                     <Btn
                       variant="ghost"
                       size="sm"
+                      onClick={() => handleEdit(e)}
                       icon={<Edit2 className="w-3.5 h-3.5" />}
                     />
                     <Btn
                       variant="ghost"
                       size="sm"
+                      onClick={() => handleDelete(e.id)}
                       icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
                     />
                   </div>
@@ -5365,6 +5625,131 @@ function UsersScreen() {
 }
 
 // ─── SUPER ADMIN SETTINGS SCREEN ──────────────────────────────────────────────
+
+function BusinessesScreen({ onOpenBusiness }) {
+  // Business-owner should never land here on refresh.
+  // Kept only for legacy compatibility routes.
+
+  const [search, setSearch] = useState("");
+
+  const filtered = businesses.filter((b) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      String(b.name ?? "")
+        .toLowerCase()
+        .includes(q) ||
+      String(b.owner ?? "")
+        .toLowerCase()
+        .includes(q) ||
+      String(b.plan ?? "")
+        .toLowerCase()
+        .includes(q) ||
+      String(b.status ?? "")
+        .toLowerCase()
+        .includes(q)
+    );
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 min-w-48">
+          <Input
+            value={search}
+            onChange={setSearch}
+            placeholder="Search business, owner, plan..."
+            icon={<Search className="w-4 h-4" />}
+          />
+        </div>
+        <div className="flex gap-2 text-xs text-slate-500">
+          <span className="font-semibold text-slate-900">
+            {filtered.length}
+          </span>
+          <span>results</span>
+        </div>
+      </div>
+
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100">
+                {[
+                  "Business Name",
+                  "Business Owner",
+                  "Email",
+                  "Phone Number",
+                  "City",
+                  "Subscription Plan",
+                  "Joining Date",
+                  "Revenue",
+                  "Employees",
+                  "Status",
+                  "Actions",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-10"></td>
+                </tr>
+              ) : (
+                filtered.map((b) => (
+                  <tr
+                    key={b.id}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-slate-900">{b.name}</p>
+                    </td>
+                    <td className="px-5 py-4 text-slate-700">{b.owner}</td>
+                    <td className="px-5 py-4 text-slate-600">{b.ownerEmail}</td>
+                    <td className="px-5 py-4 text-slate-600 font-mono text-xs">
+                      {b.ownerPhone}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{b.ownerCity}</td>
+                    <td className="px-5 py-4">
+                      <Badge label={b.plan} variant="blue" />
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 whitespace-nowrap align-top">
+                      <div className="w-fit whitespace-nowrap">{b.joined}</div>
+                    </td>
+                    <td className="px-5 py-4 font-semibold text-slate-900">
+                      {fmt(b.revenue)}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">{b.users}</td>
+                    <td className="px-5 py-4">{statusBadge(b.status)}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1">
+                        <Btn variant="ghost" size="sm" onClick={() => {}}>
+                          View
+                        </Btn>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
+          <p className="text-xs text-slate-500">
+            Showing {filtered.length} of {businesses.length} businesses
+          </p>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 function SuperAdminSettingsScreen() {
   const [activeTab, setActiveTab] = useState("system");
@@ -5407,13 +5792,6 @@ function SuperAdminSettingsScreen() {
   ]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
-  // API Settings states
-  const [apiKey, setApiKey] = useState("sk_live_51ABC123XYZ");
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [rateLimit, setRateLimit] = useState("1000");
-  const [webhooksEnabled, setWebhooksEnabled] = useState(true);
-  const [ipWhitelist, setIpWhitelist] = useState("");
-
   // Subscription Plans states
   const [plans, setPlans] = useState([
     {
@@ -5443,13 +5821,6 @@ function SuperAdminSettingsScreen() {
   ]);
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanPrice, setNewPlanPrice] = useState("");
-
-  // Payment Gateway states
-  const [paymentGateway, setPaymentGateway] = useState("razorpay");
-  const [razorpayKey, setRazorpayKey] = useState("rzp_test_123ABC");
-  const [stripeKey, setStripeKey] = useState("sk_test_123ABC");
-  const [enablePaypal, setEnablePaypal] = useState(false);
-  const [enableStripe, setEnableStripe] = useState(false);
 
   // User Management states
   const [adminUsers, setAdminUsers] = useState([
@@ -5610,8 +5981,6 @@ function SuperAdminSettingsScreen() {
           { key: "system", label: "System Settings", icon: Settings },
           { key: "plans", label: "Subscription Plans", icon: Package },
           { key: "email", label: "Email Templates", icon: Mail },
-          { key: "api", label: "API Settings", icon: Zap },
-          { key: "payment", label: "Payment Gateway", icon: CreditCard },
           { key: "users", label: "Admin Users", icon: Shield },
           { key: "logs", label: "Audit Logs", icon: BarChart2 },
           { key: "support", label: "Support Settings", icon: MessageSquare },
@@ -5874,176 +6243,6 @@ function SuperAdminSettingsScreen() {
         </Card>
       )}
 
-      {/* TAB 4: API SETTINGS */}
-      {activeTab === "api" && (
-        <Card className="p-6">
-          <h3 className="font-semibold text-slate-900 mb-5">API Settings</h3>
-          <div className="space-y-4">
-            <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">API Key</p>
-              <div className="flex gap-2">
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  value={apiKey}
-                  readOnly
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50"
-                />
-                <Btn
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? "Hide" : "Show"}
-                </Btn>
-              </div>
-            </div>
-
-            <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">
-                Rate Limit (requests/hour)
-              </p>
-              <input
-                type="number"
-                value={rateLimit}
-                onChange={(e) => setRateLimit(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
-            </div>
-
-            <div className="flex items-start justify-between py-3 border-b border-slate-100">
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                  Enable Webhooks
-                </p>
-                <p className="text-xs text-slate-500">
-                  Allow webhooks for external integrations
-                </p>
-              </div>
-              <button
-                onClick={() => setWebhooksEnabled(!webhooksEnabled)}
-                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${webhooksEnabled ? "bg-blue-600" : "bg-slate-200"}`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${webhooksEnabled ? "right-1" : "left-1"}`}
-                />
-              </button>
-            </div>
-
-            <div className="py-3">
-              <p className="text-sm font-medium text-slate-900 mb-2">
-                IP Whitelist (comma-separated)
-              </p>
-              <input
-                type="text"
-                value={ipWhitelist}
-                onChange={(e) => setIpWhitelist(e.target.value)}
-                placeholder="192.168.1.1, 10.0.0.1"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
-            </div>
-
-            <Btn
-              variant="primary"
-              onClick={handleSaveApiSettings}
-              icon={<Zap className="w-4 h-4" />}
-            >
-              Save API Settings
-            </Btn>
-          </div>
-        </Card>
-      )}
-
-      {/* TAB 5: PAYMENT GATEWAY */}
-      {activeTab === "payment" && (
-        <Card className="p-6">
-          <h3 className="font-semibold text-slate-900 mb-5">
-            Payment Gateway Configuration
-          </h3>
-          <div className="space-y-4">
-            <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">
-                Default Payment Gateway
-              </p>
-              <select
-                value={paymentGateway}
-                onChange={(e) => setPaymentGateway(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              >
-                <option value="razorpay">Razorpay</option>
-                <option value="stripe">Stripe</option>
-                <option value="paypal">PayPal</option>
-              </select>
-            </div>
-
-            <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">
-                Razorpay Key ID
-              </p>
-              <input
-                type="password"
-                value={razorpayKey}
-                onChange={(e) => setRazorpayKey(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
-            </div>
-
-            <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">
-                Stripe Key
-              </p>
-              <input
-                type="password"
-                value={stripeKey}
-                onChange={(e) => setStripeKey(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
-            </div>
-
-            <div className="flex items-start justify-between py-3 border-b border-slate-100">
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                  Enable PayPal
-                </p>
-                <p className="text-xs text-slate-500">Allow PayPal payments</p>
-              </div>
-              <button
-                onClick={() => setEnablePaypal(!enablePaypal)}
-                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${enablePaypal ? "bg-blue-600" : "bg-slate-200"}`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enablePaypal ? "right-1" : "left-1"}`}
-                />
-              </button>
-            </div>
-
-            <div className="flex items-start justify-between py-3">
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                  Enable Stripe
-                </p>
-                <p className="text-xs text-slate-500">Allow Stripe payments</p>
-              </div>
-              <button
-                onClick={() => setEnableStripe(!enableStripe)}
-                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${enableStripe ? "bg-blue-600" : "bg-slate-200"}`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableStripe ? "right-1" : "left-1"}`}
-                />
-              </button>
-            </div>
-
-            <Btn
-              variant="primary"
-              onClick={handleSavePaymentSettings}
-              icon={<CreditCard className="w-4 h-4" />}
-            >
-              Save Payment Settings
-            </Btn>
-          </div>
-        </Card>
-      )}
-
       {/* TAB 6: ADMIN USERS */}
       {activeTab === "users" && (
         <Card className="p-6">
@@ -6239,6 +6438,19 @@ function SuperAdminSettingsScreen() {
 
 function SettingsScreen() {
   const [activeTab, setActiveTab] = useState("business");
+  const [businessInfo, setBusinessInfo] = useState({
+    businessName: "Sharma Traders",
+    ownerName: "Vikram Sharma",
+    phone: "+91 9876543210",
+    email: "contact@sharmatraders.in",
+    businessType: "Retail",
+    financialYear: "April (Standard India)",
+    address: "Shop No.14, Sadar Bazaar, Nagpur",
+    city: "Nagpur",
+    state: "Maharashtra",
+    pincode: "440001",
+    country: "India",
+  });
 
   // GST & Tax toggle states
   const [enableIgst, setEnableIgst] = useState(true);
@@ -6378,6 +6590,13 @@ function SettingsScreen() {
     );
     alert("✓ Customization settings saved successfully!");
   };
+  const handleSaveBusiness = () => {
+    console.log(businessInfo);
+
+    localStorage.setItem("businessInfo", JSON.stringify(businessInfo));
+
+    alert("Business Information Saved");
+  };
 
   // Handle GST settings save
   const handleSaveGstSettings = () => {
@@ -6512,18 +6731,37 @@ function SettingsScreen() {
   };
 
   // Handle security settings save
-  const handleSaveSecuritySettings = () => {
-    localStorage.setItem(
-      "securitySettings",
-      JSON.stringify({
-        twoFactorAuth,
-        sessionTimeout,
-      }),
-    );
-    alert("✓ Security settings saved successfully!");
-  };
+  const handleUpdatePassword = () => {
+    const errors = {};
 
-  // Navin safe tabs configuration
+    if (!validatePassword(passwordData.newPassword)) {
+      errors.newPassword =
+        "Password must be 8-12 characters with 1 uppercase, 1 lowercase, 1 number and 1 special character.";
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPasswordErrors(errors);
+      return;
+    }
+
+    alert("Password Updated Successfully!");
+
+    setPasswordData({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+
+    setPasswordErrors({
+      newPassword: "",
+      confirmPassword: "",
+    });
+  };
+  // Naw safe tabs configuration
   const tabs = [
     { key: "business", label: "Business Profile", icon: Building2 },
     { key: "gst", label: "GST & Tax", icon: Percent },
@@ -6538,6 +6776,99 @@ function SettingsScreen() {
     { key: "payment", label: "Payment Methods", icon: CreditCard },
     { key: "users", label: "Security & Access", icon: Lock },
   ];
+  const handleBusinessChange = (field, value) => {
+    setBusinessInfo((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const [gstSettings, setGstSettings] = useState({
+    gstin: "SFGGYT376432123",
+    pan: "23456789DFGHJK",
+    registrationType: "Regular",
+    defaultRate: "18",
+    enableIgst: true,
+    enableCess: false,
+  });
+
+  const handleGstChange = (field, value) => {
+    setGstSettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const [transactionSettings, setTransactionSettings] = useState({
+    salePrice: "Retail Price",
+    discountType: "Percentage",
+  });
+
+  const handleTransactionChange = (field, value) => {
+    setTransactionSettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const [invoiceSettings, setInvoiceSettings] = useState({
+    invoicePrefix: "INV-",
+    startingNumber: "1001",
+    invoiceFooter: "Thank you for your business!",
+    paperSize: "Regular A4",
+    bankName: "State Bank of India",
+    accountNumber: "34001294811",
+    ifscCode: "SBIN0001042",
+    template: "Modern",
+  });
+
+  const handleInvoiceChange = (field, value) => {
+    setInvoiceSettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const [inventorySettings, setInventorySettings] = useState({
+    stockValueFormula: "FIFO Method",
+    lowStockAlert: "10 Units Remaining",
+  });
+
+  const handleInventoryChange = (field, value) => {
+    setInventorySettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+  const validatePassword = (password) => {
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$%^&*!])[A-Za-z\d@#$%^&*!]{8,12}$/;
+
+    return passwordRegex.test(password);
+  };
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [passwordErrors, setPasswordErrors] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const handlePasswordChange = (field, value) => {
+    setPasswordData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    setPasswordErrors((prev) => ({
+      ...prev,
+      [field]: "",
+    }));
+  };
 
   return (
     <div className="flex gap-6">
@@ -6580,16 +6911,28 @@ function SettingsScreen() {
                 </div>
               </div>
               <div className="flex-1 grid grid-cols-2 gap-4">
-                <Input label="Business Name" value="Sharma Traders" />
-                <Input label="Owner Name" value="Vikram Sharma" />
+                <Input
+                  label="Business Name"
+                  value={businessInfo.businessName}
+                  onChange={(value) =>
+                    handleBusinessChange("businessName", value)
+                  }
+                />
+                <Input
+                  label="Owner Name"
+                  value={businessInfo.ownerName}
+                  onChange={(value) => handleBusinessChange("ownerName", value)}
+                />
                 <Input
                   label="Phone"
-                  value="+91 98765 43210"
+                  value={businessInfo.phone}
+                  onChange={(value) => handleBusinessChange("phone", value)}
                   icon={<Phone className="w-4 h-4" />}
                 />
                 <Input
                   label="Email"
-                  value="contact@sharmatraders.in"
+                  value={businessInfo.email}
+                  onChange={(value) => handleBusinessChange("email", value)}
                   icon={<Mail className="w-4 h-4" />}
                 />
               </div>
@@ -6597,27 +6940,55 @@ function SettingsScreen() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <Select
                 label="Business Type"
-                value="Retail"
+                value={businessInfo.businessType}
+                onChange={(value) =>
+                  handleBusinessChange("businessType", value)
+                }
                 options={["Retail", "Wholesale", "Manufacturing", "Services"]}
               />
               <Select
                 label="Financial Year Start"
-                value="April (Standard India)"
+                value={businessInfo.financialYear}
+                onChange={(value) =>
+                  handleBusinessChange("financialYear", value)
+                }
                 options={["April (Standard India)", "January"]}
               />
               <div className="col-span-2">
                 <Input
                   label="Address"
-                  value="Shop No. 14, Sadar Bazaar, Nagpur"
+                  value={businessInfo.address}
                   icon={<MapPin className="w-4 h-4" />}
+                  onChange={(value) => handleBusinessChange("address", value)}
                 />
               </div>
-              <Input label="City" value="Nagpur" />
-              <Input label="State" value="Maharashtra" />
-              <Input label="Pincode" value="440001" />
-              <Select label="Country" value="India" options={["India"]} />
+              <Input
+                label="City"
+                value={businessInfo.city}
+                onChange={(value) => handleBusinessChange("city", value)}
+              />
+              <Input
+                label="State"
+                value={businessInfo.state}
+                onChange={(value) => handleBusinessChange("state", value)}
+              />
+              <Input
+                label="Pincode"
+                value={businessInfo.pincode}
+                onChange={(value) => handleBusinessChange("pincode", value)}
+              />
+              <Select
+                label="Country"
+                value={businessInfo.country}
+                onChange={(value) => handleBusinessChange("country", value)}
+                options={["India"]}
+              />
             </div>
-            <Btn variant="primary" icon={<Check className="w-4 h-4" />}>
+            <Btn
+              variant="primary"
+              icon={<Check className="w-4 h-4" />}
+              onClick={handleSaveBusiness}
+            >
               Save Changes
             </Btn>
           </div>
@@ -6630,19 +7001,26 @@ function SettingsScreen() {
               GST & Tax Settings
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="GSTIN" value="27AAPCS0510Q1Z6" />
+              <Input
+                label="GSTIN"
+                value={businessInfo.gstin}
+                onChange={(value) => handleBusinessChange("gstin", value)}
+              />
               <Select
                 label="GST Registration Type"
-                value={isComposition ? "Composition" : "Regular"}
-                onChange={(e) =>
-                  setIsComposition(e.target.value === "Composition")
-                }
+                value={gstSettings.registrationType}
+                onChange={(value) => handleGstChange("registrationType", value)}
                 options={["Regular", "Composition", "Unregistered"]}
               />
-              <Input label="PAN Number" value="AAPCS0510Q" />
+              <Input
+                label="PAN Number"
+                value={businessInfo.panNumber}
+                onChange={(value) => handleBusinessChange("panNumber", value)}
+              />
               <Select
                 label="Default GST Rate %"
-                value="18"
+                value={gstSettings.defaultRate}
+                onChange={(value) => handleGstChange("defaultRate", value)}
                 options={["0", "5", "12", "18", "28"]}
               />
             </div>
@@ -6722,7 +7100,10 @@ function SettingsScreen() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <Select
                 label="Default Sale Price"
-                value="Retail Price"
+                value={transactionSettings.salePrice}
+                onChange={(value) =>
+                  handleTransactionChange("salePrice", value)
+                }
                 options={[
                   "Retail Price",
                   "Wholesale Price",
@@ -6731,7 +7112,10 @@ function SettingsScreen() {
               />
               <Select
                 label="Discount Type"
-                value="Percentage"
+                value={transactionSettings.discountType}
+                onChange={(value) =>
+                  handleTransactionChange("discountType", value)
+                }
                 options={["Percentage", "Flat Amount", "None"]}
               />
             </div>
@@ -6809,15 +7193,31 @@ function SettingsScreen() {
               Invoice Settings
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Invoice Prefix" value="INV-" />
-              <Input label="Starting Number" value="1001" />
+              <Input
+                label="Invoice Prefix"
+                value={invoiceSettings.invoicePrefix}
+                onChange={(value) =>
+                  handleInvoiceChange("invoicePrefix", value)
+                }
+              />
+              <Input
+                label="Starting Number"
+                value={invoiceSettings.startingNumber}
+                onChange={(value) =>
+                  handleInvoiceChange("startingNumber", value)
+                }
+              />
               <Input
                 label="Invoice Footer"
-                value="Thank you for your business!"
+                value={invoiceSettings.invoiceFooter}
+                onChange={(value) =>
+                  handleInvoiceChange("invoiceFooter", value)
+                }
               />
               <Select
                 label="Invoice Print Paper Size"
-                value="Regular A4"
+                value={invoiceSettings.paperSize}
+                onChange={(value) => handleInvoiceChange("paperSize", value)}
                 options={["Regular A4", "Compact A5", "3-Inch Thermal Roll"]}
               />
             </div>
@@ -6886,9 +7286,23 @@ function SettingsScreen() {
 
             {showBank && (
               <div className="grid grid-cols-3 gap-4 mt-3 p-4 bg-slate-50 rounded-xl border">
-                <Input label="Bank Name" value="State Bank of India" />
-                <Input label="Account Number" value="34001294811" />
-                <Input label="IFSC Code" value="SBIN0001042" />
+                <Input
+                  label="Bank Name"
+                  value={invoiceSettings.bankName}
+                  onChange={(value) => handleInvoiceChange("bankName", value)}
+                />
+                <Input
+                  label="Account Number"
+                  value={invoiceSettings.accountNumber}
+                  onChange={(value) =>
+                    handleInvoiceChange("accountNumber", value)
+                  }
+                />
+                <Input
+                  label="IFSC Code"
+                  value={invoiceSettings.ifscCode}
+                  onChange={(value) => handleInvoiceChange("ifscCode", value)}
+                />
               </div>
             )}
 
@@ -6897,10 +7311,15 @@ function SettingsScreen() {
                 Invoice Template
               </p>
               <div className="grid grid-cols-3 gap-3">
-                {["Classic", "Modern", "Minimal"].map((t, i) => (
+                {["Classic", "Modern", "Minimal"].map((t) => (
                   <button
                     key={t}
-                    className={`border-2 rounded-xl p-3 text-center transition-all ${i === 1 ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}
+                    onClick={() => handleInvoiceChange("template", t)}
+                    className={`border-2 rounded-xl p-3 text-center transition-all ${
+                      invoiceSettings.template === t
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
                   >
                     <div className="h-16 bg-slate-100 rounded-lg mb-2" />
                     <p className="text-xs font-medium text-slate-700">{t}</p>
@@ -7004,12 +7423,18 @@ function SettingsScreen() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <Select
                 label="Stock Value Formula"
-                value="FIFO Method"
+                value={inventorySettings.stockValueFormula}
+                onChange={(value) =>
+                  handleInventoryChange("stockValueFormula", value)
+                }
                 options={["FIFO Method", "Average Base Price Code"]}
               />
               <Input
                 label="Low Stock Warning Counter Alert"
-                value="10 Units Remaining"
+                value={inventorySettings.lowStockAlert}
+                onChange={(value) =>
+                  handleInventoryChange("lowStockAlert", value)
+                }
               />
             </div>
             <div className="space-y-3">
@@ -7625,18 +8050,30 @@ function SettingsScreen() {
                   type="password"
                   placeholder="••••••••"
                   icon={<Lock className="w-4 h-4" />}
+                  value={passwordData.currentPassword}
+                  onChange={(value) =>
+                    handlePasswordChange("currentPassword", value)
+                  }
                 />
                 <Input
                   label="New Password"
                   type="password"
                   placeholder="Min. 8 characters"
-                  icon={<Lock className="w-4 h-4" />}
+                  value={passwordData.newPassword}
+                  onChange={(value) =>
+                    handlePasswordChange("newPassword", value)
+                  }
+                  error={passwordErrors.newPassword}
                 />
                 <Input
                   label="Confirm New Password"
                   type="password"
                   placeholder="Re-enter new password"
-                  icon={<Lock className="w-4 h-4" />}
+                  value={passwordData.confirmPassword}
+                  onChange={(value) =>
+                    handlePasswordChange("confirmPassword", value)
+                  }
+                  error={passwordErrors.confirmPassword}
                 />
               </div>
               <div className="space-y-3 pt-2">
@@ -7679,7 +8116,7 @@ function SettingsScreen() {
               </div>
               <Btn
                 variant="primary"
-                onClick={handleSaveSecuritySettings}
+                onClick={handleUpdatePassword}
                 icon={<Lock className="w-4 h-4" />}
               >
                 Update Password
@@ -7816,6 +8253,8 @@ function AppShell({ role, onLogout, page, onNav }) {
     switch (page) {
       case "super-dashboard":
         return <SuperAdminDashboard />;
+      case "businesses":
+        return <BusinessesNew />;
       case "dashboard":
         return <BusinessDashboard onNav={onNav} />;
       case "customers":
@@ -7824,6 +8263,8 @@ function AppShell({ role, onLogout, page, onNav }) {
         return <SuppliersScreen />;
       case "products":
         return <ProductsScreen />;
+      case "revenue":
+        return <Revenue />;
       case "pos":
         return <POSScreen />;
       case "purchase":
@@ -7882,6 +8323,8 @@ function AppShell({ role, onLogout, page, onNav }) {
 const APP_PAGES = [
   "dashboard",
   "super-dashboard",
+  "businesses",
+  "revenue",
   "customers",
   "suppliers",
   "products",
@@ -7921,12 +8364,18 @@ function AppRoutes() {
     if (location.pathname === "/app") {
       setPage(role === "superadmin" ? "super-dashboard" : "dashboard");
       return;
+<<<<<<< HEAD
     }
 
     // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
     if (routePage) {
       setPage(routePage);
+=======
+>>>>>>> ea7715571486a3e2be8d04dd584b26ee84770cb4
     }
+
+    // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
+    if (routePage) setPage(routePage);
   }, [location.pathname, role]);
 
   const handleLogin = (r) => {
@@ -7950,7 +8399,7 @@ function AppRoutes() {
 
   const navApp = useCallback(
     (p) => {
-      setPage(p);
+      // Navigation source of truth is the URL. Page state is derived in AppRoutes.
       if (p === "dashboard" || p === "super-dashboard") navigate("/app");
       else navigate(`/app/${p}`);
     },
