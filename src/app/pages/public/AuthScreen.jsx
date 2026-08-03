@@ -6,14 +6,11 @@ import {
   Building2,
   Check,
   CheckCircle,
-  Eye,
-  EyeOff,
   Lock,
   LogIn,
   Mail,
   Phone,
   Send,
-  UserCircle,
 } from "lucide-react";
 import {
   Btn,
@@ -23,25 +20,37 @@ import {
   Select,
   Toast,
 } from "../../components/common/ui";
+import { registerUser, loginUser } from "../../api/authAPI";
+
+const PHONE_PREFIX = "+91 ";
 
 export default function AuthScreen({ view, onNav, onLogin }) {
   const [role, setRole] = useState("owner");
 
+  // ---- Login state ----
   const [email, setEmail] = useState(
     view === "login" ? "admin@business.in" : "",
   );
-  const [password, setPassword] = useState(view === "login" ? "" : "");
+  const [password, setPassword] = useState("");
+
+  // ---- Register state ----
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [biz, setBiz] = useState("");
-  const [businessType, setBusinessType] = useState("Retail");
-  const [phone, setPhone] = useState("+91 ");
+  const [phone, setPhone] = useState(PHONE_PREFIX);
+  const [bizType, setBizType] = useState("Retail");
+
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
+  // ---- Error state ----
   const [loginEmailError, setLoginEmailError] = useState("");
   const [loginPasswordError, setLoginPasswordError] = useState("");
   const [registerEmailError, setRegisterEmailError] = useState("");
   const [registerPasswordError, setRegisterPasswordError] = useState("");
   const [registerPhoneError, setRegisterPhoneError] = useState("");
+  const [registerNameError, setRegisterNameError] = useState("");
+  const [formError, setFormError] = useState("");
 
   const [toast, setToast] = useState(null);
   const showToast = (msg, type) => {
@@ -51,7 +60,6 @@ export default function AuthScreen({ view, onNav, onLogin }) {
 
   const isValidEmail = (raw) => {
     const trimmed = String(raw ?? "").trim();
-    // Basic RFC 5322-ish validation
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
   };
 
@@ -63,9 +71,8 @@ export default function AuthScreen({ view, onNav, onLogin }) {
   };
 
   const validatePhone = (raw, required = true) => {
-    const PREFIX = "+91 ";
     const trimmed = String(raw ?? "").trim();
-    if (!trimmed || trimmed === "+91 " || trimmed === "+91") {
+    if (!trimmed || trimmed === PHONE_PREFIX || trimmed === "+91") {
       return required ? "Phone field is required." : "";
     }
 
@@ -73,7 +80,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
       return "Phone must start with +91.";
     }
 
-    const digitsPart = trimmed.slice(PREFIX.length);
+    const digitsPart = trimmed.slice(PHONE_PREFIX.length);
     if (!digitsPart) return required ? "Phone field is required." : "";
     if (!/^\d{10}$/.test(digitsPart)) {
       return "Phone number must be exactly 10 digits.";
@@ -100,36 +107,90 @@ export default function AuthScreen({ view, onNav, onLogin }) {
     return "";
   };
 
-  const handleSubmit = () => {
-    if (view === "login") {
-      const errEmail = getLoginEmailError(email);
-      const errPassword = validatePassword(password);
+  const handleLogin = async () => {
+    const errEmail = getLoginEmailError(email);
+    const errPassword = validatePassword(password);
 
-      setLoginEmailError(errEmail);
-      setLoginPasswordError(errPassword);
+    setLoginEmailError(errEmail);
+    setLoginPasswordError(errPassword);
+    setFormError("");
 
-      if (errEmail || errPassword) return;
-    }
-
-    if (view === "register") {
-      const errEmail = getLoginEmailError(email);
-      const errPassword = validatePassword(password);
-      const errPhone = validatePhone(phone);
-
-      setRegisterEmailError(errEmail);
-      setRegisterPasswordError(errPassword);
-      setRegisterPhoneError(errPhone);
-
-      if (errEmail || errPassword || errPhone) return;
-    }
+    if (errEmail || errPassword) return;
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const data = await loginUser({
+        email: email.trim(),
+        password,
+      });
+
+      localStorage.setItem("smartbill_token", data.token);
+      localStorage.setItem("smartbill_user", JSON.stringify(data.user));
+
+      showToast("Login successful", "success");
+      onLogin(data.user.role || "owner");
+    } catch (err) {
+      setFormError(err.message || "Login failed. Please try again.");
+    } finally {
       setLoading(false);
-      if (view === "login") onLogin(role);
-      if (view === "register")
-        showToast("Account has been created successfully", "success");
-    }, 900);
+    }
+  };
+
+  const handleRegister = async () => {
+    const errEmail = getLoginEmailError(email);
+    const errPassword = validatePassword(password);
+    const errPhone = validatePhone(phone);
+    const errName =
+      !firstName.trim() || !lastName.trim()
+        ? "First and last name are required."
+        : "";
+
+    setRegisterEmailError(errEmail);
+    setRegisterPasswordError(errPassword);
+    setRegisterPhoneError(errPhone);
+    setRegisterNameError(errName);
+    setFormError("");
+
+    if (errEmail || errPassword || errPhone || errName) return;
+
+    setLoading(true);
+    try {
+      const data = await registerUser({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        businessName: biz.trim(),
+        businessType: bizType,
+        email: email.trim(),
+        phone: phone.replace(PHONE_PREFIX, "").replace(/\D/g, ""),
+        password,
+      });
+
+      localStorage.setItem("smartbill_token", data.token);
+      localStorage.setItem("smartbill_user", JSON.stringify(data.user));
+
+      showToast(
+        "Account created successfully. You're now signed in.",
+        "success",
+      );
+      onLogin(data.user.role || "owner");
+    } catch (err) {
+      if (err.field === "email") {
+        setRegisterEmailError(err.message);
+      } else {
+        setFormError(err.message || "Registration failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (loading) return; // prevent duplicate submissions
+    if (view === "login") {
+      handleLogin();
+    } else if (view === "register") {
+      handleRegister();
+    }
   };
 
   return (
@@ -228,20 +289,23 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                     ))}
                   </div>
                 </div>
+
+                {formError && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {formError}
+                  </div>
+                )}
+
                 <Input
                   label="Email Address"
                   value={email}
                   onChange={(v) => {
                     const trimmed = String(v ?? "").trimStart();
-                    // Keep cursor-friendly typing, but remove leading spaces.
                     setEmail(trimmed);
-                    // Auto-clear / update error as soon as input becomes valid.
                     if (trimmed && isValidEmail(trimmed))
                       setLoginEmailError("");
-                    else
-                      setLoginEmailError(
-                        view === "login" ? getLoginEmailError(trimmed) : "",
-                      );
+                    else setLoginEmailError(getLoginEmailError(trimmed));
                   }}
                   placeholder=""
                   icon={<Mail className="w-4 h-4" />}
@@ -253,7 +317,6 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                   value={password}
                   onChange={(v) => {
                     setPassword(v);
-                    // Auto-clear / update error as soon as password becomes valid.
                     const err = validatePassword(v);
                     if (!err) setLoginPasswordError("");
                     else setLoginPasswordError(err);
@@ -316,10 +379,37 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                 Start your 14-day free trial. No credit card needed.
               </p>
               <div className="space-y-4">
+                {formError && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {formError}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="First Name" placeholder="" />
-                  <Input label="Last Name" placeholder="" />
+                  <Input
+                    label="First Name"
+                    value={firstName}
+                    onChange={(v) => {
+                      setFirstName(v);
+                      if (v.trim() && lastName.trim())
+                        setRegisterNameError("");
+                    }}
+                  />
+                  <Input
+                    label="Last Name"
+                    value={lastName}
+                    onChange={(v) => {
+                      setLastName(v);
+                      if (v.trim() && firstName.trim())
+                        setRegisterNameError("");
+                    }}
+                  />
                 </div>
+                {registerNameError && (
+                  <p className="text-xs text-red-600 -mt-2">
+                    {registerNameError}
+                  </p>
+                )}
                 <Input
                   label="Business Name"
                   value={biz}
@@ -367,8 +457,8 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                 />
                 <Select
                   label="Business Type"
-                  value={businessType}
-                  onChange={setBusinessType}
+                  value={bizType}
+                  onChange={setBizType}
                   options={[
                     "Retail",
                     "Wholesale",
