@@ -1,24 +1,26 @@
-# Auth Flow Fix - Task Progress
+# TODO - OTP Verification for Business Registration
 
-## Backend Fixes
-- [x] Review backend files (server.js, db.js, authcontroller.js, User.js, routes)
-- [x] Rewrite `Backend/controller/authcontroller.js` (validation, try/catch, token, 409)
-- [x] Update `Backend/server.js` (CORS config, body limit, 404 + error handler)
-- [x] Update `Backend/models/User.js` (add optional businessType)
-- [x] Update `Backend/package.json` (add bcryptjs)
-- [x] Create `Backend/.env.example`
+## Goal
 
-## Frontend Fixes
-- [x] Create `src/app/api/axiosClient.js`
-- [x] Create `src/app/api/authAPI.js`
-- [x] Rewrite `src/app/pages/public/AuthScreen.jsx` (real API calls, form fields, errors, auto-login)
-- [x] Update `vite.config.js` (add /api proxy)
-- [x] Create root `.env` and `.env.example` (VITE_API_URL)
-- [x] Update root `package.json` (add axios)
+Add OTP verification to the register business page: a "Send OTP" button beside the phone field, and a "Verify OTP" section that appears below it after clicking Send OTP.
 
-## Verification
-- [x] Install dependencies (root + Backend)
-- [x] Start backend & verify registration (201 + token)
-- [x] Verify login (200 + token)
-- [x] Verify duplicate email (409)
-- [x] Verify frontend production build succeeds
+## Backend
+
+- [x] Create OTP model in `Backend/models/verifiy.js`
+- [x] Add `sendOtp` and `verifyOtp` functions to `Backend/controller/authcontroller.js`
+- [x] Add `/send-otp` and `/verify-otp` routes to `Backend/routes/Auth Routes.js`
+
+## Frontend
+
+- [x] Add `sendOtp` and `verifyOtp` API functions to `src/app/api/authAPI.js`
+- [x] Add "Send OTP" button beside phone field in `src/app/pages/public/AuthScreen.jsx`
+- [x] Add "Verify OTP" section below phone field (appears after Send OTP clicked)
+- [x] Wire verification status into registration flow (registration blocked until phone verified)
+
+## Verify
+
+- [x] Restart backend and test OTP endpoints
+  - [x] `POST /api/auth/send-otp` → returns "OTP sent successfully", logs OTP to console
+  - [x] `POST /api/auth/verify-otp` (wrong OTP) → 400 "Incorrect OTP"
+  - [x] `POST /api/auth/verify-otp` (correct OTP) → 200 "Phone number verified successfully", verified: true
+- [ ] Test frontend flow with Vite dev server

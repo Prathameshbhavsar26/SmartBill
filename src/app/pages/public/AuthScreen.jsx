@@ -20,7 +20,7 @@ import {
   Select,
   Toast,
 } from "../../components/common/ui";
-import { registerUser, loginUser } from "../../api/authAPI";
+import { registerUser, loginUser, sendOtp, verifyOtp } from "../../api/authAPI";
 
 const PHONE_PREFIX = "+91 ";
 
@@ -42,6 +42,14 @@ export default function AuthScreen({ view, onNav, onLogin }) {
 
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+
+  // ---- OTP state ----
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [otpError, setOtpError] = useState("");
 
   // ---- Error state ----
   const [loginEmailError, setLoginEmailError] = useState("");
@@ -153,6 +161,11 @@ export default function AuthScreen({ view, onNav, onLogin }) {
 
     if (errEmail || errPassword || errPhone || errName) return;
 
+    if (!phoneVerified) {
+      setOtpError("Please verify your phone number with OTP first.");
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await registerUser({
@@ -181,6 +194,53 @@ export default function AuthScreen({ view, onNav, onLogin }) {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ---- OTP handlers ----
+  const getCleanPhone = () =>
+    phone.replace(PHONE_PREFIX, "").replace(/\D/g, "");
+
+  const handleSendOtp = async () => {
+    const errPhone = validatePhone(phone);
+    setRegisterPhoneError(errPhone);
+    setOtpError("");
+    if (errPhone) return;
+
+    setOtpSending(true);
+    try {
+      await sendOtp({ phone: getCleanPhone() });
+      setOtpSent(true);
+      setPhoneVerified(false);
+      setOtp("");
+      showToast("OTP sent successfully. Check your phone.", "success");
+    } catch (err) {
+      if (err.field === "phone") {
+        setRegisterPhoneError(err.message);
+      }
+      setOtpError(err.message || "Failed to send OTP. Please try again.");
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const cleanOtp = String(otp ?? "").trim();
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      setOtpError("Please enter the 6-digit OTP.");
+      return;
+    }
+
+    setOtpVerifying(true);
+    try {
+      await verifyOtp({ phone: getCleanPhone(), otp: cleanOtp });
+      setPhoneVerified(true);
+      setOtpError("");
+      showToast("Phone number verified successfully.", "success");
+    } catch (err) {
+      setOtpError(err.message || "OTP verification failed. Please try again.");
+    } finally {
+      setOtpVerifying(false);
     }
   };
 
@@ -391,8 +451,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                     value={firstName}
                     onChange={(v) => {
                       setFirstName(v);
-                      if (v.trim() && lastName.trim())
-                        setRegisterNameError("");
+                      if (v.trim() && lastName.trim()) setRegisterNameError("");
                     }}
                   />
                   <Input
@@ -430,17 +489,90 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                   icon={<Mail className="w-4 h-4" />}
                   error={registerEmailError}
                 />
-                <FixedPhoneInput
-                  label="Phone"
-                  placeholder="+91"
-                  icon={<Phone className="w-4 h-4" />}
-                  value={phone}
-                  onChange={(value) => {
-                    setPhone(value);
-                    setRegisterPhoneError(validatePhone(value, false));
-                  }}
-                  error={registerPhoneError}
-                />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Phone
+                  </label>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <FixedPhoneInput
+                        placeholder="+91"
+                        icon={<Phone className="w-4 h-4" />}
+                        value={phone}
+                        onChange={(value) => {
+                          setPhone(value);
+                          setRegisterPhoneError(validatePhone(value, false));
+                          if (phoneVerified) setPhoneVerified(false);
+                        }}
+                        error={registerPhoneError}
+                      />
+                    </div>
+                    <Btn
+                      variant="outline"
+                      size="md"
+                      onClick={handleSendOtp}
+                      disabled={otpSending || phoneVerified}
+                      className="h-[42px] whitespace-nowrap mt-[1px] shrink-0"
+                      icon={
+                        otpSending ? (
+                          <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                        ) : phoneVerified ? (
+                          <Check className="w-4 h-4 text-emerald-600" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )
+                      }
+                    >
+                      {phoneVerified
+                        ? "Verified"
+                        : otpSending
+                          ? "Sending..."
+                          : "Send OTP"}
+                    </Btn>
+                  </div>
+                  {otpSent && (
+                    <p className="text-xs text-emerald-600">
+                      OTP sent to {phone}. Use the code from the server console.
+                    </p>
+                  )}
+                  {otpError && !otpSent && (
+                    <p className="text-xs text-red-600 mt-0.5">{otpError}</p>
+                  )}
+                </div>
+
+                {otpSent && !phoneVerified && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 -mt-1">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <Input
+                          label="Enter OTP"
+                          value={otp}
+                          onChange={(v) => {
+                            setOtp(v.replace(/\D/g, "").slice(0, 6));
+                            setOtpError("");
+                          }}
+                          placeholder="6-digit code"
+                          inputClassName="tracking-widest"
+                          error={otpError}
+                        />
+                      </div>
+                      <Btn
+                        variant="primary"
+                        size="md"
+                        onClick={handleVerifyOtp}
+                        disabled={otpVerifying}
+                        className="h-[42px] mt-[18px] shrink-0"
+                        icon={
+                          otpVerifying ? (
+                            <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : undefined
+                        }
+                      >
+                        {otpVerifying ? "Verifying..." : "Verify"}
+                      </Btn>
+                    </div>
+                  </div>
+                )}
                 <Input
                   label="Password"
                   type="password"

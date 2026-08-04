@@ -8364,14 +8364,14 @@ function AppRoutes() {
     if (location.pathname === "/app") {
       setPage(role === "superadmin" ? "super-dashboard" : "dashboard");
       return;
-<<<<<<< HEAD
-    }
+// <<<<<<< HEAD
+//     }
 
-    // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
-    if (routePage) {
-      setPage(routePage);
-=======
->>>>>>> ea7715571486a3e2be8d04dd584b26ee84770cb4
+//     // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
+//     if (routePage) {
+//       setPage(routePage);
+// =======
+// >>>>>>> ea7715571486a3e2be8d04dd584b26ee84770cb4
     }
 
     // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
