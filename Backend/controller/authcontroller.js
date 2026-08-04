@@ -46,10 +46,22 @@ if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim()))
       errors.push("A valid email is required.");
     const rawPhoneDigits = String(phone ?? "").replace(/\D/g, "");
     const normalizedPhone = rawPhoneDigits.startsWith("91")
-      ? rawPhoneDigits.slice(2)
-      : rawPhoneDigits;
-    if (!normalizedPhone || !/^\d{10}$/.test(normalizedPhone))
-      errors.push("A valid 10-digit phone number is required.");
+  ? rawPhoneDigits.slice(2)
+  : rawPhoneDigits;
+
+if (!normalizedPhone || !/^\d{10}$/.test(normalizedPhone)) {
+  errors.push("A valid 10-digit phone number is required.");
+}
+
+// Check if mobile number already exists
+const existingPhone = await User.findOne({ phone: normalizedPhone });
+
+if (existingPhone) {
+  return res.status(409).json({
+    message: "Mobile number already exists. Please sign in instead.",
+    field: "phone",
+  });
+}
     if (!password || String(password).length < 8)
       errors.push("Password must be at least 8 characters.");
 
