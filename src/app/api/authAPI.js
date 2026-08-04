@@ -16,3 +16,18 @@ export const registerUser = (payload) =>
 export const loginUser = (payload) =>
   axiosClient.post("/auth/login", payload).then((res) => res.data);
 
+/**
+ * Send an OTP to a phone number for verification.
+ * @param {{ phone: string }} payload
+ * @returns {{ message: string }}
+ */
+export const sendOtp = (payload) =>
+  axiosClient.post("/auth/send-otp", payload).then((res) => res.data);
+
+/**
+ * Verify the OTP for a phone number.
+ * @param {{ phone: string, otp: string }} payload
+ * @returns {{ message: string, verified: boolean }}
+ */
+export const verifyOtp = (payload) =>
+  axiosClient.post("/auth/verify-otp", payload).then((res) => res.data);
