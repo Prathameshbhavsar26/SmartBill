@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import Revenue from "./components/revenue";
-import BusinessesNew from "./BusinessesNew";
+import Revenue from "./pages/admin/Revenue";
+import BusinessesNew from "./pages/admin/BusinessesNew";
 import {
   BrowserRouter,
   Routes,
@@ -8369,6 +8369,14 @@ function AppRoutes() {
     // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
     if (routePage) {
       setPage(routePage);
+// <<<<<<< HEAD
+//     }
+
+//     // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).
+//     if (routePage) {
+//       setPage(routePage);
+// =======
+// >>>>>>> ea7715571486a3e2be8d04dd584b26ee84770cb4
     }
 
     // Otherwise, trust the explicit route segment (e.g., /app/super-dashboard).

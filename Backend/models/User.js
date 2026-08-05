@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
     },
 
-phone: {
+    phone: {
       type: String,
       required: true,
       unique: true,
@@ -48,7 +48,7 @@ phone: {
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export default mongoose.model("User", userSchema);
