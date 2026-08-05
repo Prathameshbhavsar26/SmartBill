@@ -185,11 +185,12 @@ export default function AuthScreen({ view, onNav, onLogin }) {
 
     setLoading(true);
     try {
+      const normalizedBizType = String(bizType ?? "Retail").trim();
       const data = await registerUser({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         businessName: biz.trim(),
-        businessType: bizType,
+        businessType: normalizedBizType,
         email: email.trim(),
         phone: phone.replace(PHONE_PREFIX, "").replace(/\D/g, ""),
         password,
@@ -663,13 +664,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                   label="Business Type"
                   value={bizType}
                   onChange={setBizType}
-                  options={[
-                    "Retail",
-                    "Wholesale",
-                    "Manufacturing",
-                    "Services",
-                    "Distribution",
-                  ]}
+                  options={["Retail", "Wholesale"]}
                 />
                 <Btn
                   variant="primary"

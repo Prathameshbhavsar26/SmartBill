@@ -4,6 +4,7 @@ import "dotenv/config";
 import dns from "node:dns";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/Auth Routes.js";
+import customerRoutes from "./routes/customerRoutes.js";
 import seedAdmin from "./seed/admin.js";
 
 const app = express();
@@ -48,6 +49,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/customers", customerRoutes);
 
 app.get("/", (req, res) => {
   res.send("API working");

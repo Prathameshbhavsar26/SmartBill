@@ -7,7 +7,7 @@ import Verification from "../models/verifiy.js";
 // Helper to build a safe, token-bearing auth response.
 const buildAuthPayload = (user) => {
   const token = jwt.sign(
-    { id: user._id, role: user.role },
+    { id: user._id, role: user.role, businessType: user.businessType },
     process.env.JWT_SECRET,
     { expiresIn: "7d" },
   );
@@ -32,8 +32,21 @@ const buildAuthPayload = (user) => {
 
 export const register = async (req, res) => {
   try {
-    const { firstName, lastName, businessName, email, phone, password } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      businessName,
+      businessType,
+      email,
+      phone,
+      password,
+    } = req.body;
+
+    const normalizedBusinessType = ["Retail", "Wholesale"].includes(
+      String(businessType ?? "Retail").trim(),
+    )
+      ? String(businessType ?? "Retail").trim()
+      : "Retail";
 
     // ---- Validation ----
     const errors = [];
@@ -88,6 +101,7 @@ export const register = async (req, res) => {
       firstName: String(firstName).trim(),
       lastName: String(lastName).trim(),
       businessName: String(businessName).trim(),
+      businessType: normalizedBusinessType,
       email: normalizedEmail,
       phone: normalizedPhone,
       password: hashedPassword,

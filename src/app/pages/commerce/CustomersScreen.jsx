@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Download,
   Edit2,
@@ -10,20 +10,19 @@ import {
   Plus,
   Search,
   Trash2,
+  Users,
 } from "lucide-react";
-import { customers as initialCustomers } from "../../data/mockData";
 import { fmt } from "../../utils/format";
 import {
   Btn,
   Card,
   ConfirmDialog,
   EmptyState,
-  FixedPhoneInput,
   Input,
   Modal,
   Toast,
-  statusBadge,
 } from "../../components/common/ui";
+import { createCustomer, fetchCustomers } from "../../api/customerAPI";
 
 export default function CustomersScreen() {
   const [search, setSearch] = useState("");
@@ -44,9 +43,11 @@ export default function CustomersScreen() {
   });
 
   const [toast, setToast] = useState(null);
+  const [customerList, setCustomerList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [businessType, setBusinessType] = useState("Retail");
 
-  // Local editable list (so added customers appear below in the table)
-  const [customerList, setCustomerList] = useState(initialCustomers);
+  const showGstField = String(businessType ?? "").toLowerCase() === "wholesale";
 
   const [form, setForm] = useState({
     name: "",
@@ -56,6 +57,28 @@ export default function CustomersScreen() {
     city: "",
     gst: "",
   });
+
+  useEffect(() => {
+    const rawUser = localStorage.getItem("smartbill_user");
+    if (rawUser) {
+      try {
+        const user = JSON.parse(rawUser);
+        if (user?.businessType) {
+          setBusinessType(String(user.businessType).trim());
+        }
+      } catch (err) {
+        console.warn("Unable to parse stored user:", err);
+      }
+    }
+
+    setLoading(true);
+    fetchCustomers()
+      .then((customers) => setCustomerList(customers))
+      .catch((error) => {
+        showToast(error.message || "Unable to load customers.", "error");
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = customerList.filter(
     (c) =>
@@ -212,12 +235,14 @@ export default function CustomersScreen() {
               onChange={(v) => setEditForm((f) => ({ ...f, city: v }))}
             />
 
-            <Input
-              label="GST Number"
-              placeholder="27AAPCS0510Q1Z6"
-              value={editForm.gst}
-              onChange={(v) => setEditForm((f) => ({ ...f, gst: v }))}
-            />
+            {showGstField && (
+              <Input
+                label="GST Number"
+                placeholder="27AAPCS0510Q1Z6"
+                value={editForm.gst}
+                onChange={(v) => setEditForm((f) => ({ ...f, gst: v }))}
+              />
+            )}
 
             <Input
               label="Opening Balance (₹)"
@@ -311,12 +336,14 @@ export default function CustomersScreen() {
               value={form.city}
               onChange={(v) => setForm((f) => ({ ...f, city: v }))}
             />
-            <Input
-              label="GST Number"
-              placeholder=""
-              value={form.gst}
-              onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
-            />
+            {showGstField && (
+              <Input
+                label="GST Number"
+                placeholder=""
+                value={form.gst}
+                onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
+              />
+            )}
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -327,37 +354,23 @@ export default function CustomersScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => {
-                  const newId =
-                    customerList.length > 0
-                      ? Math.max(...customerList.map((x) => x.id)) + 1
-                      : 1;
-
-                  const newCustomer = {
-                    id: newId,
-                    name: form.name || "New Customer",
-                    contact: form.contact || "",
-                    phone: form.phone || "",
-                    email: form.email || "",
-                    city: form.city || "",
-                    balance: 0,
-                    status: "Active",
-                    invoices: 0,
-                  };
-
-                  setCustomerList((prev) => [...prev, newCustomer]);
-                  setShowModal(false);
-                  showToast("Customer added successfully", "success");
-
-                  setForm({
-                    name: "",
-                    contact: "",
-                    phone: "",
-                    email: "",
-                    city: "",
-                    gst: "",
-                    openingBalance: "0",
-                  });
+                onClick={async () => {
+                  try {
+                    const createdCustomer = await createCustomer(form);
+                    setCustomerList((prev) => [createdCustomer, ...prev]);
+                    setShowModal(false);
+                    showToast("Customer added successfully", "success");
+                    setForm({
+                      name: "",
+                      contact: "",
+                      phone: "",
+                      email: "",
+                      city: "",
+                      gst: "",
+                    });
+                  } catch (error) {
+                    showToast(error.message || "Unable to add customer.", "error");
+                  }
                 }}
                 className="flex-1 justify-center"
               >
