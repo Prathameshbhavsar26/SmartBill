@@ -112,28 +112,57 @@ export const register = async (req, res) => {
 
 // ================= LOGIN =================
 
+// Detect whether the login identifier is an email or a phone number.
+// Returns { type: "email" } | { type: "phone", value } | { type: "none" }.
+const detectIdentifier = (raw) => {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return { type: "none" };
+
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  if (isEmail) return { type: "email", value: trimmed.toLowerCase() };
+
+  const digits = trimmed.replace(/\D/g, "");
+  const normalized =
+    digits.startsWith("91") && digits.length === 12 ? digits.slice(2) : digits;
+
+  if (/^\d{10}$/.test(normalized)) {
+    return { type: "phone", value: normalized };
+  }
+
+  return { type: "none" };
+};
+
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, phone, password } = req.body;
 
-    if (!email || !password) {
+    const identifier = detectIdentifier(email ?? phone);
+
+    if (identifier.type === "none" || !password) {
       return res
         .status(400)
-        .json({ message: "Email and password are required." });
+        .json({
+          message: "A valid email or mobile number and password are required.",
+        });
     }
 
-    const user = await User.findOne({
-      email: String(email).trim().toLowerCase(),
-    });
+    const query =
+      identifier.type === "email"
+        ? { email: identifier.value }
+        : { phone: identifier.value };
+
+    const user = await User.findOne(query);
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid email or password." });
+      const label = identifier.type === "email" ? "email" : "mobile number";
+      return res.status(400).json({ message: `Invalid ${label} or password.` });
     }
 
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
-      return res.status(400).json({ message: "Invalid email or password." });
+      const label = identifier.type === "email" ? "email" : "mobile number";
+      return res.status(400).json({ message: `Invalid ${label} or password.` });
     }
 
     return res.status(200).json(buildAuthPayload(user));

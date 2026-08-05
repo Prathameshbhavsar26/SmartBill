@@ -28,10 +28,10 @@ export default function AuthScreen({ view, onNav, onLogin }) {
   const [role, setRole] = useState("owner");
 
   // ---- Login state ----
-  const [email, setEmail] = useState(
-    view === "login" ? "admin@business.in" : "",
-  );
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginMethod, setLoginMethod] = useState("email"); // "email" | "phone"
+  const [loginPhone, setLoginPhone] = useState(PHONE_PREFIX);
 
   // ---- Register state ----
   const [firstName, setFirstName] = useState("");
@@ -53,6 +53,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
 
   // ---- Error state ----
   const [loginEmailError, setLoginEmailError] = useState("");
+  const [loginPhoneError, setLoginPhoneError] = useState("");
   const [loginPasswordError, setLoginPasswordError] = useState("");
   const [registerEmailError, setRegisterEmailError] = useState("");
   const [registerPasswordError, setRegisterPasswordError] = useState("");
@@ -97,7 +98,8 @@ export default function AuthScreen({ view, onNav, onLogin }) {
     return "";
   };
 
-  const validatePassword = (raw) => {
+  // Strict validation used during registration.
+  const validateRegisterPassword = (raw) => {
     const p = String(raw ?? "");
     if (!p.trim()) return "Password field is required.";
 
@@ -115,22 +117,35 @@ export default function AuthScreen({ view, onNav, onLogin }) {
     return "";
   };
 
+  // Simple check used at login so existing users are never blocked.
+  const validateLoginPassword = (raw) => {
+    if (!String(raw ?? "").trim()) return "Password field is required.";
+    return "";
+  };
+
   const handleLogin = async () => {
-    const errEmail = getLoginEmailError(email);
-    const errPassword = validatePassword(password);
+    // Super admin always signs in with email.
+    const useEmail = role === "superadmin" || loginMethod === "email";
+    const errEmail = useEmail ? getLoginEmailError(email) : "";
+    const errPhone = !useEmail ? validatePhone(loginPhone) : "";
+    const errPassword = validateLoginPassword(password);
 
     setLoginEmailError(errEmail);
+    setLoginPhoneError(errPhone);
     setLoginPasswordError(errPassword);
     setFormError("");
 
-    if (errEmail || errPassword) return;
+    if (errEmail || errPhone || errPassword) return;
 
     setLoading(true);
     try {
-      const data = await loginUser({
-        email: email.trim(),
-        password,
-      });
+      const payload = useEmail
+        ? { email: email.trim(), password }
+        : {
+            phone: loginPhone.replace(PHONE_PREFIX, "").replace(/\D/g, ""),
+            password,
+          };
+      const data = await loginUser(payload);
 
       localStorage.setItem("smartbill_token", data.token);
       localStorage.setItem("smartbill_user", JSON.stringify(data.user));
@@ -146,7 +161,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
 
   const handleRegister = async () => {
     const errEmail = getLoginEmailError(email);
-    const errPassword = validatePassword(password);
+    const errPassword = validateRegisterPassword(password);
     const errPhone = validatePhone(phone);
     const errName =
       !firstName.trim() || !lastName.trim()
@@ -341,7 +356,11 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                     {["owner", "superadmin"].map((r) => (
                       <button
                         key={r}
-                        onClick={() => setRole(r)}
+                        onClick={() => {
+                          setRole(r);
+                          // Super admin always signs in with email.
+                          if (r === "superadmin") setLoginMethod("email");
+                        }}
                         className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all capitalize ${role === r ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}
                       >
                         {r === "superadmin" ? "Super Admin" : "Business Owner"}
@@ -357,27 +376,80 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                   </div>
                 )}
 
-                <Input
-                  label="Email Address"
-                  value={email}
-                  onChange={(v) => {
-                    const trimmed = String(v ?? "").trimStart();
-                    setEmail(trimmed);
-                    if (trimmed && isValidEmail(trimmed))
-                      setLoginEmailError("");
-                    else setLoginEmailError(getLoginEmailError(trimmed));
-                  }}
-                  placeholder=""
-                  icon={<Mail className="w-4 h-4" />}
-                  error={loginEmailError}
-                />
+                {role === "owner" && (
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                      Sign in with
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                      {["email", "phone"].map((m) => {
+                        const active = loginMethod === m;
+                        return (
+                          <button
+                            key={m}
+                            onClick={() => {
+                              setLoginMethod(m);
+                              setLoginEmailError("");
+                              setLoginPhoneError("");
+                            }}
+                            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${active ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-700"}`}
+                          >
+                            {m === "email" ? (
+                              <Mail
+                                className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
+                              />
+                            ) : (
+                              <Phone
+                                className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
+                              />
+                            )}
+                            {m === "email" ? "Email" : "Mobile"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {role === "superadmin" || loginMethod === "email" ? (
+                  <Input
+                    label="Email Address"
+                    value={email}
+                    onChange={(v) => {
+                      const trimmed = String(v ?? "").trimStart();
+                      setEmail(trimmed);
+                      if (trimmed && isValidEmail(trimmed))
+                        setLoginEmailError("");
+                      else setLoginEmailError(getLoginEmailError(trimmed));
+                    }}
+                    placeholder=""
+                    icon={<Mail className="w-4 h-4" />}
+                    error={loginEmailError}
+                  />
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Mobile Number
+                    </label>
+                    <FixedPhoneInput
+                      placeholder="+91"
+                      icon={<Phone className="w-4 h-4" />}
+                      value={loginPhone}
+                      onChange={(value) => {
+                        setLoginPhone(value);
+                        setLoginPhoneError(validatePhone(value, false));
+                      }}
+                      error={loginPhoneError}
+                    />
+                  </div>
+                )}
                 <Input
                   label="Password"
                   type="password"
                   value={password}
                   onChange={(v) => {
                     setPassword(v);
-                    const err = validatePassword(v);
+                    const err = validateLoginPassword(v);
                     if (!err) setLoginPasswordError("");
                     else setLoginPasswordError(err);
                   }}
@@ -579,7 +651,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                   value={password}
                   onChange={(v) => {
                     setPassword(v);
-                    const err = validatePassword(v);
+                    const err = validateRegisterPassword(v);
                     if (!err) setRegisterPasswordError("");
                     else setRegisterPasswordError(err);
                   }}

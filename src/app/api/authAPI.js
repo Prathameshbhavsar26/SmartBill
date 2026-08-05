@@ -10,7 +10,8 @@ export const registerUser = (payload) =>
 
 /**
  * Login an existing user.
- * @param {{ email: string, password: string }} payload
+ * Provide either `email` or `phone` as the identifier.
+ * @param {{ email?: string, phone?: string, password: string }} payload
  * @returns {{ message: string, token: string, user: object }}
  */
 export const loginUser = (payload) =>
