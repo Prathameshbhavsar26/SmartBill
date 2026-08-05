@@ -226,10 +226,12 @@ export default function AuthScreen({ view, onNav, onLogin }) {
 
     setOtpSending(true);
     try {
-      await sendOtp({ phone: getCleanPhone() });
+      const data = await sendOtp({ phone: getCleanPhone() });
       setOtpSent(true);
       setPhoneVerified(false);
-      setOtp("");
+      // No SMS provider is configured, so the backend returns the OTP in the
+      // response for testing. Auto-fill it so the user can verify directly.
+      setOtp(String(data?.otp ?? ""));
       showToast("OTP sent successfully. Check your phone.", "success");
     } catch (err) {
       if (err.field === "phone") {
@@ -602,7 +604,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                   </div>
                   {otpSent && (
                     <p className="text-xs text-emerald-600">
-                      OTP sent to {phone}. Use the code from the server console.
+                      OTP sent to {phone}. Use the code shown below.
                     </p>
                   )}
                   {otpError && !otpSent && (

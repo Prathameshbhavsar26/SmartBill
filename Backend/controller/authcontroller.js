@@ -139,11 +139,9 @@ export const login = async (req, res) => {
     const identifier = detectIdentifier(email ?? phone);
 
     if (identifier.type === "none" || !password) {
-      return res
-        .status(400)
-        .json({
-          message: "A valid email or mobile number and password are required.",
-        });
+      return res.status(400).json({
+        message: "A valid email or mobile number and password are required.",
+      });
     }
 
     const query =
@@ -225,8 +223,12 @@ export const sendOtp = async (req, res) => {
     // Development-only: print the OTP to the console.
     console.log(`[OTP] For ${normalizedPhone}: ${otp}`);
 
+    // NOTE: No SMS provider is configured, so the OTP is returned in the
+    // response so the frontend can display/auto-fill it for testing.
+    // Remove the `otp` field once a real SMS gateway is integrated.
     return res.status(200).json({
       message: "OTP sent successfully.",
+      otp,
     });
   } catch (error) {
     console.error("SEND OTP ERROR:", error);

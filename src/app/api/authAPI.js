@@ -20,7 +20,7 @@ export const loginUser = (payload) =>
 /**
  * Send an OTP to a phone number for verification.
  * @param {{ phone: string }} payload
- * @returns {{ message: string }}
+ * @returns {{ message: string, otp?: string }}
  */
 export const sendOtp = (payload) =>
   axiosClient.post("/auth/send-otp", payload).then((res) => res.data);
