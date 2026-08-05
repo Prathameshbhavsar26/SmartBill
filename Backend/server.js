@@ -4,6 +4,7 @@ import "dotenv/config";
 import dns from "node:dns";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/Auth Routes.js";
+import seedAdmin from "./seed/admin.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -20,6 +21,9 @@ try {
 
 // Connect to MongoDB
 await connectDB();
+
+// Seed the default Super Admin account (idempotent).
+await seedAdmin();
 
 // CORS - allow the Vite dev server (or any configured client origin)
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")

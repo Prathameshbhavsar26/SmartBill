@@ -24,6 +24,8 @@ import { registerUser, loginUser, sendOtp, verifyOtp } from "../../api/authAPI";
 
 const PHONE_PREFIX = "+91 ";
 
+const ADMIN_EMAIL = "gawaliomkar2005@gmail.com";
+
 export default function AuthScreen({ view, onNav, onLogin }) {
   const [role, setRole] = useState("owner");
 
@@ -334,14 +336,22 @@ export default function AuthScreen({ view, onNav, onLogin }) {
               </p>
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+<label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
                     Login As
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {["owner", "superadmin"].map((r) => (
                       <button
                         key={r}
-                        onClick={() => setRole(r)}
+                        onClick={() => {
+                          setRole(r);
+                          if (r === "superadmin") {
+                            setEmail(ADMIN_EMAIL);
+                            setLoginEmailError("");
+                          } else if (email === ADMIN_EMAIL) {
+                            setEmail("admin@business.in");
+                          }
+                        }}
                         className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all capitalize ${role === r ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}
                       >
                         {r === "superadmin" ? "Super Admin" : "Business Owner"}
