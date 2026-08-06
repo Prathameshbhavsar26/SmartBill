@@ -5,6 +5,10 @@ import dns from "node:dns";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/Auth Routes.js";
 import customerRoutes from "./routes/customerRoutes.js";
+<<<<<<< HEAD
+=======
+import orderRoutes from "./routes/orderRoutes.js";
+>>>>>>> 767a4931 (Add customer and order management)
 import seedAdmin from "./seed/admin.js";
 
 const app = express();
@@ -50,6 +54,10 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/customers", customerRoutes);
+<<<<<<< HEAD
+=======
+app.use("/api/orders", orderRoutes);
+>>>>>>> 767a4931 (Add customer and order management)
 
 app.get("/", (req, res) => {
   res.send("API working");

@@ -1,26 +1,26 @@
-# TODO - OTP Verification for Business Registration
-
-## Goal
-
-Add OTP verification to the register business page: a "Send OTP" button beside the phone field, and a "Verify OTP" section that appears below it after clicking Send OTP.
+# TODO — Automatic Customer Order Value / Paid / Balance Due Calculation
 
 ## Backend
-
-- [x] Create OTP model in `Backend/models/verifiy.js`
-- [x] Add `sendOtp` and `verifyOtp` functions to `Backend/controller/authcontroller.js`
-- [x] Add `/send-otp` and `/verify-otp` routes to `Backend/routes/Auth Routes.js`
+- [x] Create `Backend/models/Customer.js`
+- [x] Create `Backend/models/Order.js`
+- [x] Create `Backend/middleware/mid.js` (JWT auth `protect`)
+- [x] Create `Backend/controller/customerController.js`
+- [x] Create `Backend/controller/orderController.js`
+- [x] Create `Backend/routes/customerRoutes.js`
+- [x] Create `Backend/routes/orderRoutes.js`
+- [x] Mount new routes in `Backend/server.js`
 
 ## Frontend
+- [x] Create `src/app/api/customerAPI.js`
+- [x] Create `src/app/api/orderAPI.js`
+- [x] Update `src/app/pages/transactions/POSScreen.jsx` (amount paid, balance due, save order)
+- [x] Update `src/app/pages/commerce/CustomersScreen.jsx` (load from DB, show order value/paid/balance)
+  - [x] Replace `c.id` with `c._id` (table keys, edit, delete)
+  - [x] Wire "Add Customer" save button to `handleCreate` (createCustomer API)
+  - [x] Wire "Save Changes" edit button to `updateCustomer` API
+  - [x] Add `handleDelete` + render `ConfirmDialog` (deleteCustomer API)
+  - [x] Replace hardcoded stats cards with dynamic values
 
-- [x] Add `sendOtp` and `verifyOtp` API functions to `src/app/api/authAPI.js`
-- [x] Add "Send OTP" button beside phone field in `src/app/pages/public/AuthScreen.jsx`
-- [x] Add "Verify OTP" section below phone field (appears after Send OTP clicked)
-- [x] Wire verification status into registration flow (registration blocked until phone verified)
-
-## Verify
-
-- [x] Restart backend and test OTP endpoints
-  - [x] `POST /api/auth/send-otp` → returns "OTP sent successfully", logs OTP to console
-  - [x] `POST /api/auth/verify-otp` (wrong OTP) → 400 "Incorrect OTP"
-  - [x] `POST /api/auth/verify-otp` (correct OTP) → 200 "Phone number verified successfully", verified: true
-- [ ] Test frontend flow with Vite dev server
+## Verification
+- [x] Verify backend compiles/runs (all files pass `node --check`)
+- [x] Verify frontend builds (`npm run build` succeeded)

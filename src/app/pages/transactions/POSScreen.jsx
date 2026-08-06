@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart2,
   Calculator,
@@ -14,17 +14,34 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { posProducts, customers } from "../../data/mockData";
+import { posProducts } from "../../data/mockData";
 import { fmt } from "../../utils/format";
 import { Badge, Btn, Card, Input, Select } from "../../components/common/ui";
+import { fetchCustomers } from "../../api/customerAPI";
+import { createOrder } from "../../api/orderAPI";
 
 export default function POSScreen() {
   const [cart, setCart] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [customer, setCustomer] = useState("Walk-in Customer");
   const [paymentMode, setPaymentMode] = useState("Cash");
   const [search, setSearch] = useState("");
   const [gstRate] = useState(18);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [amountPaid, setAmountPaid] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [lastOrder, setLastOrder] = useState(null);
+
+  // Load customers from the backend.
+  useEffect(() => {
+    fetchCustomers()
+      .then((res) => setCustomers(res.customers || []))
+      .catch(() => {
+        // Fall back to empty list if backend is unreachable.
+        setCustomers([]);
+      });
+  }, []);
 
   const filteredProducts = posProducts.filter(
     (p) =>
@@ -60,13 +77,71 @@ export default function POSScreen() {
   const gst = Math.round((subtotal * gstRate) / 100);
   const total = subtotal + gst;
 
+  const paidValue = Number(amountPaid);
+  const balanceDue = Number.isFinite(paidValue)
+    ? Math.max(0, total - paidValue)
+    : total;
+
+  // Determine the selected customer object (for running totals display).
+  const selectedCustomer =
+    customer === "Walk-in Customer"
+      ? null
+      : customers.find((c) => c.name === customer);
+
+  const handleGenerateInvoice = async () => {
+    if (cart.length === 0) return;
+    setError("");
+
+    // Default amount paid to the full total if left blank.
+    const effectivePaid = paidValue > 0 ? paidValue : total;
+
+    const items = cart.map((i) => ({
+      productId: i.product.id,
+      name: i.product.name,
+      sku: i.product.sku || "",
+      price: i.product.price,
+      qty: i.qty,
+      discount: i.discount || 0,
+      amount: i.product.price * i.qty,
+    }));
+
+    const payload = {
+      customerId: selectedCustomer ? selectedCustomer._id : null,
+      customerName: customer,
+      items,
+      subtotal: Math.round(subtotal),
+      gstRate,
+      gst,
+      totalOrderValue: Math.round(total),
+      amountPaid: Math.round(effectivePaid),
+      paymentMode,
+    };
+
+    setSaving(true);
+    try {
+      const res = await createOrder(payload);
+      setLastOrder(res.order);
+      setShowInvoice(true);
+    } catch (err) {
+      setError(err?.message || "Failed to save order. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (showInvoice) {
+    const order = lastOrder;
     return (
       <div className="max-w-2xl mx-auto">
         <Btn
           variant="ghost"
           size="sm"
-          onClick={() => setShowInvoice(false)}
+          onClick={() => {
+            setShowInvoice(false);
+            setCart([]);
+            setAmountPaid("");
+            setLastOrder(null);
+          }}
           className="mb-4"
         >
           ← Back to Billing
@@ -85,17 +160,33 @@ export default function POSScreen() {
             </div>
             <div className="text-right">
               <p className="font-bold text-blue-600 font-mono text-lg">
-                INV-2024-1043
+                {order?.invoiceNo || "INV"}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Date: {new Date().toLocaleDateString("en-IN")}
+                Date:{" "}
+                {order?.date
+                  ? new Date(order.date).toLocaleDateString("en-IN")
+                  : new Date().toLocaleDateString("en-IN")}
               </p>
-              <Badge label="Paid" variant="green" />
+              <div className="mt-1">
+                <Badge
+                  label={order?.status || "Paid"}
+                  variant={
+                    order?.status === "Paid"
+                      ? "green"
+                      : order?.status === "Partial"
+                        ? "yellow"
+                        : "red"
+                  }
+                />
+              </div>
             </div>
           </div>
           <div className="mb-6">
             <p className="text-xs text-slate-500 mb-1">Bill To:</p>
-            <p className="font-semibold text-slate-900">{customer}</p>
+            <p className="font-semibold text-slate-900">
+              {order?.customerName || customer}
+            </p>
           </div>
           <table className="w-full text-sm mb-5">
             <thead>
@@ -124,7 +215,7 @@ export default function POSScreen() {
             </tbody>
           </table>
           <div className="flex justify-end">
-            <div className="w-52 space-y-2 text-sm">
+            <div className="w-56 space-y-2 text-sm">
               <div className="flex justify-between text-slate-600">
                 <span>Subtotal</span>
                 <span className="font-mono">{fmt(subtotal)}</span>
@@ -136,6 +227,20 @@ export default function POSScreen() {
               <div className="flex justify-between font-bold text-slate-900 text-base border-t border-slate-200 pt-2 mt-2">
                 <span>Total</span>
                 <span className="font-mono text-blue-600">{fmt(total)}</span>
+              </div>
+              <div className="flex justify-between text-slate-600">
+                <span>Amount Paid</span>
+                <span className="font-mono text-emerald-600">
+                  {fmt(order?.amountPaid ?? paidValue)}
+                </span>
+              </div>
+              <div className="flex justify-between font-semibold text-slate-900">
+                <span>Balance Due</span>
+                <span
+                  className={`font-mono ${(order?.balanceDue ?? balanceDue) > 0 ? "text-red-500" : "text-emerald-600"}`}
+                >
+                  {fmt(order?.balanceDue ?? balanceDue)}
+                </span>
               </div>
             </div>
           </div>
@@ -151,6 +256,8 @@ export default function POSScreen() {
               onClick={() => {
                 setShowInvoice(false);
                 setCart([]);
+                setAmountPaid("");
+                setLastOrder(null);
               }}
             >
               New Invoice
@@ -217,8 +324,35 @@ export default function POSScreen() {
             label="Customer"
             value={customer}
             onChange={setCustomer}
-            options={["Walk-in Customer", ...customers.map((c) => c.name)]}
+            options={[
+              "Walk-in Customer",
+              ...customers.map((c) => c.name),
+            ]}
           />
+          {selectedCustomer && (
+            <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Orders</span>
+                <span className="font-mono font-semibold text-slate-900">
+                  {fmt(selectedCustomer.totalOrderValue || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Paid</span>
+                <span className="font-mono font-semibold text-emerald-600">
+                  {fmt(selectedCustomer.totalPaid || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Balance Due</span>
+                <span
+                  className={`font-mono font-semibold ${(selectedCustomer.balance || 0) > 0 ? "text-red-500" : "text-slate-900"}`}
+                >
+                  {fmt(Math.abs(selectedCustomer.balance || 0))}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -284,20 +418,44 @@ export default function POSScreen() {
               <span className="font-mono text-blue-600">{fmt(total)}</span>
             </div>
           </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Amount Paid (₹)
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={amountPaid}
+              onChange={(e) => setAmountPaid(e.target.value)}
+              placeholder={String(Math.round(total))}
+              className="w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mt-1.5"
+            />
+          </div>
+          <div className="flex justify-between text-sm font-semibold bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            <span className="text-red-600">Balance Due</span>
+            <span className="font-mono text-red-600">
+              {fmt(balanceDue)}
+            </span>
+          </div>
           <Select
             label="Payment Mode"
             value={paymentMode}
             onChange={setPaymentMode}
             options={["Cash", "UPI", "Card", "Bank Transfer", "Credit"]}
           />
+          {error && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
           <Btn
             variant="success"
-            onClick={() => cart.length > 0 && setShowInvoice(true)}
-            disabled={cart.length === 0}
+            onClick={handleGenerateInvoice}
+            disabled={cart.length === 0 || saving}
             className="w-full justify-center"
             icon={<Receipt className="w-4 h-4" />}
           >
-            Generate Invoice
+            {saving ? "Saving..." : "Generate Invoice"}
           </Btn>
         </div>
       </Card>

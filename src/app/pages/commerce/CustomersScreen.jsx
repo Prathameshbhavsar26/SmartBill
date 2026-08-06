@@ -3,7 +3,6 @@ import {
   Download,
   Edit2,
   Eye,
-  Filter,
   Mail,
   MapPin,
   Phone,
@@ -12,7 +11,11 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+<<<<<<< HEAD
 import { fmt } from "../../utils/format";
+=======
+import { fmt, fmtK } from "../../utils/format";
+>>>>>>> 767a4931 (Add customer and order management)
 import {
   Btn,
   Card,
@@ -22,7 +25,16 @@ import {
   Modal,
   Toast,
 } from "../../components/common/ui";
+<<<<<<< HEAD
 import { createCustomer, fetchCustomers } from "../../api/customerAPI";
+=======
+import {
+  fetchCustomers,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+} from "../../api/customerAPI";
+>>>>>>> 767a4931 (Add customer and order management)
 
 export default function CustomersScreen() {
   const [search, setSearch] = useState("");
@@ -43,11 +55,16 @@ export default function CustomersScreen() {
   });
 
   const [toast, setToast] = useState(null);
+<<<<<<< HEAD
   const [customerList, setCustomerList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [businessType, setBusinessType] = useState("Retail");
 
   const showGstField = String(businessType ?? "").toLowerCase() === "wholesale";
+=======
+  const [loading, setLoading] = useState(true);
+  const [customerList, setCustomerList] = useState([]);
+>>>>>>> 767a4931 (Add customer and order management)
 
   const [form, setForm] = useState({
     name: "",
@@ -56,8 +73,10 @@ export default function CustomersScreen() {
     email: "",
     city: "",
     gst: "",
+    openingBalance: "0",
   });
 
+<<<<<<< HEAD
   useEffect(() => {
     const rawUser = localStorage.getItem("smartbill_user");
     if (rawUser) {
@@ -86,57 +105,126 @@ export default function CustomersScreen() {
       c.city.toLowerCase().includes(search.toLowerCase()),
   );
 
+=======
+>>>>>>> 767a4931 (Add customer and order management)
   const showToast = (msg, type) => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  return (
-    <div className="space-y-5">
-      {toast && (
-        <Toast
-          message={toast.msg}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
-      {deleteId !== null && (
-        <ConfirmDialog
-          message="This will permanently delete the customer and all their data."
-          onConfirm={() => {
-            setCustomerList((prev) => prev.filter((c) => c.id !== deleteId));
-            setDeleteId(null);
-            showToast("Customer deleted successfully", "success");
-          }}
-          onCancel={() => setDeleteId(null)}
-        />
-      )}
+  // Load customers from the backend.
+  useEffect(() => {
+    fetchCustomers()
+      .then((res) => setCustomerList(res.customers || []))
+      .catch((err) => {
+        showToast(err?.message || "Failed to load customers", "error");
+        setCustomerList([]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
+  const filtered = customerList.filter(
+    (c) =>
+      (c.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (c.city || "").toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const totalReceivable = customerList.reduce(
+    (s, c) => s + Math.max(0, c.balance || 0),
+    0,
+  );
+  const totalPayable = customerList.reduce(
+    (s, c) => s + Math.max(0, -(c.balance || 0)),
+    0,
+  );
+
+  const handleCreate = () => {
+    if (!form.name?.trim()) {
+      showToast("Customer name is required", "error");
+      return;
+    }
+    createCustomer({
+      name: form.name,
+      contact: form.contact,
+      phone: form.phone,
+      email: form.email,
+      city: form.city,
+      gst: form.gst,
+      openingBalance: Number(form.openingBalance || 0),
+    })
+      .then((res) => {
+        setCustomerList((prev) => [res.customer, ...prev]);
+        setShowModal(false);
+        setForm({
+          name: "",
+          contact: "",
+          phone: "",
+          email: "",
+          city: "",
+          gst: "",
+          openingBalance: "0",
+        });
+        showToast("Customer added successfully", "success");
+      })
+      .catch((err) =>
+        showToast(err?.message || "Failed to add customer", "error"),
+      );
+  };
+
+  const handleUpdate = () => {
+    updateCustomer(editId, {
+      name: editForm.name,
+      contact: editForm.contact,
+      phone: editForm.phone,
+      email: editForm.email,
+      city: editForm.city,
+      gst: editForm.gst,
+    })
+      .then((res) => {
+        setCustomerList((prev) =>
+          prev.map((c) => (c._id === editId ? res.customer : c)),
+        );
+        setShowEditModal(false);
+        setEditId(null);
+        showToast("Customer updated successfully", "success");
+      })
+      .catch((err) =>
+        showToast(err?.message || "Failed to update customer", "error"),
+      );
+  };
+
+  const handleDelete = () => {
+    deleteCustomer(deleteId)
+      .then(() => {
+        setCustomerList((prev) =>
+          prev.filter((c) => c._id !== deleteId),
+        );
+        setDeleteId(null);
+        showToast("Customer deleted successfully", "success");
+      })
+      .catch((err) => {
+        setDeleteId(null);
+        showToast(err?.message || "Failed to delete customer", "error");
+      });
+  };
+
+  return (
+    <div className="space-y-4">
       {viewCustomer && (
         <Modal title="Customer Details" onClose={() => setViewCustomer(null)}>
           <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Business Name
-              </p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">
-                {viewCustomer.name}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Contact Person
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg font-semibold text-slate-900">
+                  {viewCustomer.name}
                 </p>
-                <p className="mt-1 text-sm text-slate-700">
+                <p className="text-xs text-slate-500">
                   {viewCustomer.contact || "—"}
                 </p>
               </div>
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Phone
-                </p>
-                <p className="mt-1 text-sm text-slate-700">
+              <div className="text-right">
+                <p className="text-xs text-slate-500">Phone</p>
+                <p className="text-sm font-medium text-slate-700 font-mono">
                   {viewCustomer.phone || "—"}
                 </p>
               </div>
@@ -244,15 +332,6 @@ export default function CustomersScreen() {
               />
             )}
 
-            <Input
-              label="Opening Balance (₹)"
-              placeholder="0"
-              value={editForm.openingBalance}
-              onChange={(v) =>
-                setEditForm((f) => ({ ...f, openingBalance: v }))
-              }
-            />
-
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -266,27 +345,7 @@ export default function CustomersScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => {
-                  const opening = Number(editForm.openingBalance || 0);
-                  setCustomerList((prev) =>
-                    prev.map((c) =>
-                      c.id === editId
-                        ? {
-                            ...c,
-                            name: editForm.name || c.name,
-                            contact: editForm.contact || "",
-                            phone: editForm.phone || "",
-                            email: editForm.email || "",
-                            city: editForm.city || "",
-                            balance: Number.isFinite(opening) ? opening : 0,
-                          }
-                        : c,
-                    ),
-                  );
-                  setShowEditModal(false);
-                  setEditId(null);
-                  showToast("Customer updated successfully", "success");
-                }}
+                onClick={handleUpdate}
                 className="flex-1 justify-center"
               >
                 Save Changes
@@ -302,13 +361,13 @@ export default function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Business Name"
-                placeholder=""
+                placeholder="Raj Enterprises"
                 value={form.name}
                 onChange={(v) => setForm((f) => ({ ...f, name: v }))}
               />
               <Input
                 label="Contact Person"
-                placeholder=""
+                placeholder="Rajesh Kumar"
                 value={form.contact}
                 onChange={(v) => setForm((f) => ({ ...f, contact: v }))}
               />
@@ -316,14 +375,14 @@ export default function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Phone"
-                placeholder=""
+                placeholder="+91 98765 43210"
                 icon={<Phone className="w-4 h-4" />}
                 value={form.phone}
                 onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
               />
               <Input
                 label="Email"
-                placeholder=""
+                placeholder="rajesh@raj.in"
                 icon={<Mail className="w-4 h-4" />}
                 value={form.email}
                 onChange={(v) => setForm((f) => ({ ...f, email: v }))}
@@ -331,11 +390,12 @@ export default function CustomersScreen() {
             </div>
             <Input
               label="City"
-              placeholder=""
+              placeholder="Mumbai"
               icon={<MapPin className="w-4 h-4" />}
               value={form.city}
               onChange={(v) => setForm((f) => ({ ...f, city: v }))}
             />
+<<<<<<< HEAD
             {showGstField && (
               <Input
                 label="GST Number"
@@ -344,6 +404,20 @@ export default function CustomersScreen() {
                 onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
               />
             )}
+=======
+            <Input
+              label="GST Number"
+              placeholder="27AAPCS0510Q1Z6"
+              value={form.gst}
+              onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
+            />
+            <Input
+              label="Opening Balance (₹)"
+              placeholder="0"
+              value={form.openingBalance}
+              onChange={(v) => setForm((f) => ({ ...f, openingBalance: v }))}
+            />
+>>>>>>> 767a4931 (Add customer and order management)
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -354,6 +428,7 @@ export default function CustomersScreen() {
               </Btn>
               <Btn
                 variant="primary"
+<<<<<<< HEAD
                 onClick={async () => {
                   try {
                     const createdCustomer = await createCustomer(form);
@@ -372,6 +447,9 @@ export default function CustomersScreen() {
                     showToast(error.message || "Unable to add customer.", "error");
                   }
                 }}
+=======
+                onClick={handleCreate}
+>>>>>>> 767a4931 (Add customer and order management)
                 className="flex-1 justify-center"
               >
                 Save Customer
@@ -379,6 +457,14 @@ export default function CustomersScreen() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {deleteId && (
+        <ConfirmDialog
+          message="This will permanently delete this customer. This action cannot be undone."
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteId(null)}
+        />
       )}
 
       <div className="flex items-center gap-3">
@@ -407,9 +493,9 @@ export default function CustomersScreen() {
 
       <div className="grid grid-cols-3 gap-4">
         {[
-          ["342", "Total Customers"],
-          ["₹1.8L", "Total Receivable"],
-          ["₹10.5K", "Total Payable"],
+          [fmtK(customerList.length), "Total Customers"],
+          [fmtK(totalReceivable), "Total Receivable"],
+          [fmtK(totalPayable), "Total Payable"],
         ].map(([v, l]) => (
           <Card key={l} className="p-4 text-center">
             <p className="text-xl font-bold text-slate-900">{v}</p>
@@ -441,7 +527,13 @@ export default function CustomersScreen() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center">
+                    <p className="text-sm text-slate-500">Loading customers...</p>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8">
                     <EmptyState
@@ -454,7 +546,7 @@ export default function CustomersScreen() {
               ) : (
                 filtered.map((c) => (
                   <tr
-                    key={c.id}
+                    key={c._id}
                     className="hover:bg-slate-50 transition-colors group"
                   >
                     <td className="px-5 py-4">
@@ -496,14 +588,14 @@ export default function CustomersScreen() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowEditModal(true);
-                            setEditId(c.id);
+                            setEditId(c._id);
                             setEditForm({
                               name: c.name,
                               contact: c.contact,
                               phone: c.phone,
                               email: c.email,
                               city: c.city,
-                              gst: "",
+                              gst: c.gst || "",
                               openingBalance: String(c.balance ?? 0),
                             });
                           }}
@@ -514,7 +606,7 @@ export default function CustomersScreen() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDeleteId(c.id);
+                            setDeleteId(c._id);
                           }}
                           icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
                         />
@@ -530,19 +622,10 @@ export default function CustomersScreen() {
           <p className="text-xs text-slate-500">
             Showing {filtered.length} of {customerList.length} customers
           </p>
-
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, "...", 8].map((p, i) => (
-              <button
-                key={i}
-                className={`w-8 h-8 text-xs rounded-lg ${p === 1 ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
         </div>
       </Card>
+
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }
