@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   AlertTriangle,
   Download,
@@ -12,7 +12,6 @@ import {
   Upload,
 } from "lucide-react";
 import { suppliers } from "../../data/mockData";
-import axios from "axios";
 import { fmt } from "../../utils/format";
 import {
   Badge,
@@ -26,6 +25,12 @@ import {
   Toast,
   statusBadge,
 } from "../../components/common/ui";
+import {
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} from "../../api/productAPI";
 
 export default function ProductsScreen() {
   const [search, setSearch] = useState("");
@@ -50,10 +55,31 @@ export default function ProductsScreen() {
   const [toast, setToast] = useState(null);
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
   };
 
-  // Make products editable so "Save Product" updates the table below.
+  // Products are loaded from the backend API.
   const [productList, setProductList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
+
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      const data = await getProducts();
+      setProductList(data.products || []);
+    } catch (err) {
+      setLoadError(err.message || "Failed to load products.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   // --- ADDED FOR DYNAMIC CATEGORIES IN PROJECT 1 ---
   const [categories, setCategories] = useState([
@@ -80,28 +106,6 @@ export default function ProductsScreen() {
     unit: "Piece",
   });
 
-  const fetchProducts = async () => {
-  try {
-    const token = localStorage.getItem("smartbill_token");
-
-    const res = await axios.get(
-      "http://localhost:5000/api/products",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    setProductList(res.data.products);
-  } catch (error) {
-    console.log(error);
-  }
-};
-useEffect(() => {
-  fetchProducts();
-}, []);
-
   const filtered = productList.filter((p) => {
     const matchSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -125,24 +129,14 @@ useEffect(() => {
           message="This will permanently delete the product."
           onConfirm={async () => {
             try {
-              const token = localStorage.getItem("smartbill_token");
-
-await axios.delete(
-  `http://localhost:5000/api/products/${deleteId}`,
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
-              await fetchProducts();
-              showToast("Product deleted successfully", "success");
-            } catch (error) {
-              console.error(error);
-              showToast("Failed to delete product", "error");
-            } finally {
+              await deleteProduct(deleteId);
+              setProductList((prev) => prev.filter((p) => p.id !== deleteId));
               setDeleteId(null);
               setShowEditModal(false);
+              showToast("Product deleted successfully", "success");
+            } catch (err) {
+              setDeleteId(null);
+              showToast(err.message || "Failed to delete product.", "error");
             }
           }}
           onCancel={() => setDeleteId(null)}
@@ -279,37 +273,40 @@ await axios.delete(
               </Btn>
               <Btn
                 variant="primary"
+                disabled={saving}
                 onClick={async () => {
+                  setSaving(true);
                   try {
-                    await axios.put(
-                      `http://localhost:5000/api/products/${editId}`,
-                      {
-                        name: editForm.name,
-                        sku: editForm.sku,
-                        category: editForm.category,
-                        supplier: editForm.supplier,
-                        cost: Number(editForm.cost || 0),
-                        price: Number(editForm.price || 0),
-                        gst: Number(editForm.gst || 0),
-                        stock: Number(editForm.stock || 0),
-                        minStock: Number(editForm.minStock || 0),
-                        unit: editForm.unit,
-                      },
-                    );
-                    await fetchProducts();
-                    showToast("Product updated successfully", "success");
-                  } catch (error) {
-                    console.error(error);
-                    showToast("Failed to update product", "error");
-                  } finally {
+                    await updateProduct(editId, {
+                      name: editForm.name,
+                      sku: editForm.sku,
+                      category: editForm.category,
+                      supplier: editForm.supplier,
+                      cost: Number(editForm.cost || 0),
+                      price: Number(editForm.price || 0),
+                      gst: Number(editForm.gst || 0),
+                      stock: Number(editForm.stock || 0),
+                      minStock: Number(editForm.minStock || 0),
+                      unit: editForm.unit,
+                      status: "Active",
+                    });
+                    await loadProducts();
                     setShowEditModal(false);
                     setEditId(null);
                     setShowEditCategoryInput(false);
+                    showToast("Product updated successfully", "success");
+                  } catch (err) {
+                    showToast(
+                      err.message || "Failed to update product.",
+                      "error",
+                    );
+                  } finally {
+                    setSaving(false);
                   }
                 }}
                 className="flex-1 justify-center"
               >
-                Save Changes
+                {saving ? "Saving..." : "Save Changes"}
               </Btn>
             </div>
           </div>
@@ -440,59 +437,51 @@ await axios.delete(
               </Btn>
               <Btn
                 variant="primary"
+                disabled={saving}
                 onClick={async () => {
-                  const token = localStorage.getItem("smartbill_token");
-  try {
-    await axios.post(
-  "http://localhost:5000/api/products",
-  {
-    name: form.name,
-    sku: form.sku,
-    category: form.category,
-    supplier: form.supplier,
-    cost: Number(form.cost),
-    price: Number(form.price),
-    gst: Number(form.gst),
-    stock: Number(form.stock),
-    minStock: Number(form.minStock),
-    unit: form.unit,
-    status: "Active",
-  },
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
-
-    // Reload products from MongoDB
-    await fetchProducts();
-
-    setShowModal(false);
-    setShowCategoryInput(false);
-
-    setForm({
-      name: "",
-      sku: "",
-      category: "Electronics",
-      supplier: suppliers[0]?.name ?? "",
-      cost: "0",
-      price: "0",
-      gst: "",
-      stock: "0",
-      minStock: "10",
-      unit: "Piece",
-    });
-
-    showToast("Product added successfully", "success");
-  } catch (error) {
-    console.error(error);
-    showToast("Failed to add product", "error");
-  }
-}}
+                  setSaving(true);
+                  try {
+                    await createProduct({
+                      name: form.name,
+                      sku: form.sku,
+                      category: form.category,
+                      supplier: form.supplier,
+                      cost: Number(form.cost || 0),
+                      price: Number(form.price || 0),
+                      gst: Number(form.gst || 0),
+                      stock: Number(form.stock || 0),
+                      minStock: Number(form.minStock || 0),
+                      unit: form.unit,
+                      status: "Active",
+                    });
+                    await loadProducts();
+                    setShowModal(false);
+                    setShowCategoryInput(false);
+                    setForm({
+                      name: "",
+                      sku: "",
+                      category: "Electronics",
+                      supplier: suppliers[0]?.name ?? "",
+                      cost: "0",
+                      price: "0",
+                      gst: "",
+                      stock: "0",
+                      minStock: "10",
+                      unit: "Piece",
+                    });
+                    showToast("Product created successfully", "success");
+                  } catch (err) {
+                    showToast(
+                      err.message || "Failed to create product.",
+                      "error",
+                    );
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
                 className="flex-1 justify-center"
               >
-                Save Product
+                {saving ? "Saving..." : "Save Product"}
               </Btn>
             </div>
           </div>
@@ -563,7 +552,7 @@ await axios.delete(
                 const lowStock = p.stock <= p.minStock;
                 return (
                   <tr
-                    key={p._id || p.id}
+                    key={p.id}
                     className="hover:bg-slate-50 transition-colors group"
                   >
                     <td className="px-5 py-4 font-medium text-slate-900 max-w-[200px] truncate">
@@ -603,7 +592,7 @@ await axios.delete(
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowEditModal(true);
-                            setEditId(p._id || p.id);
+                            setEditId(p.id);
                             setEditForm({
                               name: p.name,
                               sku: p.sku,
@@ -624,7 +613,7 @@ await axios.delete(
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDeleteId(p._id || p.id);
+                            setDeleteId(p.id);
                           }}
                           icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
                         />

@@ -177,6 +177,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: `Invalid ${label} or password.` });
     }
 
+    // The account's actual role (from the DB) determines which panel opens.
     return res.status(200).json(buildAuthPayload(user));
   } catch (error) {
     console.error("LOGIN ERROR:", error);
