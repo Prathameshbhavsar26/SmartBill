@@ -5,12 +5,8 @@ import dns from "node:dns";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/Auth Routes.js";
 import customerRoutes from "./routes/customerRoutes.js";
-
 import orderRoutes from "./routes/orderRoutes.js";
- 
-
 import expenseRoutes from "./routes/expenseRoutes.js";
- 
 import seedAdmin from "./seed/admin.js";
 
 const app = express();
@@ -56,12 +52,8 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/customers", customerRoutes);
-
 app.use("/api/orders", orderRoutes);
-
-
 app.use("/api/expenses", expenseRoutes);
-
 
 app.get("/", (req, res) => {
   res.send("API working");
@@ -85,3 +77,4 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
   console.log(`Server started on port ${port}`);
 });
+

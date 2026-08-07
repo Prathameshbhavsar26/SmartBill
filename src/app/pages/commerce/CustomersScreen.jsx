@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 
 import { fmt, fmtK } from "../../utils/format";
-
 import {
   Btn,
   Card,
@@ -23,7 +22,6 @@ import {
   Modal,
   Toast,
 } from "../../components/common/ui";
-
 import {
   fetchCustomers,
   createCustomer,
@@ -1093,3 +1091,4 @@ export default function CustomersScreen() {
     </div>
   );
 }
+

@@ -35,3 +35,4 @@ export const updateCustomer = (id, payload) =>
  */
 export const deleteCustomer = (id) =>
   axiosClient.delete(`/customers/${id}`).then((res) => res.data);
+

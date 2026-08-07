@@ -11,9 +11,9 @@ import axiosClient from "./axiosClient";
  * @param {number} payload.gstRate
  * @param {number} payload.gst
  * @param {number} payload.totalOrderValue
- * @param {number} payload.amountPaid
+* @param {number} payload.amountPaid
  * @param {string} payload.paymentMode
- * @returns {{ message: string, order: object }}
+ * @returns {{ message: string, order: object, emailSent: boolean, emailMessage: string }}
  */
 export const createOrder = (payload) =>
   axiosClient.post("/orders", payload).then((res) => res.data);

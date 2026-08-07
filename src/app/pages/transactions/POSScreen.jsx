@@ -3,6 +3,7 @@ import {
   BarChart2,
   Calculator,
   Download,
+  Mail,
   Minus,
   Package,
   Plus,
@@ -32,6 +33,7 @@ export default function POSScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [lastOrder, setLastOrder] = useState(null);
+  const [emailStatus, setEmailStatus] = useState(null);
 
   // Load customers from the backend.
   useEffect(() => {
@@ -91,6 +93,7 @@ export default function POSScreen() {
   const handleGenerateInvoice = async () => {
     if (cart.length === 0) return;
     setError("");
+    setEmailStatus(null);
 
     // Default amount paid to the full total if left blank.
     const effectivePaid = paidValue > 0 ? paidValue : total;
@@ -121,6 +124,10 @@ export default function POSScreen() {
     try {
       const res = await createOrder(payload);
       setLastOrder(res.order);
+      setEmailStatus({
+        sent: res.emailSent,
+        message: res.emailMessage || "",
+      });
       setShowInvoice(true);
     } catch (err) {
       setError(err?.message || "Failed to save order. Please try again.");
@@ -141,6 +148,7 @@ export default function POSScreen() {
             setCart([]);
             setAmountPaid("");
             setLastOrder(null);
+            setEmailStatus(null);
           }}
           className="mb-4"
         >
@@ -182,6 +190,24 @@ export default function POSScreen() {
               </div>
             </div>
           </div>
+
+          {emailStatus && (
+            <div
+              className={`mb-6 flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
+                emailStatus.sent
+                  ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                  : "bg-amber-50 border border-amber-200 text-amber-700"
+              }`}
+            >
+              <Mail className="w-4 h-4 flex-shrink-0" />
+              <span>
+                {emailStatus.sent
+                  ? "Invoice emailed successfully to the customer."
+                  : `Invoice email not sent: ${emailStatus.message}`}
+              </span>
+            </div>
+          )}
+
           <div className="mb-6">
             <p className="text-xs text-slate-500 mb-1">Bill To:</p>
             <p className="font-semibold text-slate-900">
@@ -258,6 +284,7 @@ export default function POSScreen() {
                 setCart([]);
                 setAmountPaid("");
                 setLastOrder(null);
+                setEmailStatus(null);
               }}
             >
               New Invoice

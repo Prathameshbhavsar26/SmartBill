@@ -1,26 +1,30 @@
-# TODO — Automatic Customer Order Value / Paid / Balance Due Calculation
+# TODO — Email Invoice to Customer on Generation
+
+## Fix: "Failed to create order" when generating invoice
+- [x] Fix `Backend/controller/orderController.js` (collision-proof unique invoice numbers)
+- [x] Validate `customerId` before customer update to avoid CastError
+- [x] Log full error object for easier debugging
+- [x] Verify backend compiles (`node --check` passed)
+- [x] Restart backend (loaded new transaction-free code on port 5000, PID 8692)
+- [x] Update `Backend/.env` with real Gmail App Password (SMTP now authenticates)
+- [x] Test invoice generation + email delivery in Sales & Billing (POS)
 
 ## Backend
-- [x] Create `Backend/models/Customer.js`
-- [x] Create `Backend/models/Order.js`
-- [x] Create `Backend/middleware/mid.js` (JWT auth `protect`)
-- [x] Create `Backend/controller/customerController.js`
-- [x] Create `Backend/controller/orderController.js`
-- [x] Create `Backend/routes/customerRoutes.js`
-- [x] Create `Backend/routes/orderRoutes.js`
-- [x] Mount new routes in `Backend/server.js`
+- [x] Add `nodemailer` dependency to `Backend/package.json` (installed)
+- [x] Create `Backend/services/emailService.js` (build HTML invoice + send via SMTP)
+- [x] Modify `Backend/controller/orderController.js` to email invoice on order creation
+- [x] Add email config keys to `.env` and add `.env` to `.gitignore`
 
 ## Frontend
-- [x] Create `src/app/api/customerAPI.js`
-- [x] Create `src/app/api/orderAPI.js`
-- [x] Update `src/app/pages/transactions/POSScreen.jsx` (amount paid, balance due, save order)
-- [x] Update `src/app/pages/commerce/CustomersScreen.jsx` (load from DB, show order value/paid/balance)
-  - [x] Replace `c.id` with `c._id` (table keys, edit, delete)
-  - [x] Wire "Add Customer" save button to `handleCreate` (createCustomer API)
-  - [x] Wire "Save Changes" edit button to `updateCustomer` API
-  - [x] Add `handleDelete` + render `ConfirmDialog` (deleteCustomer API)
-  - [x] Replace hardcoded stats cards with dynamic values
+- [x] Update `src/app/api/orderAPI.js` (document `emailSent` in response)
+- [x] Update `src/app/pages/transactions/POSScreen.jsx` (show email status on invoice view)
 
 ## Verification
-- [x] Verify backend compiles/runs (all files pass `node --check`)
+- [x] Run `npm install` in `Backend/` (nodemailer installed)
+- [x] Verify backend compiles (`node --check` passed)
 - [x] Verify frontend builds (`npm run build` succeeded)
+- [x] SMTP auth verified with new App Password (`SMTP_AUTH_OK: true`)
+- [x] Invoice email sent successfully in live test (`INVOICE EMAIL SENT: <f16e716b-...@gmail.com> -> nandinithakare2003@gmail.com`)
+
+## Remaining User Action
+- [x] Replace placeholder SMTP credentials in `Backend/.env` (SMTP_USER, SMTP_PASS) with a real Gmail address + App Password to enable actual email delivery.
