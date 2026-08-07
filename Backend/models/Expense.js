@@ -1,0 +1,66 @@
+import mongoose from "mongoose";
+
+const expenseSchema = new mongoose.Schema(
+  {
+    category: {
+      type: String,
+      required: true,
+      trim: true,
+      enum: [
+        "Rent",
+        "Utilities",
+        "Salaries",
+        "Marketing",
+        "Logistics",
+        "Maintenance",
+        "Other",
+      ],
+    },
+
+    description: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    date: {
+      type: Date,
+      required: true,
+    },
+
+    paymentMode: {
+      type: String,
+      required: true,
+      enum: [
+        "Cash",
+        "Bank Transfer",
+        "UPI",
+        "Credit Card",
+        "Cheque",
+      ],
+    },
+
+    reference: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      enum: ["Paid", "Pending"],
+      default: "Paid",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export default mongoose.model("Expense", expenseSchema);
