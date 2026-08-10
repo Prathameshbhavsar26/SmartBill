@@ -3,6 +3,7 @@ import express from "express";
 import {
   getCustomers,
   getCustomer,
+  getCustomerDetails,
   createCustomer,
   updateCustomer,
   deleteCustomer,
@@ -17,6 +18,7 @@ router.use(protect);
 
 router.get("/", getCustomers);
 router.get("/:id", getCustomer);
+router.get("/:id/details", getCustomerDetails);
 router.post("/", createCustomer);
 router.put("/:id", updateCustomer);
 router.delete("/:id", deleteCustomer);

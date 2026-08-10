@@ -15,6 +15,13 @@ export const fetchCustomer = (id) =>
   axiosClient.get(`/customers/${id}`).then((res) => res.data);
 
 /**
+ * Fetch detailed customer summary including all invoices, total paid, and balance due.
+ * @param {string} id
+ */
+export const fetchCustomerDetails = (id) =>
+  axiosClient.get(`/customers/${id}/details`).then((res) => res.data);
+
+/**
  * Create a new customer in the database.
  * @param {object} payload
  */

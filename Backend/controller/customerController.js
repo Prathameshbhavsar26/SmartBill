@@ -1,4 +1,5 @@
 import Customer from "../models/Customer.js";
+import Order from "../models/Order.js";
 
 // ================= LIST CUSTOMERS =================
 export const getCustomers = async (req, res) => {
@@ -49,6 +50,63 @@ export const getCustomer = async (req, res) => {
   }
 };
 
+// ================= GET CUSTOMER DETAILS (WITH INVOICES & METRICS) =================
+export const getCustomerDetails = async (req, res) => {
+  try {
+    const customer = await Customer.findOne({
+      _id: req.params.id,
+      ownerId: req.user._id,
+    }).lean();
+
+    if (!customer) {
+      return res.status(404).json({
+        message: "Customer not found.",
+      });
+    }
+
+    // Find all orders associated with this customer
+    const orders = await Order.find({
+      ownerId: req.user._id,
+      $or: [
+        { customerId: customer._id },
+        { customerName: customer.name },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const totalOrderValue = orders.reduce(
+      (sum, o) => sum + Number(o.totalOrderValue || 0),
+      0
+    );
+    const totalPaidValue = orders.reduce(
+      (sum, o) => sum + Number(o.amountPaid || 0),
+      0
+    );
+    const amountLeftToBePaid = orders.reduce(
+      (sum, o) => sum + Number(o.balanceDue || 0),
+      0
+    );
+
+    return res.status(200).json({
+      message: "OK",
+      customer,
+      summary: {
+        totalOrderValue,
+        totalPaidValue,
+        amountLeftToBePaid,
+        invoicesCount: orders.length,
+      },
+      orders,
+    });
+  } catch (error) {
+    console.error("GET CUSTOMER DETAILS ERROR:", error.message);
+    return res.status(500).json({
+      message: "Failed to fetch customer details.",
+    });
+  }
+};
+
 // ================= CREATE CUSTOMER =================
 export const createCustomer = async (req, res) => {
   try {
@@ -58,6 +116,7 @@ export const createCustomer = async (req, res) => {
       phone,
       email,
       city,
+      address,
       gst,
       openingBalance = 0,
     } = req.body;
@@ -89,6 +148,7 @@ export const createCustomer = async (req, res) => {
       phone: phone || "",
       email: email || "",
       city: city || "",
+      address: address || "",
       gst: gst || "",
       openingBalance: opening,
       totalOrderValue: 0,
@@ -120,6 +180,7 @@ export const updateCustomer = async (req, res) => {
       phone,
       email,
       city,
+      address,
       gst,
       status,
     } = req.body;
@@ -153,6 +214,10 @@ export const updateCustomer = async (req, res) => {
 
     if (city !== undefined) {
       customer.city = city;
+    }
+
+    if (address !== undefined) {
+      customer.address = address;
     }
 
     if (gst !== undefined) {

@@ -35,51 +35,32 @@ export default function CustomersScreen() {
   // =========================
 
   const [search, setSearch] = useState("");
-
   const [showModal, setShowModal] = useState(false);
-
   const [showEditModal, setShowEditModal] = useState(false);
-
   const [deleteId, setDeleteId] = useState(null);
-
   const [viewCustomer, setViewCustomer] = useState(null);
-
   const [editId, setEditId] = useState(null);
-
   const [toast, setToast] = useState(null);
-
   const [loading, setLoading] = useState(true);
-
   const [customerList, setCustomerList] = useState([]);
-
   const [businessType, setBusinessType] = useState("Retail");
 
-  const [form, setForm] = useState({
+  const initialFormState = {
     name: "",
     contact: "",
     phone: "",
     email: "",
     city: "",
+    address: "",
     gst: "",
     openingBalance: "0",
-  });
+  };
 
-  const [editForm, setEditForm] = useState({
-    name: "",
-    contact: "",
-    phone: "",
-    email: "",
-    city: "",
-    gst: "",
-    openingBalance: "0",
-  });
+  const [form, setForm] = useState(initialFormState);
+  const [editForm, setEditForm] = useState(initialFormState);
 
-  // =========================
-  // GST FIELD
-  // =========================
-
-  const showGstField =
-    String(businessType ?? "").toLowerCase() === "wholesale";
+  // Determine if owner is Wholesale
+  const isWholesale = String(businessType ?? "").toLowerCase() === "wholesale";
 
   // =========================
   // TOAST
@@ -87,7 +68,6 @@ export default function CustomersScreen() {
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
-
     setTimeout(() => {
       setToast(null);
     }, 3000);
@@ -116,17 +96,7 @@ export default function CustomersScreen() {
     const loadCustomers = async () => {
       try {
         setLoading(true);
-
         const response = await fetchCustomers();
-
-        /*
-          Depending on your customerAPI implementation,
-          fetchCustomers may return either:
-          
-          1. { customers: [...] }
-          OR
-          2. [...]
-        */
 
         const customers = Array.isArray(response)
           ? response
@@ -135,12 +105,10 @@ export default function CustomersScreen() {
         setCustomerList(customers);
       } catch (error) {
         console.error("LOAD CUSTOMERS ERROR:", error);
-
         showToast(
           error?.message || "Unable to load customers.",
           "error"
         );
-
         setCustomerList([]);
       } finally {
         setLoading(false);
@@ -156,19 +124,21 @@ export default function CustomersScreen() {
 
   const filtered = customerList.filter((customer) => {
     const name = String(customer?.name || "").toLowerCase();
-
     const city = String(customer?.city || "").toLowerCase();
-
+    const phone = String(customer?.phone || "").toLowerCase();
+    const email = String(customer?.email || "").toLowerCase();
     const searchText = search.toLowerCase();
 
     return (
       name.includes(searchText) ||
-      city.includes(searchText)
+      city.includes(searchText) ||
+      phone.includes(searchText) ||
+      email.includes(searchText)
     );
   });
 
   // =========================
-  // TOTAL RECEIVABLE
+  // SUMMARY CALCULATIONS
   // =========================
 
   const totalReceivable = customerList.reduce(
@@ -176,10 +146,6 @@ export default function CustomersScreen() {
       sum + Math.max(0, Number(customer?.balance || 0)),
     0
   );
-
-  // =========================
-  // TOTAL PAYABLE
-  // =========================
 
   const totalPayable = customerList.reduce(
     (sum, customer) =>
@@ -193,58 +159,31 @@ export default function CustomersScreen() {
 
   const handleCreate = async () => {
     if (!form.name?.trim()) {
-      showToast("Customer name is required", "error");
+      showToast(isWholesale ? "Business name is required" : "Customer name is required", "error");
       return;
     }
 
     try {
       const response = await createCustomer({
         name: form.name,
-        contact: form.contact,
+        contact: isWholesale ? form.contact : "",
         phone: form.phone,
         email: form.email,
         city: form.city,
-        gst: showGstField ? form.gst : "",
-        openingBalance: Number(form.openingBalance || 0),
+        address: form.address,
+        gst: isWholesale ? form.gst : "",
+        openingBalance: isWholesale ? Number(form.openingBalance || 0) : 0,
       });
 
-      /*
-        API may return:
-        { customer: {...} }
-        OR directly {...}
-      */
+      const createdCustomer = response?.customer || response;
 
-      const createdCustomer =
-        response?.customer || response;
-
-      setCustomerList((prev) => [
-        createdCustomer,
-        ...prev,
-      ]);
-
+      setCustomerList((prev) => [createdCustomer, ...prev]);
       setShowModal(false);
-
-      setForm({
-        name: "",
-        contact: "",
-        phone: "",
-        email: "",
-        city: "",
-        gst: "",
-        openingBalance: "0",
-      });
-
-      showToast(
-        "Customer added successfully",
-        "success"
-      );
+      setForm(initialFormState);
+      showToast("Customer added successfully", "success");
     } catch (error) {
       console.error("CREATE CUSTOMER ERROR:", error);
-
-      showToast(
-        error?.message || "Failed to add customer",
-        "error"
-      );
+      showToast(error?.message || "Failed to add customer", "error");
     }
   };
 
@@ -254,57 +193,38 @@ export default function CustomersScreen() {
 
   const handleUpdate = async () => {
     if (!editForm.name?.trim()) {
-      showToast("Customer name is required", "error");
+      showToast(isWholesale ? "Business name is required" : "Customer name is required", "error");
       return;
     }
 
     try {
       const response = await updateCustomer(editId, {
         name: editForm.name,
-        contact: editForm.contact,
+        contact: isWholesale ? editForm.contact : "",
         phone: editForm.phone,
         email: editForm.email,
         city: editForm.city,
-        gst: showGstField ? editForm.gst : "",
+        address: editForm.address,
+        gst: isWholesale ? editForm.gst : "",
       });
 
-      const updatedCustomer =
-        response?.customer || response;
+      const updatedCustomer = response?.customer || response;
 
       setCustomerList((prev) =>
         prev.map((customer) =>
-          String(customer._id || customer.id) ===
-          String(editId)
+          String(customer._id || customer.id) === String(editId)
             ? updatedCustomer
             : customer
         )
       );
 
       setShowEditModal(false);
-
       setEditId(null);
-
-      setEditForm({
-        name: "",
-        contact: "",
-        phone: "",
-        email: "",
-        city: "",
-        gst: "",
-        openingBalance: "0",
-      });
-
-      showToast(
-        "Customer updated successfully",
-        "success"
-      );
+      setEditForm(initialFormState);
+      showToast("Customer updated successfully", "success");
     } catch (error) {
       console.error("UPDATE CUSTOMER ERROR:", error);
-
-      showToast(
-        error?.message || "Failed to update customer",
-        "error"
-      );
+      showToast(error?.message || "Failed to update customer", "error");
     }
   };
 
@@ -317,30 +237,18 @@ export default function CustomersScreen() {
 
     try {
       await deleteCustomer(deleteId);
-
       setCustomerList((prev) =>
         prev.filter(
           (customer) =>
-            String(customer._id || customer.id) !==
-            String(deleteId)
+            String(customer._id || customer.id) !== String(deleteId)
         )
       );
-
       setDeleteId(null);
-
-      showToast(
-        "Customer deleted successfully",
-        "success"
-      );
+      showToast("Customer deleted successfully", "success");
     } catch (error) {
       console.error("DELETE CUSTOMER ERROR:", error);
-
       setDeleteId(null);
-
-      showToast(
-        error?.message || "Failed to delete customer",
-        "error"
-      );
+      showToast(error?.message || "Failed to delete customer", "error");
     }
   };
 
@@ -350,122 +258,87 @@ export default function CustomersScreen() {
 
   const handleEdit = (customer) => {
     setEditId(customer._id || customer.id);
-
     setEditForm({
       name: customer.name || "",
       contact: customer.contact || "",
       phone: customer.phone || "",
       email: customer.email || "",
       city: customer.city || "",
+      address: customer.address || "",
       gst: customer.gst || "",
-      openingBalance: String(
-        customer.balance ?? 0
-      ),
+      openingBalance: String(customer.balance ?? 0),
     });
-
     setShowEditModal(true);
   };
 
-  // =========================
-  // RESET ADD FORM
-  // =========================
-
   const closeCreateModal = () => {
     setShowModal(false);
-
-    setForm({
-      name: "",
-      contact: "",
-      phone: "",
-      email: "",
-      city: "",
-      gst: "",
-      openingBalance: "0",
-    });
+    setForm(initialFormState);
   };
-
-  // =========================
-  // RESET EDIT FORM
-  // =========================
 
   const closeEditModal = () => {
     setShowEditModal(false);
-
     setEditId(null);
   };
 
   // =========================
-  // UI
+  // UI RENDER
   // =========================
 
   return (
     <div className="space-y-5">
-
       {/* =========================
           CUSTOMER DETAILS MODAL
       ========================= */}
-
       {viewCustomer && (
-        <Modal
-          title="Customer Details"
-          onClose={() => setViewCustomer(null)}
-        >
+        <Modal title="Customer Details" onClose={() => setViewCustomer(null)}>
           <div className="space-y-5">
-
             <div>
               <p className="text-lg font-semibold text-slate-900">
                 {viewCustomer.name}
               </p>
-
-              <p className="text-sm text-slate-500">
-                {viewCustomer.contact || "—"}
-              </p>
+              {isWholesale && viewCustomer.contact && (
+                <p className="text-sm text-slate-500">
+                  Contact: {viewCustomer.contact}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-
               <div>
-                <p className="text-xs text-slate-500 mb-1">
-                  Phone
-                </p>
-
+                <p className="text-xs text-slate-500 mb-1">Phone</p>
                 <p className="text-sm text-slate-900">
                   {viewCustomer.phone || "—"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-slate-500 mb-1">
-                  Email
-                </p>
-
+                <p className="text-xs text-slate-500 mb-1">Email</p>
                 <p className="text-sm text-slate-900">
                   {viewCustomer.email || "—"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-slate-500 mb-1">
-                  City
-                </p>
-
+                <p className="text-xs text-slate-500 mb-1">City</p>
                 <p className="text-sm text-slate-900">
                   {viewCustomer.city || "—"}
                 </p>
               </div>
 
+              {viewCustomer.address && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Address</p>
+                  <p className="text-sm text-slate-900">
+                    {viewCustomer.address}
+                  </p>
+                </div>
+              )}
+
               <div>
-                <p className="text-xs text-slate-500 mb-1">
-                  Balance
-                </p>
-
+                <p className="text-xs text-slate-500 mb-1">Balance</p>
                 <p className="text-sm font-semibold text-slate-900">
-                  {fmt(
-                    Math.abs(
-                      Number(viewCustomer.balance || 0)
-                    )
-                  )}
-
+                  {fmt(Math.abs(Number(viewCustomer.balance || 0)))}
                   {Number(viewCustomer.balance) > 0
                     ? " (To Receive)"
                     : Number(viewCustomer.balance) < 0
@@ -475,38 +348,27 @@ export default function CustomersScreen() {
               </div>
 
               <div>
-                <p className="text-xs text-slate-500 mb-1">
-                  Invoices
-                </p>
-
+                <p className="text-xs text-slate-500 mb-1">Invoices</p>
                 <p className="text-sm text-slate-900">
                   {viewCustomer.invoices ?? 0}
                 </p>
               </div>
 
-              {showGstField && (
+              {isWholesale && (
                 <div>
-                  <p className="text-xs text-slate-500 mb-1">
-                    GST Number
-                  </p>
-
+                  <p className="text-xs text-slate-500 mb-1">GST Number</p>
                   <p className="text-sm text-slate-900">
                     {viewCustomer.gst || "—"}
                   </p>
                 </div>
               )}
-
             </div>
 
             <div className="flex justify-end pt-2">
-              <Btn
-                variant="outline"
-                onClick={() => setViewCustomer(null)}
-              >
+              <Btn variant="outline" onClick={() => setViewCustomer(null)}>
                 Close
               </Btn>
             </div>
-
           </div>
         </Modal>
       )}
@@ -514,101 +376,92 @@ export default function CustomersScreen() {
       {/* =========================
           EDIT CUSTOMER MODAL
       ========================= */}
-
       {showEditModal && editId !== null && (
-        <Modal
-          title="Edit Customer"
-          onClose={closeEditModal}
-        >
+        <Modal title="Edit Customer" onClose={closeEditModal}>
           <div className="space-y-4">
-
-            <div className="grid grid-cols-2 gap-3">
-
+            {isWholesale ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Business Name"
+                  placeholder="Raj Enterprises"
+                  value={editForm.name}
+                  onChange={(value) =>
+                    setEditForm((f) => ({ ...f, name: value }))
+                  }
+                />
+                <Input
+                  label="Contact Person"
+                  placeholder="Rajesh Kumar"
+                  value={editForm.contact}
+                  onChange={(value) =>
+                    setEditForm((f) => ({ ...f, contact: value }))
+                  }
+                />
+              </div>
+            ) : (
               <Input
-                label="Business Name"
-                placeholder="Raj Enterprises"
+                label="Customer Name"
+                placeholder="Rahul Sharma"
                 value={editForm.name}
                 onChange={(value) =>
-                  setEditForm((form) => ({
-                    ...form,
-                    name: value,
-                  }))
+                  setEditForm((f) => ({ ...f, name: value }))
                 }
               />
-
-              <Input
-                label="Contact Person"
-                placeholder="Rajesh Kumar"
-                value={editForm.contact}
-                onChange={(value) =>
-                  setEditForm((form) => ({
-                    ...form,
-                    contact: value,
-                  }))
-                }
-              />
-
-            </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
-
               <Input
                 label="Phone"
                 placeholder="+91 98765 43210"
                 icon={<Phone className="w-4 h-4" />}
                 value={editForm.phone}
                 onChange={(value) =>
-                  setEditForm((form) => ({
-                    ...form,
-                    phone: value,
-                  }))
+                  setEditForm((f) => ({ ...f, phone: value }))
                 }
               />
-
               <Input
                 label="Email"
-                placeholder="rajesh@raj.in"
+                placeholder="rahul@example.com"
                 icon={<Mail className="w-4 h-4" />}
                 value={editForm.email}
                 onChange={(value) =>
-                  setEditForm((form) => ({
-                    ...form,
-                    email: value,
-                  }))
+                  setEditForm((f) => ({ ...f, email: value }))
                 }
               />
-
             </div>
 
-            <Input
-              label="City"
-              placeholder="Mumbai"
-              icon={<MapPin className="w-4 h-4" />}
-              value={editForm.city}
-              onChange={(value) =>
-                setEditForm((form) => ({
-                  ...form,
-                  city: value,
-                }))
-              }
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="City"
+                placeholder="Mumbai"
+                icon={<MapPin className="w-4 h-4" />}
+                value={editForm.city}
+                onChange={(value) =>
+                  setEditForm((f) => ({ ...f, city: value }))
+                }
+              />
+              <Input
+                label="Address"
+                placeholder="123 Main Street, Area"
+                value={editForm.address}
+                onChange={(value) =>
+                  setEditForm((f) => ({ ...f, address: value }))
+                }
+              />
+            </div>
 
-            {showGstField && (
+            {isWholesale && (
               <Input
                 label="GST Number"
                 placeholder="27AAPCS0510Q1Z6"
                 value={editForm.gst}
                 onChange={(value) =>
-                  setEditForm((form) => ({
-                    ...form,
-                    gst: value,
-                  }))
+                  setEditForm((f) => ({ ...f, gst: value }))
                 }
               />
             )}
 
             <div className="flex gap-3 pt-2">
-
               <Btn
                 variant="outline"
                 onClick={closeEditModal}
@@ -616,7 +469,6 @@ export default function CustomersScreen() {
               >
                 Cancel
               </Btn>
-
               <Btn
                 variant="primary"
                 onClick={handleUpdate}
@@ -624,9 +476,7 @@ export default function CustomersScreen() {
               >
                 Save Changes
               </Btn>
-
             </div>
-
           </div>
         </Modal>
       )}
@@ -634,119 +484,102 @@ export default function CustomersScreen() {
       {/* =========================
           ADD CUSTOMER MODAL
       ========================= */}
-
       {showModal && (
-        <Modal
-          title="Add New Customer"
-          onClose={closeCreateModal}
-        >
+        <Modal title="Add New Customer" onClose={closeCreateModal}>
           <div className="space-y-4">
-
-            <div className="grid grid-cols-2 gap-3">
-
+            {isWholesale ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Business Name"
+                  placeholder="Raj Enterprises"
+                  value={form.name}
+                  onChange={(value) =>
+                    setForm((f) => ({ ...f, name: value }))
+                  }
+                />
+                <Input
+                  label="Contact Person"
+                  placeholder="Rajesh Kumar"
+                  value={form.contact}
+                  onChange={(value) =>
+                    setForm((f) => ({ ...f, contact: value }))
+                  }
+                />
+              </div>
+            ) : (
               <Input
-                label="Business Name"
-                placeholder="Raj Enterprises"
+                label="Customer Name"
+                placeholder="Rahul Sharma"
                 value={form.name}
                 onChange={(value) =>
-                  setForm((form) => ({
-                    ...form,
-                    name: value,
-                  }))
+                  setForm((f) => ({ ...f, name: value }))
                 }
               />
-
-              <Input
-                label="Contact Person"
-                placeholder="Rajesh Kumar"
-                value={form.contact}
-                onChange={(value) =>
-                  setForm((form) => ({
-                    ...form,
-                    contact: value,
-                  }))
-                }
-              />
-
-            </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
-
               <Input
                 label="Phone"
                 placeholder="+91 98765 43210"
                 icon={<Phone className="w-4 h-4" />}
                 value={form.phone}
                 onChange={(value) =>
-                  setForm((form) => ({
-                    ...form,
-                    phone: value,
-                  }))
+                  setForm((f) => ({ ...f, phone: value }))
                 }
               />
-
               <Input
                 label="Email"
-                placeholder="rajesh@raj.in"
+                placeholder="rahul@example.com"
                 icon={<Mail className="w-4 h-4" />}
                 value={form.email}
                 onChange={(value) =>
-                  setForm((form) => ({
-                    ...form,
-                    email: value,
-                  }))
+                  setForm((f) => ({ ...f, email: value }))
                 }
               />
-
             </div>
 
-            <Input
-              label="City"
-              placeholder="Mumbai"
-              icon={<MapPin className="w-4 h-4" />}
-              value={form.city}
-              onChange={(value) =>
-                setForm((form) => ({
-                  ...form,
-                  city: value,
-                }))
-              }
-            />
-
-            {showGstField && (
+            <div className="grid grid-cols-2 gap-3">
               <Input
-                label="GST Number"
-                placeholder="27AAPCS0510Q1Z6"
-                value={form.gst}
+                label="City"
+                placeholder="Mumbai"
+                icon={<MapPin className="w-4 h-4" />}
+                value={form.city}
                 onChange={(value) =>
-                  setForm((form) => ({
-                    ...form,
-                    gst: value,
-                  }))
+                  setForm((f) => ({ ...f, city: value }))
                 }
               />
+              <Input
+                label="Address"
+                placeholder="123 Main Street, Area"
+                value={form.address}
+                onChange={(value) =>
+                  setForm((f) => ({ ...f, address: value }))
+                }
+              />
+            </div>
+
+            {isWholesale && (
+              <>
+                <Input
+                  label="GST Number"
+                  placeholder="27AAPCS0510Q1Z6"
+                  value={form.gst}
+                  onChange={(value) =>
+                    setForm((f) => ({ ...f, gst: value }))
+                  }
+                />
+                <Input
+                  label="Opening Balance (₹)"
+                  placeholder="0"
+                  value={form.openingBalance}
+                  onChange={(value) =>
+                    setForm((f) => ({ ...f, openingBalance: value }))
+                  }
+                />
+              </>
             )}
 
-            <Input
-              label="GST Number"
-              placeholder="27AAPCS0510Q1Z6"
-              value={form.gst}
-              onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
-            />
-            <Input
-              label="Opening Balance (₹)"
-              placeholder="0"
-              value={form.openingBalance}
-              onChange={(value) =>
-                setForm((form) => ({
-                  ...form,
-                  openingBalance: value,
-                }))
-              }
-            />
-
             <div className="flex gap-3 pt-2">
-
               <Btn
                 variant="outline"
                 onClick={closeCreateModal}
@@ -754,7 +587,6 @@ export default function CustomersScreen() {
               >
                 Cancel
               </Btn>
-
               <Btn
                 variant="primary"
                 onClick={handleCreate}
@@ -762,9 +594,7 @@ export default function CustomersScreen() {
               >
                 Save Customer
               </Btn>
-
             </div>
-
           </div>
         </Modal>
       )}
@@ -772,7 +602,6 @@ export default function CustomersScreen() {
       {/* =========================
           DELETE CONFIRMATION
       ========================= */}
-
       {deleteId && (
         <ConfirmDialog
           message="This will permanently delete this customer. This action cannot be undone."
@@ -784,13 +613,11 @@ export default function CustomersScreen() {
       {/* =========================
           SEARCH + BUTTONS
       ========================= */}
-
       <div className="flex items-center gap-3">
-
         <Input
           value={search}
           onChange={setSearch}
-          placeholder="Search customers..."
+          placeholder="Search customers by name, city, phone, email..."
           icon={<Search className="w-4 h-4" />}
         />
 
@@ -810,62 +637,35 @@ export default function CustomersScreen() {
         >
           Add Customer
         </Btn>
-
       </div>
 
       {/* =========================
           SUMMARY CARDS
       ========================= */}
-
       <div className="grid grid-cols-3 gap-4">
-
         {[
-          [
-            fmtK(customerList.length),
-            "Total Customers",
-          ],
-          [
-            fmtK(totalReceivable),
-            "Total Receivable",
-          ],
-          [
-            fmtK(totalPayable),
-            "Total Payable",
-          ],
+          [fmtK(customerList.length), "Total Customers"],
+          [fmtK(totalReceivable), "Total Receivable"],
+          [fmtK(totalPayable), "Total Payable"],
         ].map(([value, label]) => (
-          <Card
-            key={label}
-            className="p-4 text-center"
-          >
-            <p className="text-xl font-bold text-slate-900">
-              {value}
-            </p>
-
-            <p className="text-xs text-slate-500 mt-0.5">
-              {label}
-            </p>
+          <Card key={label} className="p-4 text-center">
+            <p className="text-xl font-bold text-slate-900">{value}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{label}</p>
           </Card>
         ))}
-
       </div>
 
       {/* =========================
           CUSTOMER TABLE
       ========================= */}
-
       <Card>
-
         <div className="overflow-x-auto">
-
           <table className="w-full text-sm">
-
             <thead>
-
               <tr className="border-b border-slate-100">
-
                 {[
-                  "Business",
-                  "Contact",
+                  isWholesale ? "Business" : "Customer Name",
+                  isWholesale ? "Contact" : "Email",
                   "Phone",
                   "City",
                   "Balance",
@@ -878,105 +678,67 @@ export default function CustomersScreen() {
                     {heading}
                   </th>
                 ))}
-
               </tr>
-
             </thead>
 
             <tbody className="divide-y divide-slate-50">
-
-              {/* LOADING */}
-
               {loading ? (
                 <tr>
-
-                  <td
-                    colSpan={6}
-                    className="py-8 text-center"
-                  >
+                  <td colSpan={6} className="py-8 text-center">
                     <p className="text-sm text-slate-500">
                       Loading customers...
                     </p>
                   </td>
-
                 </tr>
-
               ) : filtered.length === 0 ? (
-
-                /* EMPTY */
-
                 <tr>
-
-                  <td
-                    colSpan={6}
-                    className="py-8"
-                  >
+                  <td colSpan={6} className="py-8">
                     <EmptyState
-                      icon={
-                        <Users className="w-6 h-6" />
-                      }
+                      icon={<Users className="w-6 h-6" />}
                       title="No customers found"
                       sub="Try adjusting your search query"
                     />
                   </td>
-
                 </tr>
-
               ) : (
-
-                /* CUSTOMERS */
-
                 filtered.map((customer) => {
-
-                  const customerId =
-                    customer._id ||
-                    customer.id;
-
-                  const balance =
-                    Number(customer.balance || 0);
+                  const customerId = customer._id || customer.id;
+                  const balance = Number(customer.balance || 0);
 
                   return (
                     <tr
                       key={customerId}
                       className="hover:bg-slate-50 transition-colors group"
                     >
-
-                      {/* BUSINESS */}
-
+                      {/* NAME */}
                       <td className="px-5 py-4">
-
                         <p className="font-medium text-slate-900">
                           {customer.name}
                         </p>
-
                         <p className="text-xs text-slate-400">
                           {customer.invoices ?? 0} invoices
                         </p>
-
                       </td>
 
-                      {/* CONTACT */}
-
+                      {/* CONTACT / EMAIL */}
                       <td className="px-5 py-4 text-slate-600">
-                        {customer.contact || "—"}
+                        {isWholesale
+                          ? customer.contact || "—"
+                          : customer.email || "—"}
                       </td>
 
                       {/* PHONE */}
-
                       <td className="px-5 py-4 text-slate-600 font-mono text-xs">
                         {customer.phone || "—"}
                       </td>
 
                       {/* CITY */}
-
                       <td className="px-5 py-4 text-slate-600">
                         {customer.city || "—"}
                       </td>
 
                       {/* BALANCE */}
-
                       <td className="px-5 py-4">
-
                         <span
                           className={`font-semibold font-mono text-sm ${
                             balance > 0
@@ -989,7 +751,6 @@ export default function CustomersScreen() {
                           {balance > 0 ? "+" : ""}
                           {fmt(Math.abs(balance))}
                         </span>
-
                         <p className="text-[10px] text-slate-400">
                           {balance > 0
                             ? "To Receive"
@@ -997,17 +758,11 @@ export default function CustomersScreen() {
                             ? "To Pay"
                             : "Balanced"}
                         </p>
-
                       </td>
 
                       {/* ACTIONS */}
-
                       <td className="px-5 py-4">
-
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-
-                          {/* VIEW */}
-
                           <Btn
                             variant="ghost"
                             size="sm"
@@ -1015,13 +770,8 @@ export default function CustomersScreen() {
                               event.stopPropagation();
                               setViewCustomer(customer);
                             }}
-                            icon={
-                              <Eye className="w-3.5 h-3.5" />
-                            }
+                            icon={<Eye className="w-3.5 h-3.5" />}
                           />
-
-                          {/* EDIT */}
-
                           <Btn
                             variant="ghost"
                             size="sm"
@@ -1029,13 +779,8 @@ export default function CustomersScreen() {
                               event.stopPropagation();
                               handleEdit(customer);
                             }}
-                            icon={
-                              <Edit2 className="w-3.5 h-3.5" />
-                            }
+                            icon={<Edit2 className="w-3.5 h-3.5" />}
                           />
-
-                          {/* DELETE */}
-
                           <Btn
                             variant="ghost"
                             size="sm"
@@ -1047,40 +792,27 @@ export default function CustomersScreen() {
                               <Trash2 className="w-3.5 h-3.5 text-red-500" />
                             }
                           />
-
                         </div>
-
                       </td>
-
                     </tr>
                   );
                 })
-
               )}
-
             </tbody>
-
           </table>
-
         </div>
 
         {/* TABLE FOOTER */}
-
         <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
-
           <p className="text-xs text-slate-500">
-            Showing {filtered.length} of{" "}
-            {customerList.length} customers
+            Showing {filtered.length} of {customerList.length} customers
           </p>
-
         </div>
-
       </Card>
 
       {/* =========================
           TOAST
       ========================= */}
-
       {toast && (
         <Toast
           message={toast.msg}
@@ -1088,8 +820,6 @@ export default function CustomersScreen() {
           onClose={() => setToast(null)}
         />
       )}
-
     </div>
   );
 }
-

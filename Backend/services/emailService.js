@@ -1,20 +1,31 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
-const SMTP_PORT = Number(process.env.SMTP_PORT) || 587;
-const SMTP_USER = process.env.SMTP_USER || "";
-const SMTP_PASS = process.env.SMTP_PASS || "";
-const EMAIL_FROM =
-  process.env.EMAIL_FROM || `SmartBill <${SMTP_USER || "noreply@smartbill.app"}>`;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envPath = path.join(__dirname, "../.env");
 
-function transporter() {
+function getSmtpConfig() {
+  dotenv.config({ path: envPath, override: true });
+  const host = process.env.SMTP_HOST || "smtp.gmail.com";
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const user = (process.env.SMTP_USER || "").trim();
+  const pass = (process.env.SMTP_PASS || "").trim();
+  const from =
+    (process.env.EMAIL_FROM || "").trim() ||
+    `SmartBill <${user || "noreply@smartbill.app"}>`;
+  return { host, port, user, pass, from };
+}
+
+function transporter(config) {
   return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
+    host: config.host,
+    port: config.port,
+    secure: config.port === 465,
     auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
+      user: config.user,
+      pass: config.pass,
     },
   });
 }
@@ -128,10 +139,12 @@ export async function sendInvoiceEmail({ order, to, businessName }) {
   if (!to || !String(to).trim()) {
     return { success: false, message: "No customer email provided." };
   }
-  if (!SMTP_USER || !SMTP_PASS) {
+
+  const smtp = getSmtpConfig();
+  if (!smtp.user || !smtp.pass) {
     return {
       success: false,
-      message: "Email not configured (SMTP_USER/SMTP_PASS missing in .env).",
+      message: "Email not configured (SMTP_USER/SMTP_PASS missing in Backend/.env).",
     };
   }
 
@@ -142,14 +155,14 @@ export async function sendInvoiceEmail({ order, to, businessName }) {
   });
 
   const mailOptions = {
-    from: EMAIL_FROM,
+    from: smtp.from,
     to: String(to).trim(),
     subject: `Invoice ${order.invoiceNo || ""} from ${businessName || "SmartBill"}`.trim(),
     html,
   };
 
   try {
-    const info = await transporter().sendMail(mailOptions);
+    const info = await transporter(smtp).sendMail(mailOptions);
     console.log("INVOICE EMAIL SENT:", info.messageId, "->", to);
     return { success: true, message: "Invoice emailed successfully." };
   } catch (error) {

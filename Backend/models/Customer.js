@@ -40,6 +40,12 @@ const customerSchema = new mongoose.Schema(
       default: "",
     },
 
+    address: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     gst: {
       type: String,
       trim: true,
