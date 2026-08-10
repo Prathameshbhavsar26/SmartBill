@@ -111,6 +111,7 @@ export default function POSScreen() {
     const payload = {
       customerId: selectedCustomer ? selectedCustomer._id : null,
       customerName: customer,
+      customerEmail: selectedCustomer?.email || "",
       items,
       subtotal: Math.round(subtotal),
       gstRate,

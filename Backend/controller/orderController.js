@@ -1,5 +1,6 @@
 import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
+import { sendInvoiceEmail } from "../services/emailService.js";
 
 // ================= HELPERS =================
 // Generate a collision-safe invoice number for the given owner.
@@ -116,9 +117,40 @@ export const createOrder = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // Attempt to email the invoice to the customer. This is best-effort and
+    // never fails the order — the result is returned so the frontend can show
+    // the real email status to the user.
+    let emailSent = false;
+    let emailMessage = "";
+    try {
+      // Prefer the customer's saved email; fall back to the email supplied in
+      // the request body (e.g. from the POS screen for walk-in customers).
+      let customerEmail = "";
+      if (customerId) {
+        const customer = await Customer.findById(customerId).lean();
+        customerEmail = customer?.email || "";
+      }
+      if (!customerEmail) {
+        customerEmail = String(req.body.customerEmail || "").trim();
+      }
+
+      const emailResult = await sendInvoiceEmail({
+        order: order[0],
+        to: customerEmail,
+        businessName: req.user.businessName || "SmartBill",
+      });
+      emailSent = emailResult.success;
+      emailMessage = emailResult.message;
+    } catch (emailError) {
+      emailSent = false;
+      emailMessage = emailError.message || "Failed to send invoice email.";
+    }
+
     return res.status(201).json({
       message: "Order created successfully.",
       order: order[0],
+      emailSent,
+      emailMessage,
     });
   } catch (error) {
     await session.abortTransaction();
