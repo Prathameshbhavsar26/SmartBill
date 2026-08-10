@@ -2,6 +2,15 @@ import mongoose from "mongoose";
 
 const expenseSchema = new mongoose.Schema(
   {
+    // IMPORTANT:
+    // This connects every expense to the logged-in user.
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
     category: {
       type: String,
       required: true,

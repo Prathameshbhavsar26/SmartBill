@@ -1,5 +1,7 @@
 import Expense from "../models/Expense.js";
 
+// ================= CREATE EXPENSE =================
+
 export const createExpense = async (req, res) => {
   try {
     const {
@@ -11,6 +13,13 @@ export const createExpense = async (req, res) => {
       reference,
       status,
     } = req.body;
+
+    // Make sure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        message: "Authentication required.",
+      });
+    }
 
     // Validate description
     if (!description || !String(description).trim()) {
@@ -30,18 +39,26 @@ export const createExpense = async (req, res) => {
       });
     }
 
-    // Create expense
+    // Create expense for the logged-in user
     const created = await Expense.create({
+      user: req.user.id,
+
       category: String(category || "Other").trim(),
+
       description: String(description).trim(),
+
       amount: amountNumber,
+
       date: date || new Date(),
+
       paymentMode: String(paymentMode || "Cash").trim(),
+
       reference: String(reference ?? "").trim(),
+
       status: status === "Pending" ? "Pending" : "Paid",
     });
 
-    // Return clean expense object to frontend
+    // Return clean expense object
     const expense = {
       id: created._id.toString(),
       category: created.category,
@@ -68,9 +85,22 @@ export const createExpense = async (req, res) => {
   }
 };
 
+// ================= LIST EXPENSES =================
+
 export const listExpenses = async (req, res) => {
   try {
-    const expenses = await Expense.find().sort({
+    // Make sure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        message: "Authentication required.",
+      });
+    }
+
+    // IMPORTANT:
+    // Only fetch expenses belonging to the logged-in user.
+    const expenses = await Expense.find({
+      user: req.user.id,
+    }).sort({
       createdAt: -1,
     });
 
