@@ -53,6 +53,11 @@ export default function CustomersScreen() {
   const [customerList, setCustomerList] = useState([]);
 
   const [businessType, setBusinessType] = useState("Retail");
+  const [customerList, setCustomerList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [businessType, setBusinessType] = useState("Retail");
+
+  const showGstField = String(businessType ?? "").toLowerCase() === "wholesale";
 
   const [form, setForm] = useState({
     name: "",
@@ -97,6 +102,27 @@ export default function CustomersScreen() {
   // LOAD BUSINESS TYPE
   // =========================
 
+  const showToast = (msg, type) => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // Load business type from stored user.
+  useEffect(() => {
+    const rawUser = localStorage.getItem("smartbill_user");
+    if (rawUser) {
+      try {
+        const user = JSON.parse(rawUser);
+        if (user?.businessType) {
+          setBusinessType(String(user.businessType).trim());
+        }
+      } catch (err) {
+        console.warn("Unable to parse stored user:", err);
+      }
+    }
+  }, []);
+
+  // Load customers from the backend.
   useEffect(() => {
     const rawUser = localStorage.getItem("smartbill_user");
 
@@ -732,6 +758,12 @@ export default function CustomersScreen() {
               />
             )}
 
+            <Input
+              label="GST Number"
+              placeholder="27AAPCS0510Q1Z6"
+              value={form.gst}
+              onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
+            />
             <Input
               label="Opening Balance (₹)"
               placeholder="0"

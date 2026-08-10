@@ -3,7 +3,9 @@ import Customer from "../models/Customer.js";
 // ================= LIST CUSTOMERS =================
 export const getCustomers = async (req, res) => {
   try {
-    const customers = await Customer.find({ ownerId: req.user._id })
+    const customers = await Customer.find({
+      ownerId: req.user._id,
+    })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -13,6 +15,7 @@ export const getCustomers = async (req, res) => {
     });
   } catch (error) {
     console.error("GET CUSTOMERS ERROR:", error.message);
+
     return res.status(500).json({
       message: "Failed to fetch customers.",
     });
@@ -39,6 +42,7 @@ export const getCustomer = async (req, res) => {
     });
   } catch (error) {
     console.error("GET CUSTOMER ERROR:", error.message);
+
     return res.status(500).json({
       message: "Failed to fetch customer.",
     });
@@ -100,6 +104,7 @@ export const createCustomer = async (req, res) => {
     });
   } catch (error) {
     console.error("CREATE CUSTOMER ERROR:", error.message);
+
     return res.status(500).json({
       message: "Failed to create customer.",
     });
@@ -168,6 +173,7 @@ export const updateCustomer = async (req, res) => {
     });
   } catch (error) {
     console.error("UPDATE CUSTOMER ERROR:", error.message);
+
     return res.status(500).json({
       message: "Failed to update customer.",
     });
@@ -193,6 +199,7 @@ export const deleteCustomer = async (req, res) => {
     });
   } catch (error) {
     console.error("DELETE CUSTOMER ERROR:", error.message);
+
     return res.status(500).json({
       message: "Failed to delete customer.",
     });

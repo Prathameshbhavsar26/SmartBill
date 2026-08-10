@@ -1,6 +1,28 @@
 import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
 
+// ================= HELPERS =================
+// Generate a collision-safe invoice number for the given owner.
+// Keeps retrying with the next sequential number whenever the previous
+// candidate collides with an existing (unique) invoice number.
+const generateInvoiceNo = async (ownerId) => {
+  const year = new Date().getFullYear();
+  const count = await Order.countDocuments({ ownerId });
+  let candidate = count + 1;
+  let invoiceNo = `INV-${year}-${String(candidate).padStart(4, "0")}`;
+
+  // Guard against rapid/duplicate creation races on the unique index.
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const existing = await Order.exists({ invoiceNo });
+    if (!existing) return invoiceNo;
+    candidate += 1;
+    invoiceNo = `INV-${year}-${String(candidate).padStart(4, "0")}`;
+  }
+
+  // Fall back to a timestamp-based suffix to guarantee uniqueness.
+  return `INV-${year}-${Date.now()}`;
+};
+
 // ================= CREATE ORDER =================
 // Creates an order and automatically updates the customer's running totals:
 //   totalOrderValue += orderTotal
@@ -39,8 +61,7 @@ export const createOrder = async (req, res) => {
     const status = paid <= 0 ? "Due" : paid >= total ? "Paid" : "Partial";
 
     // Generate a unique invoice number.
-    const count = await Order.countDocuments({ ownerId: req.user._id });
-    const invoiceNo = `INV-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const invoiceNo = await generateInvoiceNo(req.user._id);
 
     const order = await Order.create(
       [
@@ -102,7 +123,16 @@ export const createOrder = async (req, res) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
+
+    // Log the full error (message + stack) so failures are easier to diagnose.
     console.error("CREATE ORDER ERROR:", error.message);
+    if (error.stack) console.error(error.stack);
+
+    // Detect duplicate invoice number collisions explicitly.
+    if (error && error.code === 11000) {
+      console.error("Duplicate invoice number collision detected:", error.keyValue);
+    }
+
     return res.status(500).json({ message: "Failed to create order." });
   }
 };

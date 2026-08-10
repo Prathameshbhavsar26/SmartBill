@@ -7,7 +7,9 @@ import authRoutes from "./routes/Auth Routes.js";
 import customerRoutes from "./routes/customerRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import expenseRoutes from "./routes/expenseRoutes.js";
+import supplierRoutes from "./routes/supplierRoutes.js";
 import seedAdmin from "./seed/admin.js";
+import productRoutes from "./routes/productRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -54,6 +56,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/expenses", expenseRoutes);
+app.use("/api/suppliers", supplierRoutes);
+app.use("/api/products", productRoutes);
 
 app.get("/", (req, res) => {
   res.send("API working");

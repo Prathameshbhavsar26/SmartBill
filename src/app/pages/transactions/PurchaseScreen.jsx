@@ -38,33 +38,7 @@ export default function PurchaseScreen() {
     { product: products[0]?.name ?? "", qty: "", rate: "", amount: "" },
   ]);
   const [purchaseList, setPurchaseList] = useState([
-    {
-      id: "PO-2024-038",
-      supplier: "TechVision Pvt Ltd",
-      invoiceNo: "SUPP-INV-001",
-      date: "2024-08-10",
-      items: 5,
-      total: 124800,
-      status: "Received",
-    },
-    {
-      id: "PO-2024-037",
-      supplier: "FabWorld Exports",
-      invoiceNo: "SUPP-INV-002",
-      date: "2024-08-07",
-      items: 12,
-      total: 48200,
-      status: "Received",
-    },
-    {
-      id: "PO-2024-036",
-      supplier: "AgriLink Wholesale",
-      invoiceNo: "SUPP-INV-003",
-      date: "2024-08-03",
-      items: 8,
-      total: 32600,
-      status: "Pending",
-    },
+    
   ]);
   const [searchHistory, setSearchHistory] = useState("");
   const [toast, setToast] = useState(null);

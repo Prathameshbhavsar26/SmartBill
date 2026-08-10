@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertTriangle,
   Download,
@@ -11,7 +11,8 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { products as initialProducts, suppliers } from "../../data/mockData";
+import { suppliers } from "../../data/mockData";
+import axios from "axios";
 import { fmt } from "../../utils/format";
 import {
   Badge,
@@ -52,7 +53,7 @@ export default function ProductsScreen() {
   };
 
   // Make products editable so "Save Product" updates the table below.
-  const [productList, setProductList] = useState(initialProducts);
+  const [productList, setProductList] = useState([]);
 
   // --- ADDED FOR DYNAMIC CATEGORIES IN PROJECT 1 ---
   const [categories, setCategories] = useState([
@@ -79,6 +80,28 @@ export default function ProductsScreen() {
     unit: "Piece",
   });
 
+  const fetchProducts = async () => {
+  try {
+    const token = localStorage.getItem("smartbill_token");
+
+    const res = await axios.get(
+      "http://localhost:5000/api/products",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    setProductList(res.data.products);
+  } catch (error) {
+    console.log(error);
+  }
+};
+useEffect(() => {
+  fetchProducts();
+}, []);
+
   const filtered = productList.filter((p) => {
     const matchSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -100,11 +123,27 @@ export default function ProductsScreen() {
       {deleteId !== null && (
         <ConfirmDialog
           message="This will permanently delete the product."
-          onConfirm={() => {
-            setProductList((prev) => prev.filter((p) => p.id !== deleteId));
-            setDeleteId(null);
-            setShowEditModal(false);
-            showToast("Product deleted successfully", "success");
+          onConfirm={async () => {
+            try {
+              const token = localStorage.getItem("smartbill_token");
+
+await axios.delete(
+  `http://localhost:5000/api/products/${deleteId}`,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
+              await fetchProducts();
+              showToast("Product deleted successfully", "success");
+            } catch (error) {
+              console.error(error);
+              showToast("Failed to delete product", "error");
+            } finally {
+              setDeleteId(null);
+              setShowEditModal(false);
+            }
           }}
           onCancel={() => setDeleteId(null)}
         />
@@ -240,34 +279,33 @@ export default function ProductsScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => {
-                  const cost = Number(editForm.cost || 0);
-                  const price = Number(editForm.price || 0);
-                  const stock = Number(editForm.stock || 0);
-                  const minStock = Number(editForm.minStock || 0);
-
-                  setProductList((prev) =>
-                    prev.map((p) =>
-                      p.id === editId
-                        ? {
-                            ...p,
-                            name: editForm.name || p.name,
-                            sku: editForm.sku || p.sku,
-                            category: editForm.category || p.category,
-                            supplier: editForm.supplier || p.supplier,
-                            cost: Number.isFinite(cost) ? cost : 0,
-                            price: Number.isFinite(price) ? price : 0,
-                            stock: Number.isFinite(stock) ? stock : 0,
-                            minStock: Number.isFinite(minStock) ? minStock : 0,
-                            status: p.status,
-                          }
-                        : p,
-                    ),
-                  );
-                  setShowEditModal(false);
-                  setEditId(null);
-                  setShowEditCategoryInput(false);
-                  showToast("Product updated successfully", "success");
+                onClick={async () => {
+                  try {
+                    await axios.put(
+                      `http://localhost:5000/api/products/${editId}`,
+                      {
+                        name: editForm.name,
+                        sku: editForm.sku,
+                        category: editForm.category,
+                        supplier: editForm.supplier,
+                        cost: Number(editForm.cost || 0),
+                        price: Number(editForm.price || 0),
+                        gst: Number(editForm.gst || 0),
+                        stock: Number(editForm.stock || 0),
+                        minStock: Number(editForm.minStock || 0),
+                        unit: editForm.unit,
+                      },
+                    );
+                    await fetchProducts();
+                    showToast("Product updated successfully", "success");
+                  } catch (error) {
+                    console.error(error);
+                    showToast("Failed to update product", "error");
+                  } finally {
+                    setShowEditModal(false);
+                    setEditId(null);
+                    setShowEditCategoryInput(false);
+                  }
                 }}
                 className="flex-1 justify-center"
               >
@@ -402,48 +440,56 @@ export default function ProductsScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => {
-                  const newId =
-                    productList.length > 0
-                      ? Math.max(...productList.map((x) => x.id)) + 1
-                      : 1;
+                onClick={async () => {
+                  const token = localStorage.getItem("smartbill_token");
+  try {
+    await axios.post(
+  "http://localhost:5000/api/products",
+  {
+    name: form.name,
+    sku: form.sku,
+    category: form.category,
+    supplier: form.supplier,
+    cost: Number(form.cost),
+    price: Number(form.price),
+    gst: Number(form.gst),
+    stock: Number(form.stock),
+    minStock: Number(form.minStock),
+    unit: form.unit,
+    status: "Active",
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
 
-                  const cost = Number(form.cost || 0);
-                  const price = Number(form.price || 0);
-                  const stock = Number(form.stock || 0);
-                  const minStock = Number(form.minStock || 0);
+    // Reload products from MongoDB
+    await fetchProducts();
 
-                  setProductList((prev) => [
-                    ...prev,
-                    {
-                      id: newId,
-                      name: form.name || "New Product",
-                      sku: form.sku || `SKU-${newId}`,
-                      category: form.category || "Electronics",
-                      supplier: form.supplier || (suppliers[0]?.name ?? ""),
-                      cost: Number.isFinite(cost) ? cost : 0,
-                      price: Number.isFinite(price) ? price : 0,
-                      stock: Number.isFinite(stock) ? stock : 0,
-                      minStock: Number.isFinite(minStock) ? minStock : 0,
-                      status: "Active",
-                    },
-                  ]);
+    setShowModal(false);
+    setShowCategoryInput(false);
 
-                  setShowModal(false);
-                  setShowCategoryInput(false);
-                  setForm({
-                    name: "",
-                    sku: "",
-                    category: "Electronics",
-                    supplier: suppliers[0]?.name ?? "",
-                    cost: "0",
-                    price: "0",
-                    gst: "",
-                    stock: "0",
-                    minStock: "10",
-                    unit: "Piece",
-                  });
-                }}
+    setForm({
+      name: "",
+      sku: "",
+      category: "Electronics",
+      supplier: suppliers[0]?.name ?? "",
+      cost: "0",
+      price: "0",
+      gst: "",
+      stock: "0",
+      minStock: "10",
+      unit: "Piece",
+    });
+
+    showToast("Product added successfully", "success");
+  } catch (error) {
+    console.error(error);
+    showToast("Failed to add product", "error");
+  }
+}}
                 className="flex-1 justify-center"
               >
                 Save Product
@@ -517,7 +563,7 @@ export default function ProductsScreen() {
                 const lowStock = p.stock <= p.minStock;
                 return (
                   <tr
-                    key={p.id}
+                    key={p._id || p.id}
                     className="hover:bg-slate-50 transition-colors group"
                   >
                     <td className="px-5 py-4 font-medium text-slate-900 max-w-[200px] truncate">
@@ -557,7 +603,7 @@ export default function ProductsScreen() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowEditModal(true);
-                            setEditId(p.id);
+                            setEditId(p._id || p.id);
                             setEditForm({
                               name: p.name,
                               sku: p.sku,
@@ -578,7 +624,7 @@ export default function ProductsScreen() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDeleteId(p.id);
+                            setDeleteId(p._id || p.id);
                           }}
                           icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
                         />

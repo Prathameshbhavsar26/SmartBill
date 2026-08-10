@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Download,
   Edit2,
@@ -10,20 +10,25 @@ import {
   Plus,
   Search,
   Trash2,
+  Truck,
 } from "lucide-react";
 import { suppliers as initialSuppliers } from "../../data/mockData";
-import { fmt } from "../../utils/format";
+import { fmt, fmtK } from "../../utils/format";
 import {
   Btn,
   Card,
   ConfirmDialog,
   EmptyState,
-  FixedPhoneInput,
   Input,
   Modal,
   Toast,
-  statusBadge,
 } from "../../components/common/ui";
+import {
+  fetchSuppliers,
+  createSupplier,
+  updateSupplier,
+  deleteSupplier,
+} from "../../api/supplierAPI";
 
 export default function SuppliersScreen() {
   const [search, setSearch] = useState("");
@@ -45,7 +50,7 @@ export default function SuppliersScreen() {
   const [toast, setToast] = useState(null);
 
   // Local editable list (so added suppliers appear below in the table)
-  const [supplierList, setSupplierList] = useState(initialSuppliers);
+  const [supplierList, setSupplierList] = useState([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -57,9 +62,24 @@ export default function SuppliersScreen() {
     balanceDue: "0",
   });
 
-  const filtered = supplierList.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()),
-  );
+
+useEffect(() => {
+  loadSuppliers();
+}, []);
+
+const loadSuppliers = async () => {
+  try {
+    const data = await fetchSuppliers();
+    setSupplierList(data.suppliers);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const filtered = supplierList.filter((s) =>
+  s.name.toLowerCase().includes(search.toLowerCase())
+);
+
 
   const showToast = (msg, type) => {
     setToast({ msg, type });
@@ -79,12 +99,19 @@ export default function SuppliersScreen() {
       {deleteId !== null && (
         <ConfirmDialog
           message="This will permanently delete the supplier."
-          onConfirm={() => {
-            setSupplierList((prev) => prev.filter((s) => s.id !== deleteId));
-            setDeleteId(null);
-            setShowEditModal(false);
-            showToast("Supplier deleted successfully", "success");
-          }}
+          onConfirm={async () => {
+  try {
+    await deleteSupplier(deleteId);
+
+    await loadSuppliers();
+
+    setDeleteId(null);
+
+    showToast("Supplier deleted successfully", "success");
+  } catch (err) {
+    console.log(err);
+  }
+}}
           onCancel={() => setDeleteId(null)}
         />
       )}
@@ -212,28 +239,27 @@ export default function SuppliersScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => {
-                  setSupplierList((prev) =>
-                    prev.map((s) =>
-                      s.id === editId
-                        ? {
-                            ...s,
-                            name: editForm.name || s.name,
-                            contact: editForm.contact || "",
-                            phone: editForm.phone || "",
-                            email: editForm.email || "",
-                            city: editForm.city || "",
-                            balance: Number.isFinite(Number(s.balance))
-                              ? Number(s.balance)
-                              : 0,
-                            status: editForm.status || s.status,
-                          }
-                        : s,
-                    ),
-                  );
-                  setShowEditModal(false);
-                  setEditId(null);
-                  showToast("Supplier updated successfully", "success");
+                onClick={async () => {
+                 try {
+  await updateSupplier(editId, {
+    name: editForm.name,
+    contact: editForm.contact,
+    phone: editForm.phone,
+    email: editForm.email,
+    city: editForm.city,
+    gst: editForm.gst,
+    status: editForm.status,
+  });
+
+  await loadSuppliers();
+
+  setShowEditModal(false);
+  setEditId(null);
+
+  showToast("Supplier updated successfully", "success");
+} catch (err) {
+  console.log(err);
+}
                 }}
                 className="flex-1 justify-center"
               >
@@ -305,36 +331,37 @@ export default function SuppliersScreen() {
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => {
-                  const newId =
-                    supplierList.length > 0
-                      ? Math.max(...supplierList.map((x) => x.id)) + 1
-                      : 1;
+                onClick={async () => {
+  try {
+    await createSupplier({
+      name: form.name,
+      contact: form.contact,
+      phone: form.phone,
+      email: form.email,
+      city: form.city,
+      gst: form.gst,
+      openingBalance: Number(form.balanceDue || 0),
+    });
 
-                  const newSupplier = {
-                    id: newId,
-                    name: form.name || "New Supplier",
-                    contact: form.contact || "",
-                    phone: form.phone || "",
-                    email: form.email || "",
-                    city: form.city || "",
-                    balance: 0,
-                    status: "Active",
-                  };
+    await loadSuppliers();
 
-                  setSupplierList((prev) => [...prev, newSupplier]);
-                  setShowModal(false);
-                  showToast("Supplier added successfully", "success");
+    setShowModal(false);
 
-                  setForm({
-                    name: "",
-                    contact: "",
-                    phone: "",
-                    email: "",
-                    city: "",
-                    gst: "",
-                  });
-                }}
+    setForm({
+      name: "",
+      contact: "",
+      phone: "",
+      email: "",
+      city: "",
+      gst: "",
+      balanceDue: "0",
+    });
+
+    showToast("Supplier added successfully", "success");
+  } catch (err) {
+    console.log(err);
+  }
+}}
                 className="flex-1 justify-center"
               >
                 Save Supplier
@@ -386,7 +413,7 @@ export default function SuppliersScreen() {
             <tbody className="divide-y divide-slate-50">
               {filtered.map((s) => (
                 <tr
-                  key={s.id}
+                  key={s._id}
                   className="hover:bg-slate-50 transition-colors group"
                 >
                   <td className="px-5 py-4">
@@ -418,7 +445,7 @@ export default function SuppliersScreen() {
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowEditModal(true);
-                          setEditId(s.id);
+                          setEditId(s._id);
                           setEditForm({
                             name: s.name,
                             contact: s.contact,
@@ -437,7 +464,7 @@ export default function SuppliersScreen() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDeleteId(s.id);
+                          setDeleteId(s._id);
                         }}
                         icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
                       />
