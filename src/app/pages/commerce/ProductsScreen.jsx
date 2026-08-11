@@ -53,7 +53,21 @@ export default function ProductsScreen() {
   };
 
   // Make products editable so "Save Product" updates the table below.
-  const [productList, setProductList] = useState([]);
+const [productList, setProductList] = useState([]);
+
+const [units, setUnits] = useState([
+  "Piece",
+  "Kg",
+  "Litre",
+  "Box",
+  "Dozen",
+  "Metre",
+    "TEST UNIT",
+]);
+
+const [newUnit, setNewUnit] = useState("");
+const [showUnitInput, setShowUnitInput] = useState(false);
+const [showEditUnitInput, setShowEditUnitInput] = useState(false);
 
   // --- ADDED FOR DYNAMIC CATEGORIES IN PROJECT 1 ---
   const [categories, setCategories] = useState([
@@ -62,9 +76,13 @@ export default function ProductsScreen() {
     "Groceries",
     "Hardware",
   ]);
+
   const [newCategory, setNewCategory] = useState("");
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [showEditCategoryInput, setShowEditCategoryInput] = useState(false);
+
+
+
   // -------------------------------------------------
 
   const [form, setForm] = useState({
@@ -258,13 +276,62 @@ await axios.delete(
               />
             </div>
 
-            <Select
-              label="Unit"
-              value={editForm.unit}
-              onChange={(v) => setEditForm((f) => ({ ...f, unit: v }))}
-              options={["Piece", "Kg", "Litre", "Box", "Dozen", "Metre"]}
-            />
+          
+<div className="space-y-2">
+  <Select
+    label="Unit"
+    value={editForm.unit}
+    onChange={(v) => {
+      if (v === "+ New Unit") {
+        setShowEditUnitInput(true);
+        return;
+      }
 
+      setEditForm((f) => ({
+        ...f,
+        unit: v,
+      }));
+
+      setShowEditUnitInput(false);
+    }}
+    options={[...units, "+ New Unit"]}
+  />
+
+  {showEditUnitInput && (
+    <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+      <Input
+        label="New Unit"
+        value={newUnit}
+        onChange={setNewUnit}
+        placeholder="Enter unit name"
+      />
+
+      <Btn
+        variant="primary"
+        size="sm"
+        onClick={() => {
+          const unit = newUnit.trim();
+
+          if (!unit) return;
+
+          setUnits((prev) =>
+            prev.includes(unit) ? prev : [...prev, unit]
+          );
+
+          setEditForm((f) => ({
+            ...f,
+            unit: unit,
+          }));
+
+          setNewUnit("");
+          setShowEditUnitInput(false);
+        }}
+      >
+        Save Unit
+      </Btn>
+    </div>
+  )}
+</div>
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -280,33 +347,46 @@ await axios.delete(
               <Btn
                 variant="primary"
                 onClick={async () => {
-                  try {
-                    await axios.put(
-                      `http://localhost:5000/api/products/${editId}`,
-                      {
-                        name: editForm.name,
-                        sku: editForm.sku,
-                        category: editForm.category,
-                        supplier: editForm.supplier,
-                        cost: Number(editForm.cost || 0),
-                        price: Number(editForm.price || 0),
-                        gst: Number(editForm.gst || 0),
-                        stock: Number(editForm.stock || 0),
-                        minStock: Number(editForm.minStock || 0),
-                        unit: editForm.unit,
-                      },
-                    );
-                    await fetchProducts();
-                    showToast("Product updated successfully", "success");
-                  } catch (error) {
-                    console.error(error);
-                    showToast("Failed to update product", "error");
-                  } finally {
-                    setShowEditModal(false);
-                    setEditId(null);
-                    setShowEditCategoryInput(false);
-                  }
-                }}
+  const token = localStorage.getItem("smartbill_token");
+
+  try {
+    await axios.put(
+      `http://localhost:5000/api/products/${editId}`,
+      {
+        name: editForm.name,
+        sku: editForm.sku,
+        category: editForm.category,
+        supplier: editForm.supplier,
+        cost: Number(editForm.cost || 0),
+        price: Number(editForm.price || 0),
+        gst: Number(editForm.gst || 0),
+        stock: Number(editForm.stock || 0),
+        minStock: Number(editForm.minStock || 0),
+        unit: editForm.unit,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    await fetchProducts();
+
+    showToast("Product updated successfully", "success");
+  } catch (error) {
+    console.error("UPDATE PRODUCT ERROR:", error.response?.data || error);
+
+    showToast(
+      error.response?.data?.message || "Failed to update product",
+      "error"
+    );
+  } finally {
+    setShowEditModal(false);
+    setEditId(null);
+    setShowEditCategoryInput(false);
+  }
+}}
                 className="flex-1 justify-center"
               >
                 Save Changes
@@ -520,9 +600,6 @@ await axios.delete(
             </button>
           ))}
         </div>
-        <Btn variant="outline" size="md" icon={<Upload className="w-4 h-4" />}>
-          Import
-        </Btn>
         <Btn
           variant="primary"
           size="md"
