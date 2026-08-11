@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Check,
   Download,
@@ -10,7 +10,7 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import { products, suppliers } from "../../data/mockData";
+import { fetchSuppliers } from "../../api/supplierAPI";
 import { fmt } from "../../utils/format";
 import {
   Btn,
@@ -23,10 +23,14 @@ import {
   Toast,
   statusBadge,
 } from "../../components/common/ui";
+import { getProducts, updateProduct } from "../../api/productAPI";
 
 export default function PurchaseScreen() {
+  const [productList, setProductList] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [activeTab, setActiveTab] = useState("entry");
-  const [supplier, setSupplier] = useState(suppliers[0]?.name ?? "");
+  const [supplierList, setSupplierList] = useState([]);
+  const [supplier, setSupplier] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(
     new Date().toISOString().slice(0, 10),
@@ -35,13 +39,35 @@ export default function PurchaseScreen() {
   const [paymentStatus, setPaymentStatus] = useState("Unpaid");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState([
-    { product: products[0]?.name ?? "", qty: "", rate: "", amount: "" },
+    { product: "", qty: "", rate: "", amount: "" },
   ]);
-  const [purchaseList, setPurchaseList] = useState([
-    
-  ]);
+  const [purchaseList, setPurchaseList] = useState([]);
   const [searchHistory, setSearchHistory] = useState("");
   const [toast, setToast] = useState(null);
+
+  const loadProductsList = useCallback(async () => {
+    setLoadingProducts(true);
+    try {
+      const res = await getProducts();
+      setProductList(res.products || []);
+    } catch {
+      setProductList([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProductsList();
+    // Load suppliers dynamically
+    fetchSuppliers()
+      .then((data) => {
+        const list = Array.isArray(data.suppliers) ? data.suppliers : data;
+        setSupplierList(list);
+        setSupplier(list[0]?.name ?? "");
+      })
+      .catch((err) => console.error('Failed to load suppliers', err));
+  }, [loadProductsList]);
 
   const showToast = (msg, type) => {
     setToast({ msg, type });
@@ -65,10 +91,10 @@ export default function PurchaseScreen() {
         const nextItem = { ...item, [field]: value };
 
         if (field === "product") {
-          const selectedProduct = products.find((p) => p.name === value);
+          const selectedProduct = productList.find((p) => p.name === value);
 
           if (selectedProduct) {
-            nextItem.rate = selectedProduct.cost;
+    nextItem.rate = selectedProduct.price;
 
             const qty = Number(nextItem.qty) || 0;
             nextItem.amount = qty * nextItem.rate;
@@ -117,7 +143,7 @@ export default function PurchaseScreen() {
     );
   };
 
-  const handleSavePurchase = () => {
+  const handleSavePurchase = async () => {
     const validItems = items.filter(
       (item) =>
         item.product &&
@@ -150,12 +176,19 @@ export default function PurchaseScreen() {
 
     setPurchaseList((prev) => [newPurchase, ...prev]);
 
-    validItems.forEach((item) => {
-      const foundProduct = products.find((p) => p.name === item.product);
+    for (const item of validItems) {
+      const foundProduct = productList.find((p) => p.name === item.product);
       if (foundProduct) {
-        foundProduct.stock += Number(item.qty || 0);
+        const newStock = (foundProduct.stock || 0) + Number(item.qty || 0);
+        const pId = foundProduct._id || foundProduct.id;
+        try {
+          await updateProduct(pId, { stock: newStock });
+        } catch (err) {
+          console.error("Failed to update product stock:", err);
+        }
       }
-    });
+    }
+    await loadProductsList();
 
     setActiveTab("history");
     setSupplier(suppliers[0]?.name ?? "");
@@ -165,9 +198,9 @@ export default function PurchaseScreen() {
     setPaymentStatus("Unpaid");
     setNotes("");
     setItems([
-      { product: products[0]?.name ?? "", qty: "", rate: "", amount: "" },
+      { product: "", qty: "", rate: "", amount: "" },
     ]);
-    showToast("Purchase saved successfully", "success");
+    showToast("Purchase saved and stock updated successfully", "success");
   };
 
   const filteredPurchases = purchaseList.filter((purchase) => {
@@ -215,7 +248,7 @@ export default function PurchaseScreen() {
                   label="Supplier"
                   value={supplier}
                   onChange={setSupplier}
-                  options={suppliers.map((s) => s.name)}
+                  options={supplierList.map((s) => s.name)}
                 />
                 <Input
                   label="Invoice No."
@@ -269,8 +302,8 @@ export default function PurchaseScreen() {
                           className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">Select Product</option>
-                          {products.map((p) => (
-                            <option key={p.id} value={p.name}>
+                          {productList.map((p) => (
+                            <option key={p._id || p.id} value={p.name}>
                               {p.name}
                             </option>
                           ))}

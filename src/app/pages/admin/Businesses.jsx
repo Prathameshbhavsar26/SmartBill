@@ -414,12 +414,7 @@ export default function BusinessesPage() {
                   {/* Interactive Action Buttons */}
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-center gap-1">
-                      <button
-                        title="View Details"
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all duration-200 transform hover:scale-105"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
+
                       <button
                         title="Edit Business"
                         className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all duration-200 transform hover:scale-105"

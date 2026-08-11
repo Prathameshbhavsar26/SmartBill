@@ -1127,15 +1127,7 @@ export default function CustomersScreen() {
                       {/* ACTIONS */}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Btn
-                            variant="ghost"
-                            size="sm"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setViewCustomer(customer);
-                            }}
-                            icon={<Eye className="w-3.5 h-3.5" />}
-                          />
+
                           <Btn
                             variant="ghost"
                             size="sm"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   BarChart2,
   Calculator,
@@ -13,16 +13,19 @@ import {
   ShoppingCart,
   Trash2,
   X,
+  RefreshCw,
 } from "lucide-react";
-import { posProducts } from "../../data/mockData";
 import { fmt } from "../../utils/format";
 import { Badge, Btn, Card, Input, Select } from "../../components/common/ui";
 import { fetchCustomers } from "../../api/customerAPI";
 import { createOrder } from "../../api/orderAPI";
+import { getProducts } from "../../api/productAPI";
 
 export default function POSScreen() {
   const [cart, setCart] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [productList, setProductList] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [customer, setCustomer] = useState("Walk-in Customer");
   const [paymentMode, setPaymentMode] = useState("Cash");
   const [search, setSearch] = useState("");
@@ -33,46 +36,83 @@ export default function POSScreen() {
   const [error, setError] = useState("");
   const [lastOrder, setLastOrder] = useState(null);
 
-  // Load customers from the backend.
+  // Load products from backend API
+  const loadProductsList = useCallback(async () => {
+    setLoadingProducts(true);
+    try {
+      const res = await getProducts();
+      setProductList(res.products || []);
+    } catch {
+      setProductList([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, []);
+
+  // Load customers and products on mount.
   useEffect(() => {
     fetchCustomers()
       .then((res) => setCustomers(res.customers || []))
-      .catch(() => {
-        // Fall back to empty list if backend is unreachable.
-        setCustomers([]);
-      });
-  }, []);
+      .catch(() => setCustomers([]));
+    loadProductsList();
+  }, [loadProductsList]);
 
-  const filteredProducts = posProducts.filter(
+  const filteredProducts = productList.filter(
     (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.includes(search),
+      (p.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (p.sku || "").toLowerCase().includes(search.toLowerCase())
   );
+
   const addToCart = (p) => {
+    const pId = p._id || p.id;
+    if (p.stock <= 0) {
+      setError(`" ${p.name} " is out of stock!`);
+      return;
+    }
+    setError("");
+
     setCart((c) => {
-      const ex = c.find((i) => i.product.id === p.id);
-      if (ex)
+      const ex = c.find((i) => (i.product._id || i.product.id) === pId);
+      if (ex) {
+        if (ex.qty >= p.stock) {
+          setError(`Cannot add more than available stock (${p.stock}) for ${p.name}.`);
+          return c;
+        }
         return c.map((i) =>
-          i.product.id === p.id ? { ...i, qty: i.qty + 1 } : i,
+          (i.product._id || i.product.id) === pId ? { ...i, qty: i.qty + 1 } : i
         );
+      }
       return [...c, { product: p, qty: 1, discount: 0 }];
     });
   };
+
   const updateQty = (id, delta) => {
+    setError("");
     setCart((c) =>
       c
-        .map((i) =>
-          i.product.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i,
-        )
-        .filter((i) => i.qty > 0),
+        .map((i) => {
+          const itemPId = i.product._id || i.product.id;
+          if (itemPId === id) {
+            const nextQty = i.qty + delta;
+            if (delta > 0 && nextQty > i.product.stock) {
+              setError(`Cannot exceed available stock (${i.product.stock}) for ${i.product.name}.`);
+              return i;
+            }
+            return { ...i, qty: Math.max(1, nextQty) };
+          }
+          return i;
+        })
+        .filter((i) => i.qty > 0)
     );
   };
-  const removeItem = (id) =>
-    setCart((c) => c.filter((i) => i.product.id !== id));
+
+  const removeItem = (id) => {
+    setCart((c) => c.filter((i) => (i.product._id || i.product.id) !== id));
+  };
 
   const subtotal = cart.reduce(
     (s, i) => s + i.product.price * i.qty * (1 - i.discount / 100),
-    0,
+    0
   );
   const gst = Math.round((subtotal * gstRate) / 100);
   const total = subtotal + gst;
@@ -96,7 +136,7 @@ export default function POSScreen() {
     const effectivePaid = paidValue > 0 ? paidValue : total;
 
     const items = cart.map((i) => ({
-      productId: i.product.id,
+      productId: i.product._id || i.product.id,
       name: i.product.name,
       sku: i.product.sku || "",
       price: i.product.price,
@@ -123,12 +163,15 @@ export default function POSScreen() {
       const res = await createOrder(payload);
       setLastOrder(res.order);
       setShowInvoice(true);
+      // Immediately reload products to reflect updated inventory stock!
+      await loadProductsList();
     } catch (err) {
       setError(err?.message || "Failed to save order. Please try again.");
     } finally {
       setSaving(false);
     }
   };
+
 
   if (showInvoice) {
     const order = lastOrder;
@@ -277,48 +320,85 @@ export default function POSScreen() {
     <div className="flex gap-5 h-[calc(100vh-160px)]">
       {/* Left: Products */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between">
           <Input
             value={search}
             onChange={setSearch}
             placeholder="Search product or scan barcode..."
             icon={<ScanLine className="w-4 h-4" />}
+            className="flex-1"
           />
           <Btn
             variant="outline"
             size="md"
-            icon={<ScanLine className="w-4 h-4" />}
+            onClick={loadProductsList}
+            disabled={loadingProducts}
+            icon={<RefreshCw className={`w-4 h-4 ${loadingProducts ? "animate-spin" : ""}`} />}
+            className="ml-3"
           >
-            Scan
+            Refresh
           </Btn>
         </div>
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 overflow-y-auto">
-          {filteredProducts.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => addToCart(p)}
-              className="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-blue-400 hover:shadow-md transition-all group active:scale-[0.98]"
-            >
-              <div className="w-full h-20 bg-slate-100 rounded-lg mb-3 flex items-center justify-center">
-                <Package className="w-8 h-8 text-slate-400" />
-              </div>
-              <p className="text-xs font-semibold text-slate-900 mb-1 line-clamp-2 leading-snug">
-                {p.name}
-              </p>
-              <p className="text-xs text-slate-400 font-mono mb-2">{p.sku}</p>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-blue-600">
-                  {fmt(p.price)}
-                </span>
-                <span
-                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${p.stock < 10 ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}`}
+        {loadingProducts ? (
+          <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
+            Loading products from database...
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-sm bg-slate-50 rounded-xl border border-dashed border-slate-200 p-6">
+            <Package className="w-10 h-10 text-slate-300 mb-2" />
+            <p className="font-medium text-slate-700">No products found</p>
+            <p className="text-xs text-slate-400">Add products in the Products section to sell here.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 overflow-y-auto pr-1">
+            {filteredProducts.map((p) => {
+              const pId = p._id || p.id;
+              const isOut = (p.stock || 0) <= 0;
+              return (
+                <button
+                  key={pId}
+                  onClick={() => addToCart(p)}
+                  disabled={isOut}
+                  className={`flex items-center justify-between bg-white border rounded-lg p-3 text-left transition-colors ${
+                    isOut
+                      ? "opacity-60 border-slate-200 cursor-not-allowed bg-slate-50"
+                      : "border-slate-200 hover:border-blue-400 hover:bg-blue-50/50"
+                  }`}
                 >
-                  Stock: {p.stock}
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
+                  <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                    <div className={`p-2 rounded-md ${isOut ? "bg-slate-100 text-slate-400" : "bg-blue-50 text-blue-600"} flex-shrink-0`}>
+                      <Package className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-semibold text-slate-900 truncate">
+                        {p.name}
+                      </h4>
+                      <p className="text-xs text-slate-500 font-mono truncate">{p.sku || "NO-SKU"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4 ml-4 flex-shrink-0">
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-bold text-slate-900">
+                        {fmt(p.price)}
+                      </span>
+                      <span className={`text-[10px] font-medium ${
+                        isOut ? "text-red-500" : p.stock < 10 ? "text-amber-500" : "text-emerald-600"
+                      }`}>
+                        {isOut ? "Out of Stock" : `Stock: ${p.stock}`}
+                      </span>
+                    </div>
+                    {!isOut && (
+                       <div className="w-7 h-7 rounded bg-slate-100 flex items-center justify-center text-slate-600 transition-colors">
+                         <Plus className="w-4 h-4" />
+                       </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Right: Current Bill Sidebar (Zero Outer Scroll, All Fields Visible) */}
@@ -426,54 +506,57 @@ export default function POSScreen() {
               </p>
             </div>
           ) : (
-            cart.map((item) => (
-              <div
-                key={item.product.id}
-                className="bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-lg p-2 transition-all"
-              >
-                <div className="flex items-center justify-between gap-1 mb-1">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate flex-1">
-                    {item.product.name}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item.product.id)}
-                    className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-0.5">
+            cart.map((item) => {
+              const itemPId = item.product._id || item.product.id;
+              return (
+                <div
+                  key={itemPId}
+                  className="bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-lg p-2 transition-all"
+                >
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate flex-1">
+                      {item.product.name}
+                    </p>
                     <button
                       type="button"
-                      onClick={() => updateQty(item.product.id, -1)}
-                      className="w-5 h-5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300"
+                      onClick={() => removeItem(itemPId)}
+                      className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-0.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
                     >
-                      <Minus className="w-2.5 h-2.5" />
-                    </button>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white w-5 text-center font-mono">
-                      {item.qty}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => updateQty(item.product.id, 1)}
-                      className="w-5 h-5 rounded bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white"
-                    >
-                      <Plus className="w-2.5 h-2.5" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 font-mono block">
-                      @{fmt(item.product.price)}
-                    </span>
-                    <span className="text-xs font-extrabold font-mono text-slate-900 dark:text-white">
-                      {fmt(item.product.price * item.qty)}
-                    </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => updateQty(itemPId, -1)}
+                        className="w-5 h-5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300"
+                      >
+                        <Minus className="w-2.5 h-2.5" />
+                      </button>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white w-5 text-center font-mono">
+                        {item.qty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => updateQty(itemPId, 1)}
+                        className="w-5 h-5 rounded bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white"
+                      >
+                        <Plus className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 font-mono block">
+                        @{fmt(item.product.price)}
+                      </span>
+                      <span className="text-xs font-extrabold font-mono text-slate-900 dark:text-white">
+                        {fmt(item.product.price * item.qty)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
