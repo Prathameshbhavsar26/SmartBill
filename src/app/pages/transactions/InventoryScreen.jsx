@@ -3,10 +3,8 @@ import {
   AlertTriangle,
   DollarSign,
   Download,
-  Filter,
   Package,
   RefreshCw,
-  Search,
   ShoppingCart,
   XCircle,
 } from "lucide-react";
