@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Edit2, Mail, Phone } from "lucide-react";
 import { Badge, Btn, Card, Input } from "../../components/common/ui";
 import { getUserDisplayName, getUserInitials } from "../../utils/userUtils";
-import { getProfile, updateProfile } from "../../app/api/authAPI";
+import { getProfile, updateProfile } from "../../api/authAPI";
 
 export default function ProfileScreen({ user }) {
   const [formData, setFormData] = useState({
