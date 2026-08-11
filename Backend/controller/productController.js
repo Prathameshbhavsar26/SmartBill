@@ -1,4 +1,5 @@
 import Product from "../models/productModel.js";
+import mongoose from "mongoose";
 
 // Add Product
 export const addProduct = async (req, res) => {
@@ -18,6 +19,14 @@ export const addProduct = async (req, res) => {
     });
   } catch (error) {
     console.error("ADD PRODUCT ERROR:", error);
+
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "A product with this SKU already exists.",
+        field: "sku",
+      });
+    }
 
     res.status(500).json({
       success: false,
@@ -137,5 +146,29 @@ export const deleteProduct = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// Get one product for the logged-in user.
+export const getProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid product id." });
+    }
+
+    const product = await Product.findOne({ _id: id, userId: req.user._id });
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found." });
+    }
+
+    return res.json({ success: true, product });
+  } catch (error) {
+    console.error("GET PRODUCT ERROR:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

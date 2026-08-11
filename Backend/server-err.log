@@ -19,7 +19,6 @@ SEND INVOICE EMAIL ERROR: Invalid login: 535-5.7.8 Username and Password not acc
 (node:15848) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
 (node:15848) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
 file:///C:/Users/ASUS1/Downloads/SmartBill/Backend/routes/customerRoutes.js:2
-<<<<<<< HEAD
 ^^
 
 SyntaxError: Unexpected token '<<'

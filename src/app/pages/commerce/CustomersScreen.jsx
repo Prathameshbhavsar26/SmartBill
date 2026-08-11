@@ -10,6 +10,11 @@ import {
   Search,
   Trash2,
   Users,
+  FileText,
+  IndianRupee,
+  CheckCircle2,
+  Clock,
+  X,
 } from "lucide-react";
 
 import { fmt, fmtK } from "../../utils/format";
@@ -21,13 +26,17 @@ import {
   Input,
   Modal,
   Toast,
+  Badge,
+  statusBadge,
 } from "../../components/common/ui";
 import {
   fetchCustomers,
+  fetchCustomerDetails,
   createCustomer,
   updateCustomer,
   deleteCustomer,
 } from "../../api/customerAPI";
+import { fetchOrder } from "../../api/orderAPI";
 
 export default function CustomersScreen() {
   // =========================
@@ -44,6 +53,14 @@ export default function CustomersScreen() {
   const [loading, setLoading] = useState(true);
   const [customerList, setCustomerList] = useState([]);
   const [businessType, setBusinessType] = useState("Retail");
+
+  // Customer details panel (clicked from name)
+  const [detailsCustomer, setDetailsCustomer] = useState(null);
+  const [detailsData, setDetailsData] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+  // Invoice view modal (clicked from invoice number)
+  const [invoiceModal, setInvoiceModal] = useState(null);   // { order } or { loading: true }
 
   const initialFormState = {
     name: "",
@@ -282,13 +299,355 @@ export default function CustomersScreen() {
   };
 
   // =========================
+  // OPEN CUSTOMER DETAILS
+  // =========================
+
+  const handleOpenDetails = async (customer) => {
+    setDetailsCustomer(customer);
+    setDetailsData(null);
+    setDetailsLoading(true);
+    try {
+      const customerId = customer._id || customer.id;
+      const data = await fetchCustomerDetails(customerId);
+      setDetailsData(data);
+    } catch (error) {
+      console.error("FETCH CUSTOMER DETAILS ERROR:", error);
+      showToast(error?.message || "Failed to load customer details", "error");
+      setDetailsCustomer(null);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const closeDetails = () => {
+    setDetailsCustomer(null);
+    setDetailsData(null);
+    setInvoiceModal(null);
+  };
+
+  // =========================
+  // OPEN INVOICE VIEW
+  // =========================
+
+  const handleOpenInvoice = async (orderId) => {
+    setInvoiceModal({ loading: true });
+    try {
+      const data = await fetchOrder(orderId);
+      const order = data?.order || data;
+      setInvoiceModal({ order });
+    } catch (error) {
+      console.error("FETCH ORDER ERROR:", error);
+      showToast(error?.message || "Failed to load invoice", "error");
+      setInvoiceModal(null);
+    }
+  };
+
+  // =========================
   // UI RENDER
   // =========================
 
   return (
     <div className="space-y-5">
+
       {/* =========================
-          CUSTOMER DETAILS MODAL
+          CUSTOMER CLICKED – DETAILED MODAL
+      ========================= */}
+      {detailsCustomer && (
+        <div className="fixed inset-0 z-50 flex items-start justify-end p-0 bg-black/40 backdrop-blur-sm">
+          <div
+            className="relative bg-white h-full w-full max-w-2xl shadow-2xl flex flex-col"
+            style={{ animation: "slideInRight 0.25s ease" }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-blue-600 to-blue-700">
+              <div>
+                <h2 className="text-lg font-bold text-white">{detailsCustomer.name}</h2>
+                {detailsCustomer.phone && (
+                  <p className="text-blue-200 text-sm mt-0.5">{detailsCustomer.phone}</p>
+                )}
+              </div>
+              <button
+                onClick={closeDetails}
+                className="text-white/70 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {detailsLoading ? (
+                <div className="flex flex-col items-center justify-center py-24">
+                  <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4" />
+                  <p className="text-sm text-slate-500">Loading customer details...</p>
+                </div>
+              ) : detailsData ? (
+                <>
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <IndianRupee className="w-3.5 h-3.5 text-blue-600" />
+                        </div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Value</p>
+                      </div>
+                      <p className="text-xl font-bold text-slate-900">
+                        {fmt(detailsData.summary?.totalOrderValue ?? 0)}
+                      </p>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-7 h-7 bg-emerald-200 rounded-lg flex items-center justify-center">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                        </div>
+                        <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Total Paid</p>
+                      </div>
+                      <p className="text-xl font-bold text-emerald-700">
+                        {fmt(detailsData.summary?.totalPaidValue ?? 0)}
+                      </p>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-rose-50 to-rose-100 rounded-xl p-4 border border-rose-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-7 h-7 bg-rose-200 rounded-lg flex items-center justify-center">
+                          <Clock className="w-3.5 h-3.5 text-rose-700" />
+                        </div>
+                        <p className="text-xs font-semibold text-rose-600 uppercase tracking-wide">Left to Pay</p>
+                      </div>
+                      <p className="text-xl font-bold text-rose-700">
+                        {fmt(detailsData.summary?.amountLeftToBePaid ?? 0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Invoices / Orders Table */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <FileText className="w-4 h-4 text-slate-500" />
+                      <h3 className="text-sm font-semibold text-slate-700">
+                        Invoices
+                        <span className="ml-1.5 text-xs font-normal text-slate-400">
+                          ({detailsData.summary?.invoicesCount ?? 0})
+                        </span>
+                      </h3>
+                    </div>
+
+                    {(!detailsData.orders || detailsData.orders.length === 0) ? (
+                      <div className="rounded-xl border border-slate-200 py-12 flex flex-col items-center text-center">
+                        <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mb-3 text-slate-400">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm font-medium text-slate-600">No invoices yet</p>
+                        <p className="text-xs text-slate-400 mt-1">Invoices for this customer will appear here</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-slate-200 overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              {["Invoice #", "Date", "Total", "Paid", "Balance", "Status"].map((h) => (
+                                <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {detailsData.orders.map((order) => {
+                              const orderId = order._id || order.id;
+                              const balanceDue = Number(order.balanceDue ?? 0);
+                              const amtPaid = Number(order.amountPaid ?? 0);
+                              const total = Number(order.totalOrderValue ?? 0);
+                              const invoiceNo = order.invoiceNumber || order.orderNumber || `#${String(orderId).slice(-6).toUpperCase()}`;
+                              const createdAt = order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+                              const status = order.paymentStatus || (balanceDue <= 0 ? "Paid" : balanceDue < total ? "Partial" : "Pending");
+
+                              return (
+                                <tr key={orderId} className="hover:bg-blue-50/50 transition-colors">
+                                  <td className="px-4 py-3">
+                                    <button
+                                      onClick={() => handleOpenInvoice(orderId)}
+                                      className="font-mono text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline underline-offset-2 transition-colors"
+                                    >
+                                      {invoiceNo}
+                                    </button>
+                                  </td>
+                                  <td className="px-4 py-3 text-slate-500 text-xs">{createdAt}</td>
+                                  <td className="px-4 py-3 font-medium text-slate-900">{fmt(total)}</td>
+                                  <td className="px-4 py-3 text-emerald-700 font-medium">{fmt(amtPaid)}</td>
+                                  <td className="px-4 py-3 text-rose-600 font-semibold">{fmt(balanceDue)}</td>
+                                  <td className="px-4 py-3">
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                      status === "Paid" ? "bg-emerald-100 text-emerald-700" :
+                                      status === "Partial" ? "bg-amber-100 text-amber-700" :
+                                      "bg-rose-100 text-rose-700"
+                                    }`}>
+                                      {status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            {/* ========================= INVOICE VIEW OVERLAY ========================= */}
+            {invoiceModal && (
+              <div className="absolute inset-0 z-10 bg-white flex flex-col" style={{ animation: "slideInRight 0.2s ease" }}>
+                {/* Invoice header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+                  <button
+                    onClick={() => setInvoiceModal(null)}
+                    className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to invoices
+                  </button>
+                  {!invoiceModal.loading && (
+                    <button
+                      onClick={() => window.print()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Print
+                    </button>
+                  )}
+                </div>
+
+                {/* Invoice body */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {invoiceModal.loading ? (
+                    <div className="flex flex-col items-center justify-center py-24">
+                      <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4" />
+                      <p className="text-sm text-slate-500">Loading invoice...</p>
+                    </div>
+                  ) : invoiceModal.order ? (() => {
+                    const inv = invoiceModal.order;
+                    const invDate = inv.date
+                      ? new Date(inv.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                      : new Date().toLocaleDateString("en-IN");
+                    const invStatus = inv.status || (inv.balanceDue <= 0 ? "Paid" : inv.balanceDue < inv.totalOrderValue ? "Partial" : "Due");
+
+                    return (
+                      <div className="max-w-lg mx-auto">
+                        {/* Invoice header block */}
+                        <div className="flex items-start justify-between mb-8">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
+                                <FileText className="w-3.5 h-3.5 text-white" />
+                              </div>
+                              <span className="font-bold text-slate-900">SmartBill</span>
+                            </div>
+                            <p className="text-xs text-slate-500">Invoice generated by SmartBill</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-blue-600 font-mono text-lg">{inv.invoiceNo || "—"}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">Date: {invDate}</p>
+                            <span className={`inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              invStatus === "Paid" ? "bg-emerald-100 text-emerald-700" :
+                              invStatus === "Partial" ? "bg-amber-100 text-amber-700" :
+                              "bg-rose-100 text-rose-700"
+                            }`}>
+                              {invStatus}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Bill To */}
+                        <div className="mb-5 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                          <p className="text-xs text-slate-500 mb-0.5">Bill To</p>
+                          <p className="font-semibold text-slate-900">{inv.customerName || detailsCustomer?.name || "—"}</p>
+                          {inv.paymentMode && (
+                            <p className="text-xs text-slate-400 mt-0.5">Payment: {inv.paymentMode}</p>
+                          )}
+                        </div>
+
+                        {/* Items table */}
+                        <table className="w-full text-sm mb-6">
+                          <thead>
+                            <tr className="border-b border-slate-200">
+                              <th className="text-left pb-2 text-xs font-semibold text-slate-500">Item</th>
+                              <th className="text-center pb-2 text-xs font-semibold text-slate-500">Qty</th>
+                              <th className="text-right pb-2 text-xs font-semibold text-slate-500">Rate</th>
+                              <th className="text-right pb-2 text-xs font-semibold text-slate-500">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {(inv.items || []).map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="py-2.5 text-slate-800">
+                                  {item.name}
+                                  {item.sku && <span className="block text-[10px] text-slate-400 font-mono">{item.sku}</span>}
+                                </td>
+                                <td className="py-2.5 text-center text-slate-600">{item.qty}</td>
+                                <td className="py-2.5 text-right font-mono text-slate-700">{fmt(item.price)}</td>
+                                <td className="py-2.5 text-right font-mono font-semibold text-slate-900">{fmt(item.amount ?? item.price * item.qty)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+
+                        {/* Totals */}
+                        <div className="flex justify-end">
+                          <div className="w-56 space-y-2 text-sm">
+                            {inv.subtotal != null && (
+                              <div className="flex justify-between text-slate-600">
+                                <span>Subtotal</span>
+                                <span className="font-mono">{fmt(inv.subtotal)}</span>
+                              </div>
+                            )}
+                            {inv.gst != null && inv.gst > 0 && (
+                              <div className="flex justify-between text-slate-600">
+                                <span>GST ({inv.gstRate ?? 0}%)</span>
+                                <span className="font-mono">+{fmt(inv.gst)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-bold text-slate-900 text-base border-t border-slate-200 pt-2 mt-2">
+                              <span>Total</span>
+                              <span className="font-mono text-blue-600">{fmt(inv.totalOrderValue)}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                              <span>Amount Paid</span>
+                              <span className="font-mono text-emerald-600">{fmt(inv.amountPaid)}</span>
+                            </div>
+                            <div className="flex justify-between font-semibold">
+                              <span>Balance Due</span>
+                              <span className={`font-mono ${Number(inv.balanceDue) > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                                {fmt(inv.balanceDue)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="mt-8 pt-4 border-t border-slate-100 text-center">
+                          <p className="text-xs text-slate-400">Thank you for your business!</p>
+                        </div>
+                      </div>
+                    );
+                  })() : null}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =========================
+          CUSTOMER DETAILS MODAL (eye icon)
       ========================= */}
       {viewCustomer && (
         <Modal title="Customer Details" onClose={() => setViewCustomer(null)}>
@@ -710,14 +1069,19 @@ export default function CustomersScreen() {
                       key={customerId}
                       className="hover:bg-slate-50 transition-colors group"
                     >
-                      {/* NAME */}
+                      {/* NAME – clickable */}
                       <td className="px-5 py-4">
-                        <p className="font-medium text-slate-900">
-                          {customer.name}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {customer.invoices ?? 0} invoices
-                        </p>
+                        <button
+                          onClick={() => handleOpenDetails(customer)}
+                          className="text-left group/name"
+                        >
+                          <p className="font-medium text-blue-600 hover:text-blue-800 hover:underline underline-offset-2 transition-colors cursor-pointer">
+                            {customer.name}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {customer.invoices ?? 0} invoices
+                          </p>
+                        </button>
                       </td>
 
                       {/* CONTACT / EMAIL */}

@@ -1,5 +1,7 @@
 import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
+import Product from "../models/productModel.js";
+import mongoose from "mongoose";
 import { sendInvoiceEmail } from "../services/emailService.js";
 
 // ================= HELPERS =================
@@ -60,6 +62,74 @@ export const createOrder = async (req, res) => {
     const balanceDue = Math.max(0, total - paid);
 
     const status = paid <= 0 ? "Due" : paid >= total ? "Paid" : "Partial";
+
+    // Decrease inventory before creating the order. The conditional stock
+    // update prevents sales from taking inventory below zero.
+    for (const item of items) {
+      const quantity = Number(item.qty);
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          message: "Each item quantity must be a positive whole number.",
+        });
+      }
+
+      const productIdentifiers = [];
+      if (item.sku) {
+        productIdentifiers.push({
+          sku: String(item.sku).trim().toUpperCase(),
+        });
+      }
+      if (mongoose.isValidObjectId(item.productId)) {
+        productIdentifiers.push({ _id: item.productId });
+      }
+
+      if (productIdentifiers.length === 0) {
+        await session.abortTransaction();
+        session.endSession();
+        return res
+          .status(400)
+          .json({ message: "Each item must identify a product by SKU or ID." });
+      }
+
+      const ownershipFilter = {
+        $or: [{ userId: req.user._id }, { ownerId: req.user._id }],
+      };
+      const product = await Product.findOne({
+        $and: [ownershipFilter, { $or: productIdentifiers }],
+      }).session(session);
+
+      if (!product) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: `Product not found for ${item.sku || item.name || "an order item"}. Refresh products and try again.`,
+        });
+      }
+
+      if (Number(product.stock || 0) < quantity) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          message: `Insufficient stock for ${product.name}. Available: ${product.stock}, requested: ${quantity}.`,
+        });
+      }
+
+      const updatedProduct = await Product.findOneAndUpdate(
+        { _id: product._id, ...ownershipFilter, stock: { $gte: quantity } },
+        { $inc: { stock: -quantity } },
+        { new: true, session },
+      );
+
+      if (!updatedProduct) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          message: `Stock changed for ${product.name}. Please try again.`,
+        });
+      }
+    }
 
     // Generate a unique invoice number.
     const invoiceNo = await generateInvoiceNo(req.user._id);
@@ -162,7 +232,10 @@ export const createOrder = async (req, res) => {
 
     // Detect duplicate invoice number collisions explicitly.
     if (error && error.code === 11000) {
-      console.error("Duplicate invoice number collision detected:", error.keyValue);
+      console.error(
+        "Duplicate invoice number collision detected:",
+        error.keyValue,
+      );
     }
 
     return res.status(500).json({ message: "Failed to create order." });

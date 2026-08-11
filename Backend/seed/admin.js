@@ -13,12 +13,12 @@ const seedAdmin = async () => {
   const adminPassword = "Omkar@2005";
 
   try {
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
     const existing = await User.findOne({ email: adminEmail });
 
     if (existing) {
-      // If the email already exists (e.g. registered as a business owner),
-      // promote it to superadmin and sync the password.
+      // If the email already exists, we only ensure it has the superadmin
+      // role so the admin panel opens for it. We intentionally do NOT
+      // overwrite the password, so the user's own credentials keep working.
       let changed = false;
       if (existing.role !== "superadmin") {
         existing.role = "superadmin";
@@ -28,9 +28,6 @@ const seedAdmin = async () => {
         existing.businessName = "SmartBill";
         changed = true;
       }
-      // Always ensure the admin password is set correctly.
-      existing.password = hashedPassword;
-      changed = true;
 
       if (changed) {
         await existing.save();
@@ -44,6 +41,8 @@ const seedAdmin = async () => {
       }
       return;
     }
+
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     await User.create({
       firstName: "Omkar",
