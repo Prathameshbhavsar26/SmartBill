@@ -32,3 +32,11 @@ export const sendOtp = (payload) =>
  */
 export const verifyOtp = (payload) =>
   axiosClient.post("/auth/verify-otp", payload).then((res) => res.data);
+
+// Get the currently logged-in user's profile
+export const getProfile = () =>
+  axiosClient.get("/auth/profile").then((res) => res.data);
+
+// Update the currently logged-in user's profile
+export const updateProfile = (payload) =>
+  axiosClient.put("/auth/profile", payload).then((res) => res.data);
