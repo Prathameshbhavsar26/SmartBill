@@ -58,22 +58,18 @@ export default function ProductsScreen() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Make products editable so "Save Product" updates the table below.
-const [productList, setProductList] = useState([]);
+  const [units, setUnits] = useState([
+    "Piece",
+    "Kg",
+    "Litre",
+    "Box",
+    "Dozen",
+    "Metre",
+  ]);
 
-const [units, setUnits] = useState([
-  "Piece",
-  "Kg",
-  "Litre",
-  "Box",
-  "Dozen",
-  "Metre",
-    "TEST UNIT",
-]);
-
-const [newUnit, setNewUnit] = useState("");
-const [showUnitInput, setShowUnitInput] = useState(false);
-const [showEditUnitInput, setShowEditUnitInput] = useState(false);
+  const [newUnit, setNewUnit] = useState("");
+  const [showUnitInput, setShowUnitInput] = useState(false);
+  const [showEditUnitInput, setShowEditUnitInput] = useState(false);
   // Products are loaded from the backend API.
   const [productList, setProductList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -272,62 +268,62 @@ const [showEditUnitInput, setShowEditUnitInput] = useState(false);
               />
             </div>
 
-          
-<div className="space-y-2">
-  <Select
-    label="Unit"
-    value={editForm.unit}
-    onChange={(v) => {
-      if (v === "+ New Unit") {
-        setShowEditUnitInput(true);
-        return;
-      }
 
-      setEditForm((f) => ({
-        ...f,
-        unit: v,
-      }));
+            <div className="space-y-2">
+              <Select
+                label="Unit"
+                value={editForm.unit}
+                onChange={(v) => {
+                  if (v === "+ New Unit") {
+                    setShowEditUnitInput(true);
+                    return;
+                  }
 
-      setShowEditUnitInput(false);
-    }}
-    options={[...units, "+ New Unit"]}
-  />
+                  setEditForm((f) => ({
+                    ...f,
+                    unit: v,
+                  }));
 
-  {showEditUnitInput && (
-    <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
-      <Input
-        label="New Unit"
-        value={newUnit}
-        onChange={setNewUnit}
-        placeholder="Enter unit name"
-      />
+                  setShowEditUnitInput(false);
+                }}
+                options={[...units, "+ New Unit"]}
+              />
 
-      <Btn
-        variant="primary"
-        size="sm"
-        onClick={() => {
-          const unit = newUnit.trim();
+              {showEditUnitInput && (
+                <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                  <Input
+                    label="New Unit"
+                    value={newUnit}
+                    onChange={setNewUnit}
+                    placeholder="Enter unit name"
+                  />
 
-          if (!unit) return;
+                  <Btn
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      const unit = newUnit.trim();
 
-          setUnits((prev) =>
-            prev.includes(unit) ? prev : [...prev, unit]
-          );
+                      if (!unit) return;
 
-          setEditForm((f) => ({
-            ...f,
-            unit: unit,
-          }));
+                      setUnits((prev) =>
+                        prev.includes(unit) ? prev : [...prev, unit]
+                      );
 
-          setNewUnit("");
-          setShowEditUnitInput(false);
-        }}
-      >
-        Save Unit
-      </Btn>
-    </div>
-  )}
-</div>
+                      setEditForm((f) => ({
+                        ...f,
+                        unit: unit,
+                      }));
+
+                      setNewUnit("");
+                      setShowEditUnitInput(false);
+                    }}
+                  >
+                    Save Unit
+                  </Btn>
+                </div>
+              )}
+            </div>
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -344,48 +340,35 @@ const [showEditUnitInput, setShowEditUnitInput] = useState(false);
                 variant="primary"
                 disabled={saving}
                 onClick={async () => {
-  const token = localStorage.getItem("smartbill_token");
-
-  try {
-    await axios.put(
-      `http://localhost:5000/api/products/${editId}`,
-      {
-        name: editForm.name,
-        sku: editForm.sku,
-        category: editForm.category,
-        supplier: editForm.supplier,
-        cost: Number(editForm.cost || 0),
-        price: Number(editForm.price || 0),
-        gst: Number(editForm.gst || 0),
-        stock: Number(editForm.stock || 0),
-        minStock: Number(editForm.minStock || 0),
-        unit: editForm.unit,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    await fetchProducts();
-
-    showToast("Product updated successfully", "success");
-  } catch (error) {
-    console.error("UPDATE PRODUCT ERROR:", error.response?.data || error);
-
-    showToast(
-      error.response?.data?.message || "Failed to update product",
-      "error"
-    );
-  } finally {
-    setShowEditModal(false);
-    setEditId(null);
-    setShowEditCategoryInput(false);
-  }
-}}
-                  
-              
+                  setSaving(true);
+                  try {
+                    await updateProduct(editId, {
+                      name: editForm.name,
+                      sku: editForm.sku,
+                      category: editForm.category,
+                      supplier: editForm.supplier,
+                      cost: Number(editForm.cost || 0),
+                      price: Number(editForm.price || 0),
+                      gst: Number(editForm.gst || 0),
+                      stock: Number(editForm.stock || 0),
+                      minStock: Number(editForm.minStock || 0),
+                      unit: editForm.unit,
+                    });
+                    await loadProducts();
+                    showToast("Product updated successfully", "success");
+                    setShowEditModal(false);
+                    setEditId(null);
+                    setShowEditCategoryInput(false);
+                    setShowEditUnitInput(false);
+                  } catch (err) {
+                    showToast(
+                      err.message || "Failed to update product.",
+                      "error"
+                    );
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
                 className="flex-1 justify-center"
               >
                 {saving ? "Saving..." : "Save Changes"}
@@ -402,6 +385,8 @@ const [showEditUnitInput, setShowEditUnitInput] = useState(false);
           onClose={() => {
             setShowModal(false);
             setShowCategoryInput(false);
+            setShowUnitInput(false);
+            setNewUnit("");
           }}
         >
           <div className="space-y-4">
@@ -500,18 +485,58 @@ const [showEditUnitInput, setShowEditUnitInput] = useState(false);
                 onChange={(v) => setForm((f) => ({ ...f, minStock: v }))}
               />
             </div>
-            <Select
-              label="Unit"
-              value={form.unit}
-              onChange={(v) => setForm((f) => ({ ...f, unit: v }))}
-              options={["Piece", "Kg", "Litre", "Box", "Dozen", "Metre"]}
-            />
+
+            <div className="space-y-2">
+              <Select
+                label="Unit"
+                value={form.unit}
+                onChange={(v) => {
+                  if (v === "+ New Unit") {
+                    setShowUnitInput(true);
+                    return;
+                  }
+                  setForm((f) => ({ ...f, unit: v }));
+                  setShowUnitInput(false);
+                }}
+                options={[...units, "+ New Unit"]}
+              />
+
+              {showUnitInput && (
+                <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                  <Input
+                    label="New Unit"
+                    value={newUnit}
+                    onChange={setNewUnit}
+                    placeholder="Enter unit name"
+                  />
+                  <Btn
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      const unit = newUnit.trim();
+                      if (!unit) return;
+                      setUnits((prev) =>
+                        prev.includes(unit) ? prev : [...prev, unit]
+                      );
+                      setForm((f) => ({ ...f, unit: unit }));
+                      setNewUnit("");
+                      setShowUnitInput(false);
+                    }}
+                  >
+                    Save Unit
+                  </Btn>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
                 onClick={() => {
                   setShowModal(false);
                   setShowCategoryInput(false);
+                  setShowUnitInput(false);
+                  setNewUnit("");
                 }}
                 className="flex-1 justify-center"
               >
@@ -539,6 +564,8 @@ const [showEditUnitInput, setShowEditUnitInput] = useState(false);
                     await loadProducts();
                     setShowModal(false);
                     setShowCategoryInput(false);
+                    setShowUnitInput(false);
+                    setNewUnit("");
                     setForm({
                       name: "",
                       sku: "",
@@ -672,6 +699,7 @@ const [showEditUnitInput, setShowEditUnitInput] = useState(false);
                             e.stopPropagation();
                             setShowEditModal(true);
                             setEditId(p.id);
+                            const u = p.unit || "Piece";
                             setEditForm({
                               name: p.name,
                               sku: p.sku,
@@ -679,11 +707,14 @@ const [showEditUnitInput, setShowEditUnitInput] = useState(false);
                               supplier: p.supplier,
                               cost: String(p.cost ?? 0),
                               price: String(p.price ?? 0),
-                              gst: "",
+                              gst: String(p.gst ?? ""),
                               stock: String(p.stock ?? 0),
                               minStock: String(p.minStock ?? 0),
-                              unit: "Piece",
+                              unit: u,
                             });
+                            if (p.unit && !units.includes(p.unit)) {
+                              setUnits((prev) => [...prev, p.unit]);
+                            }
                           }}
                           icon={<Edit2 className="w-3.5 h-3.5" />}
                         />
