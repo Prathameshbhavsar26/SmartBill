@@ -149,11 +149,19 @@ export default function AuthScreen({ view, onNav, onLogin }) {
           };
       const data = await loginUser(payload);
 
+      // Force the panel based on the "Login As" toggle the user selected:
+      // selecting "Super Admin" always opens the admin panel, and selecting
+      // "Business Owner" always opens the business owner panel.
+      const resolvedRole = role === "superadmin" ? "superadmin" : "owner";
+
       localStorage.setItem("smartbill_token", data.token);
-      localStorage.setItem("smartbill_user", JSON.stringify(data.user));
+      localStorage.setItem(
+        "smartbill_user",
+        JSON.stringify({ ...data.user, role: resolvedRole }),
+      );
 
       showToast("Login successful", "success");
-      onLogin(data.user.role || "owner", data.user);
+      onLogin(resolvedRole, data.user);
     } catch (err) {
       setFormError(err.message || "Login failed. Please try again.");
     } finally {
@@ -354,7 +362,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
               </p>
               <div className="space-y-4">
                 <div>
-<label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
                     Login As
                   </label>
                   <div className="grid grid-cols-2 gap-2">
