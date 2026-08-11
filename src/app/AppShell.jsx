@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Revenue from "./pages/admin/Revenue";
 import BusinessesNew from "./pages/admin/BusinessesNew";
 import Sidebar from "./layouts/Sidebar";
@@ -19,8 +19,9 @@ import SuperAdminSettingsScreen from "./pages/admin/SuperAdminSettingsScreen";
 import SettingsScreen from "./pages/settings/SettingsScreen";
 import NotificationsScreen from "./pages/users/NotificationsScreen";
 import ProfileScreen from "./pages/settings/ProfileScreen";
+import { useCustomization } from "./hooks/useCustomization";
 
-export default function AppShell({ role, onLogout, page, onNav }) {
+export default function AppShell({ role, user, onLogout, page, onNav }) {
   const [collapsed, setCollapsed] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
 
@@ -61,7 +62,7 @@ export default function AppShell({ role, onLogout, page, onNav }) {
       case "notifications":
         return <NotificationsScreen />;
       case "profile":
-        return <ProfileScreen />;
+        return <ProfileScreen user={user} />;
       default:
         return <BusinessDashboard onNav={onNav} />;
     }
@@ -76,6 +77,7 @@ export default function AppShell({ role, onLogout, page, onNav }) {
         page={page}
         onNav={onNav}
         role={role}
+        user={user}
         collapsed={collapsed}
         onToggle={() => setCollapsed((v) => !v)}
       />
@@ -85,6 +87,7 @@ export default function AppShell({ role, onLogout, page, onNav }) {
           onLogout={onLogout}
           onNav={onNav}
           role={role}
+          user={user}
           notifCount={unread}
         />
         <main className="flex-1 overflow-y-auto p-6">{renderPage()}</main>

@@ -9,6 +9,7 @@ import {
 import LandingPage from "./pages/public/LandingPage";
 import AuthScreen from "./pages/public/AuthScreen";
 import AppShell from "./AppShell";
+import { CustomizationProvider } from "./context/CustomizationContext";
 
 const APP_PAGES = [
   "dashboard",
@@ -39,7 +40,15 @@ function getPageFromPath(pathname) {
 function AppRoutes() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [role, setRole] = useState("owner");
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem("smartbill_user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [role, setRole] = useState(() => user?.role || "owner");
   const [page, setPage] = useState(() => {
     const routePage = getPageFromPath(location.pathname);
     return (
@@ -58,13 +67,24 @@ function AppRoutes() {
     if (routePage) setPage(routePage);
   }, [location.pathname, role]);
 
-  const handleLogin = (r) => {
+  const handleLogin = (r, u) => {
     setRole(r);
+    if (u) {
+      setUser(u);
+    } else {
+      try {
+        const raw = localStorage.getItem("smartbill_user");
+        if (raw) setUser(JSON.parse(raw));
+      } catch {}
+    }
     setPage(r === "superadmin" ? "super-dashboard" : "dashboard");
     navigate("/app");
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("smartbill_token");
+    localStorage.removeItem("smartbill_user");
+    setUser(null);
     setPage("dashboard");
     navigate("/");
   };
@@ -109,6 +129,7 @@ function AppRoutes() {
         element={
           <AppShell
             role={role}
+            user={user}
             onLogout={handleLogout}
             page={page}
             onNav={navApp}
@@ -120,6 +141,7 @@ function AppRoutes() {
         element={
           <AppShell
             role={role}
+            user={user}
             onLogout={handleLogout}
             page={page}
             onNav={navApp}
@@ -133,8 +155,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <CustomizationProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </CustomizationProvider>
   );
 }

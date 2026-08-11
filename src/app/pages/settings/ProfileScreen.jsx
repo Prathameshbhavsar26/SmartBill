@@ -1,38 +1,86 @@
-import { Mail, MapPin, Phone, UserCircle } from "lucide-react";
-import { Btn, Card, Input } from "../../components/common/ui";
+import { useState, useEffect } from "react";
+import { Check, Edit2, Mail, MapPin, Phone, UserCircle } from "lucide-react";
+import { Badge, Btn, Card, Input } from "../../components/common/ui";
+import { getUserDisplayName, getUserInitials } from "../../utils/userUtils";
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ user }) {
+  const [formData, setFormData] = useState({
+    firstName: user?.firstName || "Admin",
+    lastName: user?.lastName || "User",
+    email: user?.email || "admin@business.in",
+    phone: user?.phone || "+91 98765 43210",
+  });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || "Admin",
+        lastName: user.lastName || "User",
+        email: user.email || "admin@business.in",
+        phone: user.phone
+          ? user.phone.startsWith("+91")
+            ? user.phone
+            : `+91 ${user.phone}`
+          : "+91 98765 43210",
+      });
+    }
+  }, [user]);
+
+  const displayName = getUserDisplayName(user);
+  const initials = getUserInitials(displayName);
+  const businessName = user?.businessName || "SmartBill";
+  const roleTitle =
+    user?.role === "superadmin" ? "Super Admin" : "Business Owner";
+
   return (
     <div className="max-w-2xl space-y-5">
       <Card className="p-6">
         <div className="flex items-start gap-5 mb-6">
           <div className="relative">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center">
-              <span className="text-xl font-bold text-white">AU</span>
+              <span className="text-xl font-bold text-white">{initials}</span>
             </div>
             <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center shadow-sm hover:bg-slate-50">
               <Edit2 className="w-3 h-3 text-slate-600" />
             </button>
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 text-lg">Admin User</h3>
+            <h3 className="font-bold text-slate-900 text-lg">{displayName}</h3>
             <p className="text-sm text-slate-500">
-              Business Owner · Sharma Traders
+              {roleTitle} · {businessName}
             </p>
             <Badge label="Pro Plan" variant="blue" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <Input label="First Name" value="Admin" />
-          <Input label="Last Name" value="User" />
+          <Input
+            label="First Name"
+            value={formData.firstName}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, firstName: e.target.value }))
+            }
+          />
+          <Input
+            label="Last Name"
+            value={formData.lastName}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, lastName: e.target.value }))
+            }
+          />
           <Input
             label="Email"
-            value="admin@business.in"
+            value={formData.email}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, email: e.target.value }))
+            }
             icon={<Mail className="w-4 h-4" />}
           />
           <Input
             label="Phone"
-            value="+91 98765 43210"
+            value={formData.phone}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, phone: e.target.value }))
+            }
             icon={<Phone className="w-4 h-4" />}
           />
         </div>

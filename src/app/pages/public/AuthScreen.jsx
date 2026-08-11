@@ -153,7 +153,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
       localStorage.setItem("smartbill_user", JSON.stringify(data.user));
 
       showToast("Login successful", "success");
-      onLogin(data.user.role || "owner");
+      onLogin(data.user.role || "owner", data.user);
     } catch (err) {
       setFormError(err.message || "Login failed. Please try again.");
     } finally {
@@ -203,7 +203,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
         "Account created successfully. You're now signed in.",
         "success",
       );
-      onLogin(data.user.role || "owner");
+      onLogin(data.user.role || "owner", data.user);
     } catch (err) {
       if (err.field === "email") {
         setRegisterEmailError(err.message);

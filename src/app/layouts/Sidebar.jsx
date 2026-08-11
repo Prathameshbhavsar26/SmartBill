@@ -1,8 +1,13 @@
-import { BarChart2, ChevronRight, Menu, UserCircle, X } from "lucide-react";
+import { BarChart2, ChevronRight, Menu, UserCircle } from "lucide-react";
 import { NAV_GROUPS, SUPER_ADMIN_ITEMS } from "./navConfig";
+import { getUserDisplayName } from "../utils/userUtils";
+import { useCustomization } from "../hooks/useCustomization";
 
-export default function Sidebar({ page, onNav, role, collapsed, onToggle }) {
+export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }) {
+  const { t } = useCustomization();
   const isSuperAdmin = role === "superadmin";
+  const displayName = getUserDisplayName(user);
+  const displayEmail = user?.email || "admin@business.in";
 
   return (
     <aside
@@ -13,7 +18,10 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle }) {
       <div
         className={`flex items-center border-b border-slate-800 h-16 px-4 gap-3 flex-shrink-0`}
       >
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white"
+          style={{ backgroundColor: "var(--primary, #2563eb)" }}
+        >
           <BarChart2 className="w-4 h-4 text-white" />
         </div>
 
@@ -28,6 +36,7 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle }) {
         <button
           onClick={onToggle}
           className="text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0"
+          title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {collapsed ? (
             <ChevronRight className="w-4 h-4" />
@@ -43,17 +52,27 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle }) {
           <div className="space-y-0.5 px-3">
             {SUPER_ADMIN_ITEMS.map(({ key, label, icon: Icon }) => {
               const active = page === key;
+              const translatedLabel = t(`nav.${key}`) || label;
               return (
                 <button
                   key={key}
                   onClick={() => onNav(key)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative ${active ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}
+                  style={
+                    active
+                      ? { backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" }
+                      : {}
+                  }
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative ${
+                    active
+                      ? "text-white shadow-md"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  }`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
-                  {!collapsed && <span>{label}</span>}
+                  {!collapsed && <span>{translatedLabel}</span>}
                   {collapsed && (
                     <span className="absolute left-14 bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-xl">
-                      {label}
+                      {translatedLabel}
                     </span>
                   )}
                 </button>
@@ -72,17 +91,27 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle }) {
                 <div className="space-y-0.5 px-3">
                   {group.items.map(({ key, label, icon: Icon }) => {
                     const active = page === key;
+                    const translatedLabel = t(`nav.${key}`) || label;
                     return (
                       <button
                         key={key}
                         onClick={() => onNav(key)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative ${active ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}
+                        style={
+                          active
+                            ? { backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" }
+                            : {}
+                        }
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative ${
+                          active
+                            ? "text-white shadow-md"
+                            : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                        }`}
                       >
                         <Icon className="w-4 h-4 flex-shrink-0" />
-                        {!collapsed && <span>{label}</span>}
+                        {!collapsed && <span>{translatedLabel}</span>}
                         {collapsed && (
                           <span className="absolute left-14 bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-xl">
-                            {label}
+                            {translatedLabel}
                           </span>
                         )}
                       </button>
@@ -98,16 +127,16 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle }) {
       {/* User */}
       <div className="border-t border-slate-800 p-3 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <UserCircle className="w-4 h-4 text-blue-400" />
+          <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center flex-shrink-0">
+            <UserCircle className="w-4 h-4 text-slate-300" />
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-white truncate">
-                Admin User
+                {displayName}
               </p>
               <p className="text-[10px] text-slate-500 truncate">
-                admin@business.in
+                {displayEmail}
               </p>
             </div>
           )}

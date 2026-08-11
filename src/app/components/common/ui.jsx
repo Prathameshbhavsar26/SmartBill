@@ -27,7 +27,7 @@ export function Btn({
   };
   const variants = {
     primary:
-      "bg-blue-600 text-white hover:bg-blue-700 shadow-sm active:scale-[0.98]",
+      "text-white shadow-sm active:scale-[0.98] hover:opacity-90 transition-all",
     secondary:
       "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.98]",
     outline:
@@ -42,6 +42,7 @@ export function Btn({
     <button
       onClick={onClick}
       disabled={disabled}
+      style={variant === "primary" ? { backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" } : {}}
       className={`${base} ${sizes[size]} ${variants[variant]} ${disabled ? "opacity-50 cursor-not-allowed" : ""} ${className}`}
     >
       {icon && icon}

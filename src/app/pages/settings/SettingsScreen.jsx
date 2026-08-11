@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useCustomization } from "../../hooks/useCustomization";
 import {
   Building2,
   Percent,
@@ -70,19 +71,21 @@ export default function SettingsScreen() {
   // GST Registration state
   const [isComposition, setIsComposition] = useState(false);
 
-  // Customization states
-  const [theme, setTheme] = useState("light");
-  const [accentColor, setAccentColor] = useState("#3b82f6");
-  const [sidebarStyle, setSidebarStyle] = useState("expanded");
-  const [fontSize, setFontSize] = useState("medium");
-  const [language, setLanguage] = useState("English");
-  const [dateFormat, setDateFormat] = useState("DD-MM-YYYY");
-  const [timeFormat, setTimeFormat] = useState("24-hour");
-  const [currencyFormat, setCurrencyFormat] = useState("Indian");
+  // Consume Centralized Customization Context
+  const {
+    tempSettings,
+    updateTempSettings,
+    saveSettings,
+    cancelChanges,
+    resetToDefault,
+    saving,
+    error: customError,
+    successMessage: customSuccess,
+    t,
+  } = useCustomization();
 
   // Low Stock Alert states
   const [lowStockThreshold, setLowStockThreshold] = useState("10");
-  const [emailAlerts, setEmailAlerts] = useState(true);
   const [inAppAlerts, setInAppAlerts] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(false);
 
@@ -134,47 +137,7 @@ export default function SettingsScreen() {
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
   const [sessionTimeout, setSessionTimeout] = useState(true);
 
-  // Apply theme to document - FIXED: No longer inverted
-  useEffect(() => {
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-      document.body.style.backgroundColor = "#0f172a";
-      document.body.style.color = "#f8fafc";
-    } else {
-      document.documentElement.classList.remove("dark");
-      document.body.style.backgroundColor = "#ffffff";
-      document.body.style.color = "#000000";
-    }
-  }, [theme]);
 
-  // Apply accent color to CSS
-  useEffect(() => {
-    document.documentElement.style.setProperty("--accent-color", accentColor);
-  }, [accentColor]);
-
-  // Apply font size
-  useEffect(() => {
-    const sizeMap = { small: "14px", medium: "16px", large: "18px" };
-    document.documentElement.style.fontSize = sizeMap[fontSize];
-  }, [fontSize]);
-
-  // Handle theme save
-  const handleSaveCustomization = () => {
-    localStorage.setItem(
-      "appSettings",
-      JSON.stringify({
-        theme,
-        accentColor,
-        sidebarStyle,
-        fontSize,
-        language,
-        dateFormat,
-        timeFormat,
-        currencyFormat,
-      }),
-    );
-    alert("✓ Customization settings saved successfully!");
-  };
   const handleSaveBusiness = () => {
     console.log(businessInfo);
 
@@ -1170,94 +1133,130 @@ export default function SettingsScreen() {
 
         {/* TAB 8: CUSTOMIZATION */}
         {activeTab === "customization" && (
-          <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
-            <h3 className="font-semibold text-slate-900">
-              Customization Settings
-            </h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900 dark:text-white text-base">
+                {t("settings.customization_title")}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={resetToDefault}
+                  disabled={saving}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                  {t("settings.reset_defaults")}
+                </button>
+              </div>
+            </div>
+
+            {/* Notification messages */}
+            {customSuccess && (
+              <div className="p-3.5 text-sm rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-400">
+                {customSuccess}
+              </div>
+            )}
+            {customError && (
+              <div className="p-3.5 text-sm rounded-xl bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-400">
+                {customError}
+              </div>
+            )}
 
             {/* Visual & Appearance Settings */}
-            <div className="border-t pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-4">
-                Visual & Appearance Settings
+            <div className="border-t border-slate-200 dark:border-slate-800 pt-6">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
+                {t("settings.visual_appearance")}
               </h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Theme & Mode
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    {t("settings.theme_mode")}
                   </label>
                   <select
-                    value={theme}
-                    onChange={(e) => setTheme(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    value={tempSettings.theme || "light"}
+                    onChange={(e) => updateTempSettings({ theme: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="light">Light Mode</option>
-                    <option value="dark">Dark Mode</option>
-                    <option value="system">System Default</option>
+                    <option value="light">{t("settings.light_mode")}</option>
+                    <option value="dark">{t("settings.dark_mode")}</option>
+                    <option value="system">{t("settings.system_default")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Accent Color
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    {t("settings.accent_color")}
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2.5 items-center">
                     <input
                       type="color"
-                      value={accentColor}
-                      onChange={(e) => setAccentColor(e.target.value)}
-                      className="w-10 h-10 rounded border border-slate-300 cursor-pointer"
+                      value={tempSettings.accentColor || "#3b82f6"}
+                      onChange={(e) =>
+                        updateTempSettings({ accentColor: e.target.value })
+                      }
+                      className="w-10 h-10 rounded border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white dark:bg-slate-800"
                     />
                     <input
                       type="text"
-                      value={accentColor}
-                      readOnly
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50"
+                      value={tempSettings.accentColor || "#3b82f6"}
+                      onChange={(e) =>
+                        updateTempSettings({ accentColor: e.target.value })
+                      }
+                      className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm font-mono"
+                      placeholder="#3b82f6"
+                    />
+                    <div
+                      className="w-6 h-6 rounded-full border border-slate-300 shadow-inner flex-shrink-0"
+                      style={{ backgroundColor: tempSettings.accentColor || "#3b82f6" }}
+                      title="Accent Color Preview"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Sidebar Style
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    {t("settings.sidebar_style")}
                   </label>
                   <select
-                    value={sidebarStyle}
-                    onChange={(e) => setSidebarStyle(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    value={tempSettings.sidebarStyle || "expanded"}
+                    onChange={(e) => updateTempSettings({ sidebarStyle: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="expanded">Expanded (Text + Icon)</option>
-                    <option value="compact">Compact (Icons Only)</option>
+                    <option value="expanded">{t("settings.expanded")}</option>
+                    <option value="compact">{t("settings.compact")}</option>
+                    <option value="auto">{t("settings.auto_responsive")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Font Size
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    {t("settings.font_size")}
                   </label>
                   <select
-                    value={fontSize}
-                    onChange={(e) => setFontSize(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    value={tempSettings.fontSize || "medium"}
+                    onChange={(e) => updateTempSettings({ fontSize: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="small">Small</option>
-                    <option value="medium">Medium</option>
-                    <option value="large">Large</option>
+                    <option value="small">{t("settings.small")}</option>
+                    <option value="medium">{t("settings.medium")}</option>
+                    <option value="large">{t("settings.large")}</option>
+                    <option value="xlarge">{t("settings.xlarge")}</option>
                   </select>
                 </div>
               </div>
             </div>
 
             {/* Localization & Regional Formats */}
-            <div className="border-t pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-4">
-                Localization & Regional Formats
+            <div className="border-t border-slate-200 dark:border-slate-800 pt-6">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
+                {t("settings.localization_regional")}
               </h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Language Selection
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    {t("settings.language_selection")}
                   </label>
                   <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    value={tempSettings.language || "English"}
+                    onChange={(e) => updateTempSettings({ language: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="English">English</option>
                     <option value="Hindi">Hindi (हिंदी)</option>
@@ -1265,57 +1264,85 @@ export default function SettingsScreen() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Date Format
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    {t("settings.date_format")}
                   </label>
                   <select
-                    value={dateFormat}
-                    onChange={(e) => setDateFormat(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    value={tempSettings.dateFormat || "DD-MM-YYYY"}
+                    onChange={(e) => updateTempSettings({ dateFormat: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="MM-DD-YYYY">MM-DD-YYYY</option>
                     <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Time Format
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    {t("settings.time_format")}
                   </label>
                   <select
-                    value={timeFormat}
-                    onChange={(e) => setTimeFormat(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    value={tempSettings.timeFormat || "24-hour"}
+                    onChange={(e) => updateTempSettings({ timeFormat: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="12-hour">12-Hour (AM/PM)</option>
-                    <option value="24-hour">24-Hour Format</option>
+                    <option value="12-hour">12-Hour (02:30 PM)</option>
+                    <option value="24-hour">24-Hour (14:30)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Number & Currency Formatting
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    {t("settings.number_style")}
                   </label>
                   <select
-                    value={currencyFormat}
-                    onChange={(e) => setCurrencyFormat(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    value={tempSettings.numberFormat || "Indian"}
+                    onChange={(e) => updateTempSettings({ numberFormat: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="Indian">Indian Style (1,00,000)</option>
-                    <option value="International">
-                      International Style (100,000)
-                    </option>
+                    <option value="Indian">{t("settings.indian_style")}</option>
+                    <option value="International">{t("settings.international_style")}</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    {t("settings.currency_symbol")}
+                  </label>
+                  <select
+                    value={tempSettings.currency || "INR"}
+                    onChange={(e) => updateTempSettings({ currency: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="INR">INR (₹ - Indian Rupee)</option>
+                    <option value="USD">USD ($ - US Dollar)</option>
+                    <option value="EUR">EUR (€ - Euro)</option>
+                    <option value="GBP">GBP (£ - British Pound)</option>
                   </select>
                 </div>
               </div>
             </div>
 
-            <Btn
-              variant="primary"
-              onClick={handleSaveCustomization}
-              icon={<Check className="w-4 h-4" />}
-            >
-              Save Customization Settings
-            </Btn>
+            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={saveSettings}
+                disabled={saving}
+                style={{ backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium shadow transition-all hover:opacity-90 disabled:opacity-50"
+              >
+                <Check className="w-4 h-4 text-white" />
+                <span>{saving ? t("common.saving") : t("settings.save_customization")}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={cancelChanges}
+                disabled={saving}
+                className="px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                {t("settings.cancel_changes")}
+              </button>
+            </div>
           </div>
         )}
 
@@ -1363,24 +1390,6 @@ export default function SettingsScreen() {
                 Alert Notification Options
               </h4>
               <div className="space-y-3">
-                <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      Email Notifications
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Receive email alerts when stock falls below threshold
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setEmailAlerts(!emailAlerts)}
-                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ${emailAlerts ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${emailAlerts ? "right-1" : "left-1"}`}
-                    />
-                  </button>
-                </div>
                 <div className="flex items-start justify-between py-3 border-b border-slate-100">
                   <div>
                     <p className="text-sm font-medium text-slate-900">

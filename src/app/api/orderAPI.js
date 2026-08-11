@@ -13,7 +13,7 @@ import axiosClient from "./axiosClient";
  * @param {number} payload.totalOrderValue
 * @param {number} payload.amountPaid
  * @param {string} payload.paymentMode
- * @returns {{ message: string, order: object, emailSent: boolean, emailMessage: string }}
+ * @returns {{ message: string, order: object }}
  */
 export const createOrder = (payload) =>
   axiosClient.post("/orders", payload).then((res) => res.data);
