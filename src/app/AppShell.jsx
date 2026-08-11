@@ -21,15 +21,18 @@ import NotificationsScreen from "./pages/users/NotificationsScreen";
 import ProfileScreen from "./pages/settings/ProfileScreen";
 import { useCustomization } from "./hooks/useCustomization";
 import { useLowStock } from "./hooks/useLowStock";
-import { AlertTriangle, X, ShoppingCart, TrendingDown } from "lucide-react";
+import { AlertTriangle, X, ShoppingCart, TrendingDown, ShieldAlert } from "lucide-react";
+import { hasPermission } from "./utils/permissions";
 
 function LowStockAlert({ lowStockItems, outOfStockItems, onClose, onNav }) {
   const total = lowStockItems.length + outOfStockItems.length;
   if (total === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-80 shadow-2xl rounded-2xl overflow-hidden border border-amber-200 animate-in slide-in-from-bottom-4"
-      style={{ animation: "slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1) both" }}>
+    <div
+      className="fixed bottom-6 right-6 z-50 w-80 shadow-2xl rounded-2xl overflow-hidden border border-amber-200 animate-in slide-in-from-bottom-4"
+      style={{ animation: "slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1) both" }}
+    >
       {/* Header */}
       <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -43,7 +46,7 @@ function LowStockAlert({ lowStockItems, outOfStockItems, onClose, onNav }) {
         </div>
         <button
           onClick={onClose}
-          className="text-white/70 hover:text-white transition-colors"
+          className="text-white/70 hover:text-white transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
@@ -80,12 +83,37 @@ function LowStockAlert({ lowStockItems, outOfStockItems, onClose, onNav }) {
       {/* Footer */}
       <div className="bg-slate-50 px-4 py-2.5 border-t border-slate-100">
         <button
-          onClick={() => { onNav("inventory"); onClose(); }}
-          className="w-full text-xs font-semibold text-amber-600 hover:text-amber-700 transition-colors text-center"
+          onClick={() => {
+            onNav("inventory");
+            onClose();
+          }}
+          className="w-full text-xs font-semibold text-amber-600 hover:text-amber-700 transition-colors text-center cursor-pointer"
         >
           View Inventory →
         </button>
       </div>
+    </div>
+  );
+}
+
+function AccessDenied({ pageKey, onNav }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-white rounded-xl border border-slate-200 shadow-sm max-w-lg mx-auto my-12">
+      <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-4 text-amber-600 border border-amber-200">
+        <ShieldAlert className="w-8 h-8" />
+      </div>
+      <h2 className="text-xl font-bold text-slate-900 mb-2">Access Restricted</h2>
+      <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+        You do not have permission to access the{" "}
+        <span className="font-semibold text-slate-800 capitalize">{pageKey}</span>{" "}
+        module. Please contact your business owner to request access.
+      </p>
+      <button
+        onClick={() => onNav("dashboard")}
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
+      >
+        Return to Dashboard
+      </button>
     </div>
   );
 }
@@ -97,12 +125,14 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
 
   const { lowStockItems, outOfStockItems, alertCount } = useLowStock(60_000);
 
-  // Re-show alert whenever stock changes (new items come in)
-  // by tracking the total count
   const totalAlerts = alertCount;
   const bellCount = unread + totalAlerts;
 
   const renderPage = () => {
+    if (!hasPermission(user, page)) {
+      return <AccessDenied pageKey={page} onNav={onNav} />;
+    }
+
     switch (page) {
       case "super-dashboard":
         return <SuperAdminDashboard />;
