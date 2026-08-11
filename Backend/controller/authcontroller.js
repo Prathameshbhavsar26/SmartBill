@@ -4,12 +4,19 @@ import crypto from "crypto";
 import User from "../models/User.js";
 import Verification from "../models/verifiy.js";
 
-// Helper to build a safe, token-bearing auth response.
+// ======================================================
+// HELPER: BUILD AUTH RESPONSE
+// ======================================================
+
 const buildAuthPayload = (user) => {
   const token = jwt.sign(
-    { id: user._id, role: user.role, businessType: user.businessType },
+    {
+      id: user._id,
+      role: user.role,
+      businessType: user.businessType,
+    },
     process.env.JWT_SECRET,
-    { expiresIn: "7d" },
+    { expiresIn: "7d" }
   );
 
   return {
@@ -28,7 +35,21 @@ const buildAuthPayload = (user) => {
   };
 };
 
-// ================= REGISTER =================
+// ======================================================
+// HELPER: NORMALIZE PHONE
+// ======================================================
+
+const normalizePhone = (raw) => {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+
+  return digits.startsWith("91") && digits.length === 12
+    ? digits.slice(2)
+    : digits;
+};
+
+// ======================================================
+// REGISTER
+// ======================================================
 
 export const register = async (req, res) => {
   try {
@@ -43,33 +64,55 @@ export const register = async (req, res) => {
     } = req.body;
 
     const normalizedBusinessType = ["Retail", "Wholesale"].includes(
-      String(businessType ?? "Retail").trim(),
+      String(businessType ?? "Retail").trim()
     )
       ? String(businessType ?? "Retail").trim()
       : "Retail";
 
-    // ---- Validation ----
     const errors = [];
 
-    if (!firstName || !String(firstName).trim())
+    if (!firstName || !String(firstName).trim()) {
       errors.push("First name is required.");
-    if (!lastName || !String(lastName).trim())
-      errors.push("Last name is required.");
-    if (!businessName || !String(businessName).trim())
-      errors.push("Business name is required.");
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim()))
-      errors.push("A valid email is required.");
-    const rawPhoneDigits = String(phone ?? "").replace(/\D/g, "");
-    const normalizedPhone = rawPhoneDigits.startsWith("91")
-      ? rawPhoneDigits.slice(2)
-      : rawPhoneDigits;
+    }
 
-    if (!normalizedPhone || !/^\d{10}$/.test(normalizedPhone)) {
+    if (!lastName || !String(lastName).trim()) {
+      errors.push("Last name is required.");
+    }
+
+    if (!businessName || !String(businessName).trim()) {
+      errors.push("Business name is required.");
+    }
+
+    if (
+      !email ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())
+    ) {
+      errors.push("A valid email is required.");
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+
+    if (!/^\d{10}$/.test(normalizedPhone)) {
       errors.push("A valid 10-digit phone number is required.");
     }
 
-    // Check if mobile number already exists
-    const existingPhone = await User.findOne({ phone: normalizedPhone });
+    if (!password || String(password).length < 8) {
+      errors.push("Password must be at least 8 characters.");
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        message: errors[0],
+        errors,
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    // Check duplicate phone
+    const existingPhone = await User.findOne({
+      phone: normalizedPhone,
+    });
 
     if (existingPhone) {
       return res.status(409).json({
@@ -77,18 +120,13 @@ export const register = async (req, res) => {
         field: "phone",
       });
     }
-    if (!password || String(password).length < 8)
-      errors.push("Password must be at least 8 characters.");
 
-    if (errors.length > 0) {
-      return res.status(400).json({ message: errors[0], errors });
-    }
+    // Check duplicate email
+    const existingEmail = await User.findOne({
+      email: normalizedEmail,
+    });
 
-    const normalizedEmail = String(email).trim().toLowerCase();
-
-    // Check for duplicate email
-    const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) {
+    if (existingEmail) {
       return res.status(409).json({
         message: "Email already exists. Please sign in instead.",
         field: "email",
@@ -107,16 +145,16 @@ export const register = async (req, res) => {
       password: hashedPassword,
     });
 
-    // Return token + user so the frontend can auto-login after registration.
     return res.status(201).json(buildAuthPayload(user));
   } catch (error) {
     if (error?.code === 11000) {
       return res.status(409).json({
-        message: "Email already exists. Please sign in instead.",
-        field: "email",
+        message: "Email or mobile number already exists.",
       });
     }
+
     console.error("REGISTER ERROR:", error);
+
     return res.status(500).json({
       message:
         "Something went wrong while creating your account. Please try again.",
@@ -124,26 +162,43 @@ export const register = async (req, res) => {
   }
 };
 
-// ================= LOGIN =================
+// ======================================================
+// LOGIN
+// ======================================================
 
-// Detect whether the login identifier is an email or a phone number.
-// Returns { type: "email" } | { type: "phone", value } | { type: "none" }.
 const detectIdentifier = (raw) => {
   const trimmed = String(raw ?? "").trim();
-  if (!trimmed) return { type: "none" };
 
-  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-  if (isEmail) return { type: "email", value: trimmed.toLowerCase() };
-
-  const digits = trimmed.replace(/\D/g, "");
-  const normalized =
-    digits.startsWith("91") && digits.length === 12 ? digits.slice(2) : digits;
-
-  if (/^\d{10}$/.test(normalized)) {
-    return { type: "phone", value: normalized };
+  if (!trimmed) {
+    return { type: "none" };
   }
 
-  return { type: "none" };
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+
+  if (isEmail) {
+    return {
+      type: "email",
+      value: trimmed.toLowerCase(),
+    };
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+
+  const normalized =
+    digits.startsWith("91") && digits.length === 12
+      ? digits.slice(2)
+      : digits;
+
+  if (/^\d{10}$/.test(normalized)) {
+    return {
+      type: "phone",
+      value: normalized,
+    };
+  }
+
+  return {
+    type: "none",
+  };
 };
 
 export const login = async (req, res) => {
@@ -154,7 +209,8 @@ export const login = async (req, res) => {
 
     if (identifier.type === "none" || !password) {
       return res.status(400).json({
-        message: "A valid email or mobile number and password are required.",
+        message:
+          "A valid email or mobile number and password are required.",
       });
     }
 
@@ -166,46 +222,248 @@ export const login = async (req, res) => {
     const user = await User.findOne(query);
 
     if (!user) {
-      const label = identifier.type === "email" ? "email" : "mobile number";
-      return res.status(400).json({ message: `Invalid ${label} or password.` });
+      const label =
+        identifier.type === "email" ? "email" : "mobile number";
+
+      return res.status(400).json({
+        message: `Invalid ${label} or password.`,
+      });
     }
 
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
-      const label = identifier.type === "email" ? "email" : "mobile number";
-      return res.status(400).json({ message: `Invalid ${label} or password.` });
+      const label =
+        identifier.type === "email" ? "email" : "mobile number";
+
+      return res.status(400).json({
+        message: `Invalid ${label} or password.`,
+      });
     }
 
-    // The account's actual role (from the DB) determines which panel opens.
     return res.status(200).json(buildAuthPayload(user));
   } catch (error) {
     console.error("LOGIN ERROR:", error);
+
     return res.status(500).json({
-      message: "Something went wrong while signing in. Please try again.",
+      message:
+        "Something went wrong while signing in. Please try again.",
     });
   }
 };
 
-// ================= OTP VERIFICATION =================
+// ======================================================
+// GET CURRENT USER PROFILE
+// ======================================================
 
-// Normalize phone to 10-digit Indian format (strips +91 / 91 prefix).
-const normalizePhone = (raw) => {
-  const digits = String(raw ?? "").replace(/\D/g, "");
-  return digits.startsWith("91") && digits.length === 12
-    ? digits.slice(2)
-    : digits;
+export const getProfile = async (req, res) => {
+  try {
+    // IMPORTANT:
+    // req.user.id comes from the verified JWT.
+    // The frontend does NOT provide a user ID.
+    const user = await User.findById(req.user.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User profile not found.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Profile fetched successfully.",
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        businessName: user.businessName,
+        businessType: user.businessType,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("GET PROFILE ERROR:", error);
+
+    return res.status(500).json({
+      message: "Unable to load your profile. Please try again.",
+    });
+  }
 };
 
-// Generate a 6-digit OTP.
-const generateOtp = () => crypto.randomInt(100000, 999999).toString();
+// ======================================================
+// UPDATE CURRENT USER PROFILE
+// ======================================================
 
-// Send OTP to a phone number.
-// NOTE: Since no SMS provider is configured, the OTP is logged to the
-// server console so it can be used during development.
+export const updateProfile = async (req, res) => {
+  try {
+    // IMPORTANT:
+    // Always get the user ID from the authentication middleware.
+    // Never trust a user ID sent from the frontend.
+    const userId = req.user.id;
+
+    const {
+      firstName,
+      lastName,
+      businessName,
+      businessType,
+      email,
+      phone,
+    } = req.body;
+
+    // ----------------------------------------------
+    // Validation
+    // ----------------------------------------------
+
+    if (!firstName || !String(firstName).trim()) {
+      return res.status(400).json({
+        message: "First name is required.",
+        field: "firstName",
+      });
+    }
+
+    if (!lastName || !String(lastName).trim()) {
+      return res.status(400).json({
+        message: "Last name is required.",
+        field: "lastName",
+      });
+    }
+
+    if (!businessName || !String(businessName).trim()) {
+      return res.status(400).json({
+        message: "Business name is required.",
+        field: "businessName",
+      });
+    }
+
+    const normalizedEmail = String(email ?? "")
+      .trim()
+      .toLowerCase();
+
+    if (
+      !normalizedEmail ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+    ) {
+      return res.status(400).json({
+        message: "A valid email is required.",
+        field: "email",
+      });
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+
+    if (!/^\d{10}$/.test(normalizedPhone)) {
+      return res.status(400).json({
+        message: "A valid 10-digit phone number is required.",
+        field: "phone",
+      });
+    }
+
+    const normalizedBusinessType = ["Retail", "Wholesale"].includes(
+      String(businessType ?? "Retail").trim()
+    )
+      ? String(businessType ?? "Retail").trim()
+      : "Retail";
+
+    // ----------------------------------------------
+    // Check whether email belongs to another user
+    // ----------------------------------------------
+
+    const existingEmail = await User.findOne({
+      email: normalizedEmail,
+      _id: { $ne: userId },
+    });
+
+    if (existingEmail) {
+      return res.status(409).json({
+        message: "Email already belongs to another account.",
+        field: "email",
+      });
+    }
+
+    // ----------------------------------------------
+    // Check whether phone belongs to another user
+    // ----------------------------------------------
+
+    const existingPhone = await User.findOne({
+      phone: normalizedPhone,
+      _id: { $ne: userId },
+    });
+
+    if (existingPhone) {
+      return res.status(409).json({
+        message: "Mobile number already belongs to another account.",
+        field: "phone",
+      });
+    }
+
+    // ----------------------------------------------
+    // Update ONLY the currently logged-in user
+    // ----------------------------------------------
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        firstName: String(firstName).trim(),
+        lastName: String(lastName).trim(),
+        businessName: String(businessName).trim(),
+        businessType: normalizedBusinessType,
+        email: normalizedEmail,
+        phone: normalizedPhone,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        message: "User profile not found.",
+      });
+    }
+
+    // Return a new token because profile information
+    // such as businessType may have changed.
+    const authPayload = buildAuthPayload(updatedUser);
+
+    return res.status(200).json({
+      message: "Profile updated successfully.",
+      token: authPayload.token,
+      user: authPayload.user,
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        message: "Email or mobile number already belongs to another account.",
+      });
+    }
+
+    console.error("UPDATE PROFILE ERROR:", error);
+
+    return res.status(500).json({
+      message:
+        "Something went wrong while updating your profile. Please try again.",
+    });
+  }
+};
+
+// ======================================================
+// OTP HELPERS
+// ======================================================
+
+// Generate a 6-digit OTP.
+const generateOtp = () =>
+  crypto.randomInt(100000, 999999).toString();
+
+// ======================================================
+// SEND OTP
+// ======================================================
+
 export const sendOtp = async (req, res) => {
   try {
     const { phone } = req.body;
+
     const normalizedPhone = normalizePhone(phone);
 
     if (!/^\d{10}$/.test(normalizedPhone)) {
@@ -216,7 +474,10 @@ export const sendOtp = async (req, res) => {
     }
 
     // Check if this number is already registered
-    const existingUser = await User.findOne({ phone: normalizedPhone });
+    const existingUser = await User.findOne({
+      phone: normalizedPhone,
+    });
+
     if (existingUser) {
       return res.status(409).json({
         message:
@@ -226,37 +487,46 @@ export const sendOtp = async (req, res) => {
     }
 
     const otp = generateOtp();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min
 
-    await Verification.findOneAndDelete({ phone: normalizedPhone });
+    const expiresAt = new Date(
+      Date.now() + 5 * 60 * 1000
+    );
+
+    await Verification.findOneAndDelete({
+      phone: normalizedPhone,
+    });
+
     await Verification.create({
       phone: normalizedPhone,
       otp,
       expiresAt,
     });
 
-    // Development-only: print the OTP to the console.
+    // Development only
     console.log(`[OTP] For ${normalizedPhone}: ${otp}`);
 
-    // NOTE: No SMS provider is configured, so the OTP is returned in the
-    // response so the frontend can display/auto-fill it for testing.
-    // Remove the `otp` field once a real SMS gateway is integrated.
     return res.status(200).json({
       message: "OTP sent successfully.",
       otp,
     });
   } catch (error) {
     console.error("SEND OTP ERROR:", error);
+
     return res.status(500).json({
-      message: "Something went wrong while sending the OTP. Please try again.",
+      message:
+        "Something went wrong while sending the OTP. Please try again.",
     });
   }
 };
 
-// Verify the OTP provided for a phone number.
+// ======================================================
+// VERIFY OTP
+// ======================================================
+
 export const verifyOtp = async (req, res) => {
   try {
     const { phone, otp } = req.body;
+
     const normalizedPhone = normalizePhone(phone);
 
     if (!/^\d{10}$/.test(normalizedPhone)) {
@@ -273,17 +543,23 @@ export const verifyOtp = async (req, res) => {
       });
     }
 
-    const record = await Verification.findOne({ phone: normalizedPhone });
+    const record = await Verification.findOne({
+      phone: normalizedPhone,
+    });
 
     if (!record) {
       return res.status(400).json({
-        message: "No OTP was sent to this number. Please request a new OTP.",
+        message:
+          "No OTP was sent to this number. Please request a new OTP.",
         field: "otp",
       });
     }
 
     if (record.expiresAt < new Date()) {
-      await Verification.deleteOne({ _id: record._id });
+      await Verification.deleteOne({
+        _id: record._id,
+      });
+
       return res.status(400).json({
         message: "OTP has expired. Please request a new one.",
         field: "otp",
@@ -298,6 +574,7 @@ export const verifyOtp = async (req, res) => {
     }
 
     record.verified = true;
+
     await record.save();
 
     return res.status(200).json({
@@ -306,6 +583,7 @@ export const verifyOtp = async (req, res) => {
     });
   } catch (error) {
     console.error("VERIFY OTP ERROR:", error);
+
     return res.status(500).json({
       message:
         "Something went wrong while verifying the OTP. Please try again.",
