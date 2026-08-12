@@ -70,7 +70,6 @@ const productSchema = new mongoose.Schema(
   },
 );
 
-// A SKU should be unique within a single owner's catalogue.
 productSchema.index({ ownerId: 1, sku: 1 }, { unique: true });
 
-export default mongoose.model("Product", productSchema);
+export default mongoose.models.Product || mongoose.model("Product", productSchema);

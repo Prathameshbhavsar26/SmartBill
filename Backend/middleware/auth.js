@@ -29,11 +29,18 @@ export const authMiddleware = (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, secret);
 
+    const effectiveOwnerId = decoded.ownerId || decoded.id;
+
     // Store logged-in user's information in req.user
     req.user = {
-      id: decoded.id,
+      id: effectiveOwnerId.toString(),
+      actualUserId: decoded.id,
+      userId: decoded.id,
+      ownerId: effectiveOwnerId,
+      _id: effectiveOwnerId,
       role: decoded.role,
       businessType: decoded.businessType || "Retail",
+      permissions: decoded.permissions || {},
     };
 
     next();

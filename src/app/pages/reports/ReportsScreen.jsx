@@ -25,6 +25,10 @@ export default function ReportsScreen() {
     { key: "inventory", label: "Inventory Report", icon: Package },
   ];
 
+  const handleExport = () => {
+    window.print();
+  };
+
   const renderActiveReport = () => {
     switch (activeReport) {
       case "sales":
@@ -43,13 +47,17 @@ export default function ReportsScreen() {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex gap-2 flex-wrap">
+    <div className="space-y-5 print:p-0">
+      <div className="flex gap-2 flex-wrap print:hidden">
         {reportTypes.map((r) => (
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeReport === r.key ? "bg-blue-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              activeReport === r.key
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"
+            }`}
           >
             <r.icon className="w-4 h-4" />
             {r.label}
@@ -60,6 +68,7 @@ export default function ReportsScreen() {
             variant="outline"
             size="md"
             icon={<Download className="w-4 h-4" />}
+            onClick={handleExport}
           >
             Export Excel
           </Btn>
@@ -67,6 +76,7 @@ export default function ReportsScreen() {
             variant="outline"
             size="md"
             icon={<Printer className="w-4 h-4" />}
+            onClick={() => window.print()}
           >
             Print PDF
           </Btn>

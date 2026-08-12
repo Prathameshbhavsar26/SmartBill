@@ -152,16 +152,17 @@ export default function AuthScreen({ view, onNav, onLogin }) {
       // Force the panel based on the "Login As" toggle the user selected:
       // selecting "Super Admin" always opens the admin panel, and selecting
       // "Business Owner" always opens the business owner panel.
-      const resolvedRole = role === "superadmin" ? "superadmin" : "owner";
+      const loggedInUser = data.user;
 
-      localStorage.setItem("smartbill_token", data.token);
-      localStorage.setItem(
-        "smartbill_user",
-        JSON.stringify({ ...data.user, role: resolvedRole }),
-      );
+localStorage.setItem("smartbill_token", data.token);
+localStorage.setItem(
+  "smartbill_user",
+  JSON.stringify(loggedInUser)
+);
 
-      showToast("Login successful", "success");
-      onLogin(resolvedRole, data.user);
+showToast("Login successful", "success");
+
+onLogin(loggedInUser.role, loggedInUser);
     } catch (err) {
       setFormError(err.message || "Login failed. Please try again.");
     } finally {

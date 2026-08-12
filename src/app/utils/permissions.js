@@ -68,52 +68,27 @@ export const ROLE_DEFAULT_PERMISSIONS = {
 };
 
 /**
- * Resolves full permissions object for the given user.
+ * Resolves permissions object for the given user.
  * Owners and Superadmins always receive full permissions.
+ * Employees receive the specific module permissions granted to them by the owner.
  */
 export function getUserPermissions(user) {
   if (!user || user.role === "owner" || user.role === "superadmin") {
     return { ...ROLE_DEFAULT_PERMISSIONS.Owner };
   }
 
-  // If user object contains permissions directly
-  if (user.permissions && typeof user.permissions === "object") {
-    return { ...ROLE_DEFAULT_PERMISSIONS.Cashier, ...user.permissions };
-  }
-
-  // Check stored employees in localStorage for matching user email
-  try {
-    const rawUser = localStorage.getItem("smartbill_user");
-    const parsedUser = rawUser ? JSON.parse(rawUser) : user;
-    const userKey = parsedUser?._id || parsedUser?.id || parsedUser?.email;
-    const storageKey = userKey
-      ? `smartbill_employees_${userKey}`
-      : "smartbill_employees_default";
-    const saved =
-      localStorage.getItem(storageKey) ||
-      localStorage.getItem("smartbill_employees");
-
-    if (saved) {
-      const employees = JSON.parse(saved);
-      const match = employees.find(
-        (e) =>
-          e.email?.toLowerCase() === (parsedUser?.email || user?.email)?.toLowerCase()
-      );
-      if (match && match.permissions) {
-        return { ...ROLE_DEFAULT_PERMISSIONS.Cashier, ...match.permissions };
-      }
-    }
-  } catch (err) {
-    console.warn("Error resolving user permissions:", err);
+  // If user object contains specific permissions saved by owner
+  if (user.permissions && typeof user.permissions === "object" && Object.keys(user.permissions).length > 0) {
+    return { ...user.permissions };
   }
 
   // Fallback by role name
   const roleName = user.role
     ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
     : "Cashier";
+
   return {
-    ...ROLE_DEFAULT_PERMISSIONS.Cashier,
-    ...(ROLE_DEFAULT_PERMISSIONS[roleName] || {}),
+    ...(ROLE_DEFAULT_PERMISSIONS[roleName] || ROLE_DEFAULT_PERMISSIONS.Cashier),
   };
 }
 

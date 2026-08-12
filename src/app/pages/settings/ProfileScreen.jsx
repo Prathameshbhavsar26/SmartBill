@@ -4,7 +4,9 @@ import { Badge, Btn, Card, Input } from "../../components/common/ui";
 import { getUserDisplayName, getUserInitials } from "../../utils/userUtils";
 import { getProfile, updateProfile } from "../../api/authAPI";
 
-export default function ProfileScreen({ user }) {
+export default function ProfileScreen() {
+  const [profileUser, setProfileUser] = useState(null);
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -20,7 +22,7 @@ export default function ProfileScreen({ user }) {
   const [error, setError] = useState("");
 
   // ======================================================
-  // LOAD CURRENT LOGGED-IN USER PROFILE
+  // LOAD CURRENT LOGGED-IN USER
   // ======================================================
 
   useEffect(() => {
@@ -28,36 +30,39 @@ export default function ProfileScreen({ user }) {
       try {
         setLoading(true);
         setError("");
+        setMessage("");
 
         const response = await getProfile();
 
-        if (response?.user) {
-          setFormData({
-            firstName: response.user.firstName || "",
-            lastName: response.user.lastName || "",
-            businessName: response.user.businessName || "",
-            businessType: response.user.businessType || "Retail",
-            email: response.user.email || "",
-            phone: response.user.phone || "",
-          });
+        if (!response?.user) {
+          throw new Error("User profile could not be loaded.");
         }
+
+        const currentUser = response.user;
+
+        // Backend user is the ONLY source of profile data.
+        setProfileUser(currentUser);
+
+        setFormData({
+          firstName: currentUser.firstName || "",
+          lastName: currentUser.lastName || "",
+          businessName: currentUser.businessName || "",
+          businessType: currentUser.businessType || "Retail",
+          email: currentUser.email || "",
+          phone: currentUser.phone || "",
+        });
+
+        // Keep localStorage synchronized with backend.
+        localStorage.setItem(
+          "smartbill_user",
+          JSON.stringify(currentUser)
+        );
       } catch (err) {
         console.error("LOAD PROFILE ERROR:", err);
 
-        // Fallback to the user received from App.jsx
-        if (user) {
-          setFormData({
-            firstName: user.firstName || "",
-            lastName: user.lastName || "",
-            businessName: user.businessName || "",
-            businessType: user.businessType || "Retail",
-            email: user.email || "",
-            phone: user.phone || "",
-          });
-        }
-
         setError(
-          err?.message || "Unable to load your profile."
+          err?.message ||
+            "Unable to load your profile. Please login again."
         );
       } finally {
         setLoading(false);
@@ -65,7 +70,7 @@ export default function ProfileScreen({ user }) {
     };
 
     loadProfile();
-  }, [user]);
+  }, []);
 
   // ======================================================
   // HANDLE INPUT CHANGE
@@ -82,7 +87,7 @@ export default function ProfileScreen({ user }) {
   };
 
   // ======================================================
-  // UPDATE CURRENT USER PROFILE
+  // UPDATE CURRENT LOGGED-IN USER
   // ======================================================
 
   const handleUpdateProfile = async () => {
@@ -93,30 +98,37 @@ export default function ProfileScreen({ user }) {
 
       const response = await updateProfile(formData);
 
-      // Save the updated user returned by backend
-      if (response?.user) {
-        localStorage.setItem(
-          "smartbill_user",
-          JSON.stringify(response.user)
-        );
-
-        setFormData({
-          firstName: response.user.firstName || "",
-          lastName: response.user.lastName || "",
-          businessName: response.user.businessName || "",
-          businessType: response.user.businessType || "Retail",
-          email: response.user.email || "",
-          phone: response.user.phone || "",
-        });
+      if (!response?.user) {
+        throw new Error("Profile update failed.");
       }
 
-      // Backend sends a new JWT after profile update
-      if (response?.token) {
+      const updatedUser = response.user;
+
+      // Update the profile displayed on this screen.
+      setProfileUser(updatedUser);
+
+      setFormData({
+        firstName: updatedUser.firstName || "",
+        lastName: updatedUser.lastName || "",
+        businessName: updatedUser.businessName || "",
+        businessType: updatedUser.businessType || "Retail",
+        email: updatedUser.email || "",
+        phone: updatedUser.phone || "",
+      });
+
+      // Update stored user.
+      localStorage.setItem(
+        "smartbill_user",
+        JSON.stringify(updatedUser)
+      );
+
+      // Backend returns a fresh JWT.
+      if (response.token) {
         localStorage.setItem("smartbill_token", response.token);
       }
 
       setMessage(
-        response?.message || "Profile updated successfully."
+        response.message || "Profile updated successfully."
       );
     } catch (err) {
       console.error("UPDATE PROFILE ERROR:", err);
@@ -133,27 +145,24 @@ export default function ProfileScreen({ user }) {
   // DISPLAY DATA
   // ======================================================
 
-  const displayUser = {
-    ...(user || {}),
-    ...formData,
-  };
+  const displayName = profileUser
+    ? getUserDisplayName(profileUser)
+    : "User";
 
-  const displayName =
-    getUserDisplayName(displayUser) || "User";
-
-  const initials =
-    getUserInitials(displayName) || "U";
+  const initials = profileUser
+    ? getUserInitials(displayName)
+    : "U";
 
   const businessName =
-    formData.businessName || "SmartBill";
+    profileUser?.businessName || formData.businessName || "SmartBill";
 
   const roleTitle =
-    user?.role === "superadmin"
+    profileUser?.role === "superadmin"
       ? "Super Admin"
       : "Business Owner";
 
   // ======================================================
-  // UI
+  // LOADING
   // ======================================================
 
   if (loading) {
@@ -167,6 +176,28 @@ export default function ProfileScreen({ user }) {
       </div>
     );
   }
+
+  // ======================================================
+  // ERROR
+  // ======================================================
+
+  if (error && !profileUser) {
+    return (
+      <div className="max-w-2xl">
+        <Card className="p-6">
+          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+            <p className="text-sm font-medium text-red-700">
+              {error}
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // ======================================================
+  // UI
+  // ======================================================
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -221,10 +252,7 @@ export default function ProfileScreen({ user }) {
             label="First Name"
             value={formData.firstName}
             onChange={(e) =>
-              handleChange(
-                "firstName",
-                e.target.value
-              )
+              handleChange("firstName", e.target.value)
             }
           />
 
@@ -232,10 +260,7 @@ export default function ProfileScreen({ user }) {
             label="Last Name"
             value={formData.lastName}
             onChange={(e) =>
-              handleChange(
-                "lastName",
-                e.target.value
-              )
+              handleChange("lastName", e.target.value)
             }
           />
 
@@ -243,10 +268,7 @@ export default function ProfileScreen({ user }) {
             label="Business Name"
             value={formData.businessName}
             onChange={(e) =>
-              handleChange(
-                "businessName",
-                e.target.value
-              )
+              handleChange("businessName", e.target.value)
             }
           />
 
@@ -254,10 +276,7 @@ export default function ProfileScreen({ user }) {
             label="Business Type"
             value={formData.businessType}
             onChange={(e) =>
-              handleChange(
-                "businessType",
-                e.target.value
-              )
+              handleChange("businessType", e.target.value)
             }
           />
 
@@ -265,33 +284,23 @@ export default function ProfileScreen({ user }) {
             label="Email"
             value={formData.email}
             onChange={(e) =>
-              handleChange(
-                "email",
-                e.target.value
-              )
+              handleChange("email", e.target.value)
             }
-            icon={
-              <Mail className="w-4 h-4" />
-            }
+            icon={<Mail className="w-4 h-4" />}
           />
 
           <Input
             label="Phone"
             value={formData.phone}
             onChange={(e) =>
-              handleChange(
-                "phone",
-                e.target.value
-              )
+              handleChange("phone", e.target.value)
             }
-            icon={
-              <Phone className="w-4 h-4" />
-            }
+            icon={<Phone className="w-4 h-4" />}
           />
 
         </div>
 
-        {/* ================= SUCCESS MESSAGE ================= */}
+        {/* ================= SUCCESS ================= */}
 
         {message && (
           <div className="mt-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3">
@@ -301,7 +310,7 @@ export default function ProfileScreen({ user }) {
           </div>
         )}
 
-        {/* ================= ERROR MESSAGE ================= */}
+        {/* ================= ERROR ================= */}
 
         {error && (
           <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
@@ -311,20 +320,16 @@ export default function ProfileScreen({ user }) {
           </div>
         )}
 
-        {/* ================= UPDATE BUTTON ================= */}
+        {/* ================= UPDATE ================= */}
 
         <Btn
           variant="primary"
           className="mt-5"
-          icon={
-            <Check className="w-4 h-4" />
-          }
+          icon={<Check className="w-4 h-4" />}
           onClick={handleUpdateProfile}
           disabled={saving}
         >
-          {saving
-            ? "Updating..."
-            : "Update Profile"}
+          {saving ? "Updating..." : "Update Profile"}
         </Btn>
 
       </Card>
