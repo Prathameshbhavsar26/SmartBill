@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const orderItemSchema = new mongoose.Schema(
   {
-    productId: { type: Number, default: null },
+    productId: { type: mongoose.Schema.Types.Mixed, default: null },
     name: { type: String, default: "" },
     sku: { type: String, default: "" },
     price: { type: Number, default: 0 },

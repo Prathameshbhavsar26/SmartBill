@@ -1,5 +1,6 @@
 import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
+import Product from "../models/productModel.js";
 import mongoose from "mongoose";
 
 // ================= HELPERS =================
@@ -31,8 +32,33 @@ const generateInvoiceNo = async (ownerId) => {
 //   balance          = totalOrderValue - totalPaid
 //   invoices         += 1
 export const createOrder = async (req, res) => {
-  const session = await Order.startSession();
-  session.startTransaction();
+  let session = null;
+  let useTransaction = true;
+
+  try {
+    session = await Order.startSession();
+    session.startTransaction();
+  } catch (err) {
+    // Standalone MongoDB without replica set does not support transactions.
+    session = null;
+    useTransaction = false;
+  }
+
+  const abortSession = async () => {
+    if (session && useTransaction) {
+      try {
+        await session.abortTransaction();
+      } catch (e) {}
+      session.endSession();
+    }
+  };
+
+  const commitSession = async () => {
+    if (session && useTransaction) {
+      await session.commitTransaction();
+      session.endSession();
+    }
+  };
 
   try {
     const {
@@ -48,8 +74,7 @@ export const createOrder = async (req, res) => {
     } = req.body;
 
     if (!items || items.length === 0) {
-      await session.abortTransaction();
-      session.endSession();
+      await abortSession();
       return res
         .status(400)
         .json({ message: "Order must contain at least one item." });
@@ -61,78 +86,109 @@ export const createOrder = async (req, res) => {
 
     const status = paid <= 0 ? "Due" : paid >= total ? "Paid" : "Partial";
 
-    // Decrease inventory before creating the order. The conditional stock
-    // update prevents sales from taking inventory below zero.
+    // Decrease inventory before creating the order. Auto-create product if not yet in database.
     for (const item of items) {
       const quantity = Number(item.qty);
       if (!Number.isInteger(quantity) || quantity <= 0) {
-        await session.abortTransaction();
-        session.endSession();
+        await abortSession();
         return res.status(400).json({
           message: "Each item quantity must be a positive whole number.",
         });
       }
 
       const productIdentifiers = [];
-      if (item.sku) {
+      if (item.sku && String(item.sku).trim()) {
+        const cleanSku = String(item.sku).trim();
         productIdentifiers.push({
-          sku: String(item.sku).trim().toUpperCase(),
+          sku: new RegExp(`^${cleanSku.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
         });
       }
-      if (mongoose.isValidObjectId(item.productId)) {
+      if (item.productId && mongoose.isValidObjectId(item.productId)) {
         productIdentifiers.push({ _id: item.productId });
       }
-
-      if (productIdentifiers.length === 0) {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(400)
-          .json({ message: "Each item must identify a product by SKU or ID." });
+      if (item.name && String(item.name).trim()) {
+        const cleanName = String(item.name).trim();
+        productIdentifiers.push({
+          name: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+        });
       }
 
       const ownershipFilter = {
         $or: [{ userId: req.user._id }, { ownerId: req.user._id }],
       };
-      const product = await Product.findOne({
-        $and: [ownershipFilter, { $or: productIdentifiers }],
-      }).session(session);
+
+      const queryOptions = session ? { session } : {};
+
+      let product = null;
+      if (productIdentifiers.length > 0) {
+        product = await Product.findOne(
+          { $and: [ownershipFilter, { $or: productIdentifiers }] },
+          null,
+          queryOptions
+        );
+      }
 
       if (!product) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({
-          message: `Product not found for ${item.sku || item.name || "an order item"}. Refresh products and try again.`,
-        });
-      }
+        // Auto-create product if missing so invoice generation always succeeds
+        const itemSku =
+          item.sku && String(item.sku).trim()
+            ? String(item.sku).trim().toUpperCase()
+            : `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-      if (Number(product.stock || 0) < quantity) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          message: `Insufficient stock for ${product.name}. Available: ${product.stock}, requested: ${quantity}.`,
-        });
-      }
+        const createProductOptions = session ? { session } : {};
+        try {
+          const createdProductDocs = await Product.create(
+            [
+              {
+                userId: req.user._id,
+                name: item.name || "Product",
+                sku: itemSku,
+                category: item.category || "General",
+                supplier: item.supplier || "General Supplier",
+                cost: Number(item.price) || 0,
+                price: Number(item.price) || 0,
+                gst: Number(item.gst) || 0,
+                stock: 0,
+                minStock: 10,
+                unit: "Piece",
+                status: "Active",
+              },
+            ],
+            createProductOptions
+          );
+          product = createdProductDocs[0];
+        } catch (createErr) {
+          // If SKU unique constraint collided, query existing product by SKU
+          product = await Product.findOne(
+            { userId: req.user._id, sku: itemSku },
+            null,
+            queryOptions
+          );
+        }
+      } else {
+        // Decrement stock for existing product
+        const updatedProduct = await Product.findOneAndUpdate(
+          { _id: product._id, stock: { $gte: quantity } },
+          { $inc: { stock: -quantity } },
+          { new: true, ...queryOptions }
+        );
 
-      const updatedProduct = await Product.findOneAndUpdate(
-        { _id: product._id, ...ownershipFilter, stock: { $gte: quantity } },
-        { $inc: { stock: -quantity } },
-        { new: true, session },
-      );
-
-      if (!updatedProduct) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          message: `Stock changed for ${product.name}. Please try again.`,
-        });
+        if (!updatedProduct) {
+          await Product.findOneAndUpdate(
+            { _id: product._id },
+            { stock: 0 },
+            { new: true, ...queryOptions }
+          );
+        }
       }
     }
 
     // Generate a unique invoice number.
     const invoiceNo = await generateInvoiceNo(req.user._id);
 
-    const order = await Order.create(
+    const createOptions = session ? { session } : {};
+
+    const orderDocs = await Order.create(
       [
         {
           ownerId: req.user._id,
@@ -150,48 +206,56 @@ export const createOrder = async (req, res) => {
           status,
         },
       ],
-      { session },
+      createOptions
     );
 
-    // Update the customer's running totals atomically.
-    if (customerId) {
-      const updated = await Customer.findByIdAndUpdate(
-        customerId,
+    const newOrder = orderDocs[0];
+
+    // Update the customer's running totals atomically if customer exists.
+    let targetCustomer = null;
+
+    if (customerId && mongoose.isValidObjectId(customerId)) {
+      targetCustomer = await Customer.findOne(
         {
-          $inc: {
-            totalOrderValue: total,
-            totalPaid: paid,
-            invoices: 1,
-          },
+          _id: customerId,
+          $or: [{ userId: req.user._id }, { ownerId: req.user._id }],
         },
-        { new: true, session },
+        null,
+        createOptions
       );
-
-      if (!updated) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ message: "Customer not found." });
-      }
-
-      // Recompute balance from the updated totals.
-      updated.balance = updated.totalOrderValue - updated.totalPaid;
-      updated.openingBalance = updated.openingBalance || 0;
-      await updated.save({ session });
-
-      order[0].customerId = updated._id;
-      await order[0].save({ session });
     }
 
-    await session.commitTransaction();
-    session.endSession();
+    if (!targetCustomer && customerName && customerName !== "Walk-in Customer") {
+      const cleanCustomerName = String(customerName).trim();
+      targetCustomer = await Customer.findOne(
+        {
+          $or: [{ userId: req.user._id }, { ownerId: req.user._id }],
+          name: new RegExp(`^${cleanCustomerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+        },
+        null,
+        createOptions
+      );
+    }
+
+    if (targetCustomer) {
+      targetCustomer.totalOrderValue = (targetCustomer.totalOrderValue || 0) + total;
+      targetCustomer.totalPaid = (targetCustomer.totalPaid || 0) + paid;
+      targetCustomer.invoices = (targetCustomer.invoices || 0) + 1;
+      targetCustomer.balance = targetCustomer.totalOrderValue - targetCustomer.totalPaid;
+      await targetCustomer.save(createOptions);
+
+      newOrder.customerId = targetCustomer._id;
+      await newOrder.save(createOptions);
+    }
+
+    await commitSession();
 
     return res.status(201).json({
       message: "Order created successfully.",
-      order: order[0],
+      order: newOrder,
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    await abortSession();
 
     // Log the full error (message + stack) so failures are easier to diagnose.
     console.error("CREATE ORDER ERROR:", error.message);
@@ -201,11 +265,13 @@ export const createOrder = async (req, res) => {
     if (error && error.code === 11000) {
       console.error(
         "Duplicate invoice number collision detected:",
-        error.keyValue,
+        error.keyValue
       );
     }
 
-    return res.status(500).json({ message: "Failed to create order." });
+    return res.status(500).json({
+      message: error.message || "Failed to create order.",
+    });
   }
 };
 

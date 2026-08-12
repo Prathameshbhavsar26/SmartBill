@@ -2,12 +2,18 @@ import { BarChart2, ChevronRight, Menu, UserCircle } from "lucide-react";
 import { NAV_GROUPS, SUPER_ADMIN_ITEMS } from "./navConfig";
 import { getUserDisplayName } from "../utils/userUtils";
 import { useCustomization } from "../hooks/useCustomization";
+import { hasPermission } from "../utils/permissions";
 
 export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }) {
   const { t } = useCustomization();
   const isSuperAdmin = role === "superadmin";
   const displayName = getUserDisplayName(user);
   const displayEmail = user?.email || "admin@business.in";
+
+  const visibleNavGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => hasPermission(user, item.key)),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <aside
@@ -47,7 +53,7 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {isSuperAdmin ? (
           <div className="space-y-0.5 px-3">
             {SUPER_ADMIN_ITEMS.map(({ key, label, icon: Icon }) => {
@@ -81,7 +87,7 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }
           </div>
         ) : (
           <div className="space-y-5">
-            {NAV_GROUPS.map((group) => (
+            {visibleNavGroups.map((group) => (
               <div key={group.label}>
                 {!collapsed && (
                   <p className="px-6 mb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">

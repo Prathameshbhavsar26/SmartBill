@@ -21,7 +21,7 @@ const productSchema = new mongoose.Schema(
 
     supplier: {
       type: String,
-      required: true,
+      default: "",
     },
 
     cost: {

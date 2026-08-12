@@ -31,18 +31,31 @@ await connectDB();
 // Seed the default Super Admin account (idempotent).
 await seedAdmin();
 
-// CORS - allow the Vite dev server (or any configured client origin)
-const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
-  .split(",")
-  .map((o) => o.trim());
+// CORS - allow local development origins and configured client origins
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  ...(process.env.CLIENT_URL
+    ? process.env.CLIENT_URL.split(",").map((o) => o.trim())
+    : []),
+];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. Postman, curl, same-origin)
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (e.g. Postman, curl, mobile apps, same-origin)
+      if (!origin) return callback(null, true);
+
+      // Allow any localhost / 127.0.0.1 origin or explicitly listed client origins
+      const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      if (isLocalhost || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+
+      console.warn(`[CORS Blocked] Request from origin: ${origin}`);
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
