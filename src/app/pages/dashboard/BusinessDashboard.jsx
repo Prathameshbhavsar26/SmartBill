@@ -1,15 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart as RechartsPie,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,69 +15,265 @@ import {
   BarChart3,
   DollarSign,
   FileText,
+  Loader2,
   Package,
   Receipt,
   ShoppingCart,
   TrendingUp,
   Users,
   Wallet,
+  RefreshCw,
 } from "lucide-react";
-import { dailySales, invoices, pieData, salesData } from "../../data/mockData";
-import { fmt, fmtK } from "../../utils/format";
+import { fetchOrders } from "../../api/orderAPI";
+import { getProducts } from "../../api/productAPI";
+import { fetchCustomers } from "../../api/customerAPI";
+import { fetchPurchases } from "../../api/purchaseAPI";
+import { getExpenses } from "../../api/expenseApi";
+import { fmt } from "../../utils/format";
 import { Btn, Card, StatCard, statusBadge } from "../../components/common/ui";
 
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 export default function BusinessDashboard({ onNav }) {
+  const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [purchases, setPurchases] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadDashboardData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    else setRefreshing(true);
+
+    try {
+      const [ordersRes, productsRes, customersRes, purchasesRes, expensesRes] =
+        await Promise.allSettled([
+          fetchOrders(),
+          getProducts(),
+          fetchCustomers(),
+          fetchPurchases(),
+          getExpenses(),
+        ]);
+
+      if (ordersRes.status === "fulfilled") {
+        setOrders(ordersRes.value?.orders || []);
+      }
+      if (productsRes.status === "fulfilled") {
+        setProducts(productsRes.value?.products || []);
+      }
+      if (customersRes.status === "fulfilled") {
+        const raw = customersRes.value;
+        setCustomers(Array.isArray(raw?.customers) ? raw.customers : Array.isArray(raw) ? raw : []);
+      }
+      if (purchasesRes.status === "fulfilled") {
+        const raw = purchasesRes.value;
+        setPurchases(Array.isArray(raw?.purchases) ? raw.purchases : Array.isArray(raw) ? raw : []);
+      }
+      if (expensesRes.status === "fulfilled") {
+        setExpenses(expensesRes.value?.expenses || []);
+      }
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Derived Key Business Metrics
+  const metrics = useMemo(() => {
+    const todayStr = new Date().toDateString();
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let todayTotal = 0;
+    let monthTotal = 0;
+
+    orders.forEach((o) => {
+      const d = new Date(o.createdAt || o.date);
+      if (!isNaN(d.getTime())) {
+        const orderVal = Number(o.totalOrderValue || o.total) || 0;
+        if (d.toDateString() === todayStr) {
+          todayTotal += orderVal;
+        }
+        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+          monthTotal += orderVal;
+        }
+      }
+    });
+
+    const lowStockCount = products.filter((p) => {
+      const stock = Number(p.stock) || 0;
+      const min = Number(p.minStock ?? 10);
+      return stock <= min;
+    }).length;
+
+    return {
+      todaySales: todayTotal,
+      monthlyRevenue: monthTotal,
+      totalCustomers: customers.length,
+      lowStockItems: lowStockCount,
+    };
+  }, [orders, products, customers]);
+
+  // Daily Sales for Current Week
+  const weeklySalesData = useMemo(() => {
+    const now = new Date();
+    const daysMap = {};
+    DAYS.forEach((d) => (daysMap[d] = 0));
+
+    const currentDay = now.getDay();
+    const distanceToMon = (currentDay + 6) % 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - distanceToMon);
+    monday.setHours(0, 0, 0, 0);
+
+    orders.forEach((o) => {
+      const orderDate = new Date(o.createdAt || o.date);
+      if (!isNaN(orderDate.getTime()) && orderDate >= monday) {
+        const dayIdx = (orderDate.getDay() + 6) % 7;
+        const dayName = DAYS[dayIdx];
+        daysMap[dayName] += Number(o.totalOrderValue || o.total) || 0;
+      }
+    });
+
+    return DAYS.map((day) => ({ day, amount: daysMap[day] }));
+  }, [orders]);
+
+  // Category Revenue Share
+  const salesByCategory = useMemo(() => {
+    const catMap = {};
+    let grandTotal = 0;
+
+    orders.forEach((o) => {
+      (o.items || []).forEach((item) => {
+        const cat = item.category || item.product?.category || "General";
+        const val = Number(item.amount || (item.price * item.qty)) || 0;
+        catMap[cat] = (catMap[cat] || 0) + val;
+        grandTotal += val;
+      });
+    });
+
+    if (grandTotal === 0) {
+      products.forEach((p) => {
+        const cat = p.category || "General";
+        const val = (Number(p.price) || 0) * (Number(p.stock) || 1);
+        catMap[cat] = (catMap[cat] || 0) + val;
+        grandTotal += val;
+      });
+    }
+
+    const colors = ["#2563EB", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#6366F1"];
+    const total = grandTotal || 1;
+
+    const items = Object.entries(catMap).map(([name, amount], idx) => ({
+      name,
+      amount,
+      value: Math.round((amount / total) * 100),
+      color: colors[idx % colors.length],
+    }));
+
+    items.sort((a, b) => b.amount - a.amount);
+    return items.slice(0, 5);
+  }, [orders, products]);
+
+  // Recent 5 Invoices
+  const recentInvoices = useMemo(() => {
+    return [...orders]
+      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
+      .slice(0, 5);
+  }, [orders]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-slate-500">
+        <Loader2 className="w-8 h-8 animate-spin mb-3 text-blue-600" />
+        <p className="text-sm font-medium">Loading live business performance data...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
+      {/* Header Refresh Control */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Business Overview
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Real-time analytics for sales, inventory, and customer activity
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => loadDashboardData(true)}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-2xs hover:shadow transition-all cursor-pointer disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          <span>{refreshing ? "Syncing..." : "Refresh Live Data"}</span>
+        </button>
+      </div>
+
+      {/* Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Today's Sales"
-          value="₹48,200"
-          sub="+18% vs yesterday"
+          value={fmt(metrics.todaySales)}
+          sub="Live today total"
           trend="up"
           icon={<TrendingUp className="w-5 h-5" />}
           color="bg-blue-50 text-blue-600"
         />
         <StatCard
           label="Monthly Revenue"
-          value="₹8.9L"
-          sub="+12.4% vs last month"
+          value={fmt(metrics.monthlyRevenue)}
+          sub="Current month total"
           trend="up"
           icon={<DollarSign className="w-5 h-5" />}
           color="bg-emerald-50 text-emerald-600"
         />
         <StatCard
           label="Total Customers"
-          value="342"
-          sub="14 new this week"
+          value={`${metrics.totalCustomers}`}
+          sub="Active client records"
           trend="up"
           icon={<Users className="w-5 h-5" />}
           color="bg-purple-50 text-purple-600"
         />
         <StatCard
-          label="Low Stock Items"
-          value="3"
-          sub="Needs attention"
-          trend="down"
+          label="Low Stock Alert"
+          value={`${metrics.lowStockItems}`}
+          sub={metrics.lowStockItems > 0 ? "Items low on stock" : "Stock healthy"}
+          trend={metrics.lowStockItems > 0 ? "down" : "up"}
           icon={<AlertTriangle className="w-5 h-5" />}
-          color="bg-amber-50 text-amber-600"
+          color={metrics.lowStockItems > 0 ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}
         />
       </div>
 
+      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="lg:col-span-2 p-5 h-[320px] flex flex-col">
+        <Card className="lg:col-span-2 p-5 h-[340px] flex flex-col">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-semibold text-slate-900">
-                Daily Sales (This Week)
+              <h3 className="font-semibold text-slate-900 dark:text-white text-base">
+                Weekly Sales Performance
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Sales trend for the current week
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Daily sales totals for the current week
               </p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dailySales} barSize={24}>
+            <BarChart data={weeklySalesData} barSize={26}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
               <XAxis
                 dataKey="day"
@@ -96,7 +285,7 @@ export default function BusinessDashboard({ onNav }) {
                 tick={{ fill: "#94A3B8", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v) => `₹${v / 1000}K`}
+                tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}`}
               />
               <Tooltip
                 contentStyle={{
@@ -105,127 +294,156 @@ export default function BusinessDashboard({ onNav }) {
                   borderRadius: 10,
                   fontSize: 12,
                 }}
-                formatter={(v) => [`₹${v.toLocaleString("en-IN")}`, "Sales"]}
+                formatter={(v) => [fmt(v), "Sales"]}
               />
-              <Bar dataKey="amount" fill="#2563EB" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="amount" fill="#2563EB" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
 
         <div className="space-y-4">
-          <Card className="p-5 h-[320px] flex flex-col">
-            <h3 className="font-semibold text-slate-900 mb-4 text-sm">
+          <Card className="p-5 h-[340px] flex flex-col">
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-4 text-base">
               Sales by Category
             </h3>
-            <div className="space-y-2.5 flex-1 flex flex-col justify-center">
-              {pieData.map((d) => (
-                <div key={d.name}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-600">{d.name}</span>
-                    <span className="font-semibold text-slate-900">
-                      {d.value}%
-                    </span>
+            <div className="space-y-3 flex-1 flex flex-col justify-center">
+              {salesByCategory.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center">No category data available</p>
+              ) : (
+                salesByCategory.map((d) => (
+                  <div key={d.name} className="space-y-1">
+                    <div className="flex justify-between text-xs font-medium">
+                      <span className="text-slate-700 dark:text-slate-300">{d.name}</span>
+                      <span className="font-bold text-slate-900 dark:text-white font-mono">
+                        {fmt(d.amount)} ({d.value}%)
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{ width: `${Math.max(4, d.value)}%`, backgroundColor: d.color }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${d.value}%`, backgroundColor: d.color }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </Card>
         </div>
       </div>
 
+      {/* Recent Invoices & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card className="lg:col-span-2">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <h3 className="font-semibold text-slate-900">Recent Invoices</h3>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="font-semibold text-slate-900 dark:text-white text-base">
+              Recent Sales Invoices
+            </h3>
             <Btn variant="ghost" size="sm" onClick={() => onNav("pos")}>
-              View All →
+              Go to POS →
             </Btn>
           </div>
-          <div className="divide-y divide-slate-50">
-            {invoices.slice(0, 5).map((inv) => (
-              <div
-                key={inv.id}
-                className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-3.5 h-3.5 text-slate-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">
-                    {inv.customer}
-                  </p>
-                  <p className="text-xs text-slate-500 font-mono">{inv.id}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {fmt(inv.total)}
-                  </p>
-                  <p className="text-xs text-slate-400">{inv.date}</p>
-                </div>
-                {statusBadge(inv.status)}
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {recentInvoices.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 text-xs">
+                No recent invoices recorded yet. Start billing in POS screen!
               </div>
-            ))}
+            ) : (
+              recentInvoices.map((inv) => {
+                const totalVal = Number(inv.totalOrderValue || inv.total) || 0;
+                const paidVal = Number(inv.amountPaid) || 0;
+                const status = inv.paymentStatus || (paidVal <= 0 ? "Due" : paidVal >= totalVal ? "Paid" : "Partial");
+                const invDate = inv.createdAt || inv.date
+                  ? new Date(inv.createdAt || inv.date).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                    })
+                  : "";
+
+                return (
+                  <div
+                    key={inv._id || inv.id || inv.invoiceNo}
+                    className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors"
+                  >
+                    <div className="w-9 h-9 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {inv.customerName || inv.customer || "Walk-in Customer"}
+                      </p>
+                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                        {inv.invoiceNo || inv.id || "INV-001"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-extrabold text-slate-900 dark:text-white font-mono">
+                        {fmt(totalVal)}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium">{invDate}</p>
+                    </div>
+                    {statusBadge(status)}
+                  </div>
+                );
+              })
+            )}
           </div>
         </Card>
 
         <Card className="p-5">
-          <h3 className="font-semibold text-slate-900 mb-4">Quick Actions</h3>
+          <h3 className="font-semibold text-slate-900 dark:text-white mb-4 text-base">
+            Quick Actions
+          </h3>
           <div className="grid grid-cols-2 gap-3">
             {[
               {
                 label: "New Invoice",
                 icon: Receipt,
-                color: "bg-blue-50 text-blue-600",
+                color: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
                 action: () => onNav("pos"),
               },
               {
                 label: "Add Product",
                 icon: Package,
-                color: "bg-emerald-50 text-emerald-600",
+                color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
                 action: () => onNav("products"),
               },
               {
                 label: "Add Customer",
                 icon: Users,
-                color: "bg-purple-50 text-purple-600",
+                color: "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400",
                 action: () => onNav("customers"),
               },
               {
                 label: "Add Purchase",
                 icon: ShoppingCart,
-                color: "bg-amber-50 text-amber-600",
+                color: "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400",
                 action: () => onNav("purchase"),
               },
               {
                 label: "Add Expense",
                 icon: Wallet,
-                color: "bg-rose-50 text-rose-600",
+                color: "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
                 action: () => onNav("expenses"),
               },
               {
                 label: "View Reports",
                 icon: BarChart3,
-                color: "bg-slate-100 text-slate-600",
+                color: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
                 action: () => onNav("reports"),
               },
             ].map((q) => (
               <button
                 key={q.label}
                 onClick={q.action}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-sm transition-all group"
+                className="flex flex-col items-center gap-2 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all group cursor-pointer bg-white dark:bg-slate-800/50"
               >
                 <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center ${q.color}`}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center ${q.color} transition-transform group-hover:scale-105`}
                 >
                   <q.icon className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-medium text-slate-700 text-center leading-tight">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 text-center leading-tight">
                   {q.label}
                 </span>
               </button>

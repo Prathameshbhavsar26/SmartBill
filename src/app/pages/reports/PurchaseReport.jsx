@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
-import ReportFilters from "./components/ReportFilters";
-import { ArrowUpRight, ArrowDownRight, Loader2, ShoppingCart } from "lucide-react";
+import React, { useMemo } from "react";
+import FilterBar from "./components/FilterBar";
+import { ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -9,8 +9,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  BarChart,
-  Bar,
   PieChart as RechartsPie,
   Pie,
   Cell,
@@ -18,6 +16,7 @@ import {
 import ReportCard from "./components/ReportCard";
 import { Card } from "../../components/common/ui";
 import { useReportData } from "./useReportData";
+import { useReportFilters } from "./useReportFilters";
 import { fmt } from "../../utils/format";
 
 const MONTH_NAMES = [
@@ -26,26 +25,26 @@ const MONTH_NAMES = [
 ];
 
 export default function PurchaseReport() {
-  const [appliedRange, setAppliedRange] = useState({ from: "2024-01-01", to: "2026-12-31" });
-  const { suppliers, products, filteredExpenses, loading } = useReportData(
+  const { from, to, setFrom, setTo, appliedRange, apply } = useReportFilters();
+  const { suppliers, products, filteredPurchases, loading } = useReportData(
     appliedRange.from,
     appliedRange.to
   );
 
   const derived = useMemo(() => {
-    const totalPurchases = suppliers.reduce(
-      (sum, s) => sum + (Number(s.totalPurchases) || 0),
+    const totalPurchases = filteredPurchases.reduce(
+      (sum, p) => sum + (Number(p.totalAmount) || 0),
       0
     );
-    const supplierPayments = suppliers.reduce(
-      (sum, s) => sum + (Number(s.amountPaid) || 0),
+    const supplierPayments = filteredPurchases.reduce(
+      (sum, p) => sum + (Number(p.amountPaid) || 0),
       0
     );
-    const pendingPayments = suppliers.reduce(
-      (sum, s) => sum + (Number(s.balanceDue) || 0),
+    const pendingPayments = filteredPurchases.reduce(
+      (sum, p) => sum + (Number(p.remainingAmount) || 0),
       0
     );
-    const purchaseOrders = suppliers.length;
+    const purchaseOrders = filteredPurchases.length;
 
     return {
       totalPurchases,
@@ -53,28 +52,28 @@ export default function PurchaseReport() {
       supplierPayments,
       pendingPayments,
     };
-  }, [suppliers]);
+  }, [filteredPurchases]);
 
-  // Monthly Purchase Trend based on filtered expenses / supplier additions
+  // Monthly Purchase Trend based on actual purchase records
   const purchaseTrend = useMemo(() => {
     const monthsMap = {};
     MONTH_NAMES.forEach((m) => {
       monthsMap[m] = { month: m, purchases: 0, orders: 0 };
     });
 
-    filteredExpenses.forEach((e) => {
-      const dateObj = new Date(e.date || e.createdAt);
+    filteredPurchases.forEach((p) => {
+      const dateObj = new Date(p.purchaseDate || p.createdAt || p.date);
       if (!isNaN(dateObj.getTime())) {
         const m = MONTH_NAMES[dateObj.getMonth()];
-        monthsMap[m].purchases += Number(e.amount) || 0;
+        monthsMap[m].purchases += Number(p.totalAmount) || 0;
         monthsMap[m].orders += 1;
       }
     });
 
     return MONTH_NAMES.map((m) => monthsMap[m]);
-  }, [filteredExpenses]);
+  }, [filteredPurchases]);
 
-  // Category breakdown based on Products Inventory or Expenses
+  // Category breakdown based on inventory products
   const purchaseCategories = useMemo(() => {
     const catMap = {};
     products.forEach((p) => {
@@ -88,9 +87,7 @@ export default function PurchaseReport() {
 
     if (items.length > 0) return items.slice(0, 5);
 
-    return [
-      { name: "General Goods", v: 0 }
-    ];
+    return [{ name: "General Goods", v: 0 }];
   }, [products]);
 
   const categoryPie = useMemo(() => {
@@ -103,16 +100,34 @@ export default function PurchaseReport() {
     }));
   }, [purchaseCategories]);
 
-  // Top suppliers from DB
+  // Top suppliers from actual purchases combined with registered suppliers
   const topSuppliers = useMemo(() => {
-    return suppliers.map((s) => ({
-      id: s._id || s.id,
-      name: s.name,
-      amount: Number(s.totalPurchases) || 0,
-      paid: Number(s.amountPaid) || 0,
-      pending: Number(s.balanceDue) || 0,
-    }));
-  }, [suppliers]);
+    const supMap = {};
+
+    filteredPurchases.forEach((p) => {
+      const name = p.supplierName || "Unknown Supplier";
+      if (!supMap[name]) {
+        supMap[name] = { name, amount: 0, paid: 0, pending: 0 };
+      }
+      supMap[name].amount += Number(p.totalAmount) || 0;
+      supMap[name].paid += Number(p.amountPaid) || 0;
+      supMap[name].pending += Number(p.remainingAmount) || 0;
+    });
+
+    // Merge registered suppliers if they have balances but no purchases in date range
+    suppliers.forEach((s) => {
+      if (s.name && !supMap[s.name]) {
+        supMap[s.name] = {
+          name: s.name,
+          amount: Number(s.totalPurchases) || 0,
+          paid: Number(s.amountPaid) || 0,
+          pending: Number(s.balanceDue || s.balance) || 0,
+        };
+      }
+    });
+
+    return Object.values(supMap);
+  }, [filteredPurchases, suppliers]);
 
   if (loading) {
     return (
@@ -125,7 +140,13 @@ export default function PurchaseReport() {
 
   return (
     <div className="space-y-5">
-      <ReportFilters onAppliedRangeChange={setAppliedRange} />
+      <FilterBar
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        onApply={apply}
+      />
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -133,13 +154,13 @@ export default function PurchaseReport() {
           {
             value: fmt(derived.totalPurchases),
             label: "Total Purchases",
-            sub: `${suppliers.length} active suppliers`,
+            sub: `${filteredPurchases.length} purchase records`,
             trend: "up",
           },
           {
             value: `${derived.purchaseOrders}`,
-            label: "Active Suppliers",
-            sub: "Total registered",
+            label: "Purchase Orders",
+            sub: "Total in period",
             trend: "up",
           },
           {
@@ -179,7 +200,7 @@ export default function PurchaseReport() {
         <ReportCard className="p-5">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-semibold text-slate-900">
-              Monthly Purchase & Expense Trend
+              Monthly Purchase Trend
             </h3>
           </div>
           <ResponsiveContainer width="100%" height={220}>
@@ -195,7 +216,7 @@ export default function PurchaseReport() {
                 tick={{ fill: "#94A3B8", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v) => `₹${v / 1000}K`}
+                tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}`}
               />
               <Tooltip
                 contentStyle={{
@@ -204,7 +225,7 @@ export default function PurchaseReport() {
                   borderRadius: 10,
                   fontSize: 12,
                 }}
-                formatter={(v) => [fmt(v), "Amount"]}
+                formatter={(v) => [fmt(v), "Purchases"]}
               />
               <Line
                 type="monotone"
@@ -246,17 +267,17 @@ export default function PurchaseReport() {
               {categoryPie.map((c) => (
                 <div
                   key={c.name}
-                  className="flex items-center justify-between text-xs gap-4"
+                  className="flex items-center gap-2 text-xs text-slate-600"
                 >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-2.5 h-2.5 rounded-sm"
-                      style={{ backgroundColor: c.color }}
-                    />
-                    <span className="text-slate-600">{c.name}</span>
-                  </div>
-                  <span className="font-semibold text-slate-900 font-mono">
-                    {c.value.toFixed(1)}%
+                  <span
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: c.color }}
+                  />
+                  <span className="font-medium truncate max-w-[120px]">
+                    {c.name}
+                  </span>
+                  <span className="font-mono text-slate-400">
+                    ({c.value.toFixed(1)}%)
                   </span>
                 </div>
               ))}
@@ -265,38 +286,46 @@ export default function PurchaseReport() {
         </ReportCard>
       </div>
 
-      {/* Top Suppliers */}
-      <ReportCard className="p-5">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">Supplier Directory & Valuation</h3>
+      {/* Supplier Breakdown Table */}
+      <Card className="p-5">
+        <h3 className="font-semibold text-slate-900 mb-4">Supplier Summary</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider">
+                <th className="pb-3">Supplier</th>
+                <th className="pb-3 text-right">Total Purchases</th>
+                <th className="pb-3 text-right">Amount Paid</th>
+                <th className="pb-3 text-right">Pending Balance</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {topSuppliers.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-6 text-center text-slate-400">
+                    No purchase data available.
+                  </td>
+                </tr>
+              ) : (
+                topSuppliers.map((s) => (
+                  <tr key={s.name} className="hover:bg-slate-50/50">
+                    <td className="py-3 font-semibold text-slate-800">{s.name}</td>
+                    <td className="py-3 text-right font-mono text-slate-900">
+                      {fmt(s.amount)}
+                    </td>
+                    <td className="py-3 text-right font-mono text-emerald-600">
+                      {fmt(s.paid)}
+                    </td>
+                    <td className="py-3 text-right font-mono text-rose-600 font-semibold">
+                      {fmt(s.pending)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-        {topSuppliers.length === 0 ? (
-          <p className="text-xs text-slate-500 py-4">No suppliers added yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {topSuppliers.map((s) => (
-              <div
-                key={s.id || s.name}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-semibold text-slate-900 text-sm truncate">{s.name}</p>
-                  <span className="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-700 font-semibold flex-shrink-0">
-                    Pending {fmt(s.pending)}
-                  </span>
-                </div>
-                <div className="text-xs text-slate-500">Total Purchases</div>
-                <div className="text-lg font-bold text-slate-900 font-mono">
-                  {fmt(s.amount)}
-                </div>
-                <div className="mt-2 text-xs text-slate-500 font-mono">
-                  Paid: {fmt(s.paid)}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </ReportCard>
+      </Card>
     </div>
   );
 }

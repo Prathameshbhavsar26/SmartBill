@@ -1,14 +1,22 @@
 import { useMemo, useState } from "react";
 
-const DEFAULT_FROM = "2024-08-01";
-const DEFAULT_TO = "2024-08-31";
+export function getTodayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function getStartOfMonthStr() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+}
 
 /**
  * Centralized report date-range state.
- * - from/to: editable draft values
- * - appliedFrom/appliedTo: last applied values
+ * - Defaults to current month start (from) and current date (to).
  */
-export function useReportFilters({ initialFrom = DEFAULT_FROM, initialTo = DEFAULT_TO } = {}) {
+export function useReportFilters({
+  initialFrom = getStartOfMonthStr(),
+  initialTo = getTodayStr(),
+} = {}) {
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
 
@@ -39,4 +47,3 @@ export function useReportFilters({ initialFrom = DEFAULT_FROM, initialTo = DEFAU
     apply,
   };
 }
-

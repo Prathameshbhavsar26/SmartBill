@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
-import ReportFilters from "./components/ReportFilters";
-import { ArrowUpRight, ArrowDownRight, Loader2, Package } from "lucide-react";
+import React, { useMemo } from "react";
+import FilterBar from "./components/FilterBar";
+import { ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -15,12 +15,13 @@ import {
 import ReportCard from "./components/ReportCard";
 import { Card } from "../../components/common/ui";
 import { useReportData } from "./useReportData";
+import { useReportFilters } from "./useReportFilters";
 import { fmt } from "../../utils/format";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function InventoryReport() {
-  const [appliedRange, setAppliedRange] = useState({ from: "2024-01-01", to: "2026-12-31" });
+  const { from, to, setFrom, setTo, appliedRange, apply } = useReportFilters();
   const { products, filteredOrders, loading } = useReportData(
     appliedRange.from,
     appliedRange.to
@@ -153,7 +154,13 @@ export default function InventoryReport() {
 
   return (
     <div className="space-y-5">
-      <ReportFilters onAppliedRangeChange={setAppliedRange} />
+      <FilterBar
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        onApply={apply}
+      />
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

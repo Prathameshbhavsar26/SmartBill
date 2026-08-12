@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
-import ReportFilters from "./components/ReportFilters";
-import { ArrowUpRight, ArrowDownRight, Loader2, TrendingUp, PackageCheck } from "lucide-react";
+import React, { useMemo } from "react";
+import FilterBar from "./components/FilterBar";
+import { ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -15,6 +15,7 @@ import {
 import ReportCard from "./components/ReportCard";
 import { Card } from "../../components/common/ui";
 import { useReportData } from "./useReportData";
+import { useReportFilters } from "./useReportFilters";
 import { fmt } from "../../utils/format";
 
 const MONTH_NAMES = [
@@ -23,7 +24,7 @@ const MONTH_NAMES = [
 ];
 
 export default function SalesReport() {
-  const [appliedRange, setAppliedRange] = useState({ from: "2024-01-01", to: "2026-12-31" });
+  const { from, to, setFrom, setTo, appliedRange, apply } = useReportFilters();
   const { filteredOrders, filteredExpenses, products, loading } = useReportData(
     appliedRange.from,
     appliedRange.to
@@ -128,7 +129,6 @@ export default function SalesReport() {
 
     if (list.length > 0) return list.slice(0, 6);
 
-    // Fallback if no sales yet: list items from products inventory
     return products.slice(0, 4).map((p) => ({
       name: p.name,
       qty: 0,
@@ -169,7 +169,13 @@ export default function SalesReport() {
 
   return (
     <div className="space-y-5">
-      <ReportFilters onAppliedRangeChange={setAppliedRange} />
+      <FilterBar
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        onApply={apply}
+      />
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

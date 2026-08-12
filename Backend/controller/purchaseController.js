@@ -1,6 +1,7 @@
 import Purchase from "../models/Purchase.js";
-import Product from "../models/Product.js";
+import Product from "../models/productModel.js";
 import Supplier from "../models/Supplier.js";
+import mongoose from "mongoose";
 
 // ================= LIST PURCHASES =================
 export const getPurchases = async (req, res) => {
@@ -155,19 +156,46 @@ export const createPurchase = async (req, res) => {
     // 3. Inventory Integration: Increment stock for purchased products
     for (const item of validatedItems) {
       let product = null;
-      if (item.productId) {
-        product = await Product.findOne({ _id: item.productId, ownerId: req.user._id });
+      const ownershipFilter = {
+        $or: [{ userId: req.user._id }, { ownerId: req.user._id }],
+      };
+
+      if (item.productId && mongoose.isValidObjectId(item.productId)) {
+        product = await Product.findOne({
+          _id: item.productId,
+          ...ownershipFilter,
+        });
       }
-      if (!product) {
-        product = await Product.findOne({ name: item.productName, ownerId: req.user._id });
+
+      if (!product && item.productName) {
+        const cleanName = String(item.productName).trim();
+        product = await Product.findOne({
+          name: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+          ...ownershipFilter,
+        });
       }
 
       if (product) {
-        product.stock = (Number(product.stock) || 0) + item.quantity;
+        product.stock = (Number(product.stock) || 0) + Number(item.quantity);
         if (item.purchaseRate > 0) {
-          product.cost = item.purchaseRate;
+          product.cost = Number(item.purchaseRate);
         }
         await product.save();
+      } else {
+        // Auto-create product in inventory if it does not exist yet
+        await Product.create({
+          userId: req.user._id,
+          ownerId: req.user._id,
+          name: String(item.productName).trim(),
+          sku: `PRD-${Date.now().toString().slice(-6)}`,
+          category: "General",
+          cost: Number(item.purchaseRate) || 0,
+          price: (Number(item.purchaseRate) || 0) * 1.2,
+          stock: Number(item.quantity) || 0,
+          unit: item.unit || "Piece",
+          gst: Number(item.gstRate) || 0,
+          status: "Active",
+        });
       }
     }
 
