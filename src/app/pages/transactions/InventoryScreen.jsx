@@ -18,7 +18,7 @@ import {
 } from "../../components/common/ui";
 import { getProducts } from "../../api/productAPI";
 
-export default function InventoryScreen() {
+export default function InventoryScreen({ onNav }) {
   const [productList, setProductList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -151,6 +151,12 @@ export default function InventoryScreen() {
                   variant={p.stock === 0 ? "danger" : "outline"}
                   size="sm"
                   icon={<ShoppingCart className="w-3.5 h-3.5" />}
+                  onClick={() => {
+                    if (onNav) {
+                      localStorage.setItem("reorderProduct", JSON.stringify({ name: p.name, minStock: p.minStock }));
+                      onNav("purchase");
+                    }
+                  }}
                 >
                   Reorder
                 </Btn>

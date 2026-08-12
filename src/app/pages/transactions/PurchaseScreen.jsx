@@ -69,6 +69,29 @@ export default function PurchaseScreen() {
       .catch((err) => console.error('Failed to load suppliers', err));
   }, [loadProductsList]);
 
+  useEffect(() => {
+    const reorderData = localStorage.getItem("reorderProduct");
+    if (reorderData && productList.length > 0) {
+      try {
+        const p = JSON.parse(reorderData);
+        const selectedProduct = productList.find((prod) => prod.name === p.name);
+        
+        if (selectedProduct) {
+          const qty = p.minStock || 10;
+          setItems([{
+            product: selectedProduct.name,
+            qty: qty,
+            rate: selectedProduct.price,
+            amount: qty * (selectedProduct.price || 0)
+          }]);
+          localStorage.removeItem("reorderProduct");
+        }
+      } catch (err) {
+        console.error("Failed to parse reorder product", err);
+      }
+    }
+  }, [productList]);
+
   const showToast = (msg, type) => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
