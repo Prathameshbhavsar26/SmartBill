@@ -8,12 +8,20 @@ import Verification from "../models/verifiy.js";
 // HELPER: BUILD AUTH RESPONSE
 // ======================================================
 
-const buildAuthPayload = (user) => {
+const buildAuthPayload = (user, ownerUser = null) => {
+  const effectiveOwnerId = user.ownerId ? user.ownerId : user._id;
+  const effectiveBusinessName =
+    user.ownerId && ownerUser ? ownerUser.businessName : user.businessName;
+  const effectiveBusinessType =
+    user.ownerId && ownerUser ? ownerUser.businessType : user.businessType;
+
   const token = jwt.sign(
     {
       id: user._id,
+      ownerId: effectiveOwnerId,
       role: user.role,
-      businessType: user.businessType,
+      businessType: effectiveBusinessType,
+      permissions: user.permissions || {},
     },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
@@ -26,11 +34,15 @@ const buildAuthPayload = (user) => {
       _id: user._id,
       firstName: user.firstName,
       lastName: user.lastName,
-      businessName: user.businessName,
-      businessType: user.businessType,
+      businessName: effectiveBusinessName,
+      businessType: effectiveBusinessType,
       email: user.email,
       phone: user.phone,
       role: user.role,
+      ownerId: effectiveOwnerId,
+      department: user.department || "",
+      permissions: user.permissions || {},
+      status: user.status || "Active",
     },
   };
 };
@@ -241,7 +253,18 @@ export const login = async (req, res) => {
       });
     }
 
-    return res.status(200).json(buildAuthPayload(user));
+    if (user.status === "Inactive") {
+      return res.status(403).json({
+        message: "Your account is deactivated. Please contact your business owner.",
+      });
+    }
+
+    let ownerUser = null;
+    if (user.ownerId) {
+      ownerUser = await User.findById(user.ownerId);
+    }
+
+    return res.status(200).json(buildAuthPayload(user, ownerUser));
   } catch (error) {
     console.error("LOGIN ERROR:", error);
 

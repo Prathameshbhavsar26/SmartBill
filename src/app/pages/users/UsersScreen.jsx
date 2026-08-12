@@ -29,51 +29,43 @@ import {
   MODULE_PERMISSIONS,
   ROLE_DEFAULT_PERMISSIONS,
 } from "../../utils/permissions";
-
-const getUserEmployeeStorageKey = () => {
-  try {
-    const raw = localStorage.getItem("smartbill_user");
-    if (raw) {
-      const user = JSON.parse(raw);
-      const userKey = user?._id || user?.id || user?.email;
-      if (userKey) {
-        return `smartbill_employees_${userKey}`;
-      }
-    }
-  } catch (e) {
-    console.warn("Could not read user key:", e);
-  }
-  return "smartbill_employees_default";
-};
+import {
+  fetchEmployees,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+} from "../../api/employeeAPI";
 
 export default function UsersScreen() {
-  const [employeeList, setEmployeeList] = useState(() => {
-    try {
-      const key = getUserEmployeeStorageKey();
-      let saved = localStorage.getItem(key);
-      if (!saved && key !== "smartbill_employees_default") {
-        const oldSaved = localStorage.getItem("smartbill_employees");
-        if (oldSaved) {
-          localStorage.setItem(key, oldSaved);
-          saved = oldSaved;
-        }
-      }
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      const key = getUserEmployeeStorageKey();
-      localStorage.setItem(key, JSON.stringify(employeeList));
-    } catch (err) {
-      console.error("Error saving employees to localStorage:", err);
-    }
-  }, [employeeList]);
+  const [employeeList, setEmployeeList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const loadEmployees = async () => {
+    setLoading(true);
+    try {
+      const res = await fetchEmployees();
+      if (res.employees) {
+        setEmployeeList(res.employees);
+      }
+    } catch (err) {
+      console.error("Error loading employees:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -119,10 +111,11 @@ export default function UsersScreen() {
     }));
   };
 
-  const handleSaveEmployee = () => {
+  const handleSaveEmployee = async () => {
     let valid = true;
     setEmailError("");
     setPhoneError("");
+    setPasswordError("");
 
     // Validate Email
     const trimmedEmail = email.trim();
@@ -132,65 +125,67 @@ export default function UsersScreen() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setEmailError("Please enter a valid email address.");
       valid = false;
-    } else {
-      const exists = employeeList.some(
-        (emp) =>
-          emp.email.toLowerCase() === trimmedEmail.toLowerCase() &&
-          emp.id !== editingId
-      );
-      if (exists) {
-        setEmailError("An employee with this email already exists.");
-        valid = false;
-      }
     }
 
-    // Validate Phone
-    const digits = phone.replace(/\D/g, "");
-    if (!digits) {
-      setPhoneError("Phone number is required.");
+    // Validate Password for new employee
+    if (!editingId && (!password || password.trim().length < 4)) {
+      setPasswordError("Password must be at least 4 characters.");
       valid = false;
-    } else if (digits.length !== 10) {
-      setPhoneError("Phone number must be exactly 10 digits.");
+    }
+
+    // Validate Phone (optional but if provided must be 10 digits)
+    const digits = phone.replace(/\D/g, "");
+    if (phone && digits.length !== 10) {
+      setPhoneError("Phone number must be 10 digits.");
       valid = false;
     }
 
     if (!valid) return;
 
-    const updatedEmployee = {
-      id: editingId ?? Date.now(),
-      name,
-      email: trimmedEmail,
-      role,
-      department,
-      phone: digits,
-      password,
-      permissions: { ...permissions },
-      status: "Active",
-      lastActive: "Just now",
-    };
+    setSaving(true);
+    try {
+      const payload = {
+        name: name.trim(),
+        email: trimmedEmail,
+        phone: digits,
+        role,
+        department,
+        password: password || undefined,
+        permissions,
+        status: "Active",
+      };
 
-    if (editingId !== null) {
-      setEmployeeList(
-        employeeList.map((emp) =>
-          emp.id === editingId ? updatedEmployee : emp
-        )
-      );
-    } else {
-      setEmployeeList([...employeeList, updatedEmployee]);
+      if (editingId) {
+        const res = await updateEmployee(editingId, payload);
+        showToast(res.message || "Employee updated successfully.", "success");
+      } else {
+        const res = await createEmployee(payload);
+        showToast(res.message || "Employee created successfully.", "success");
+      }
+
+      await loadEmployees();
+      resetForm();
+      setShowModal(false);
+    } catch (err) {
+      console.error("Save employee error:", err);
+      if (err.field === "email" || err.message?.includes("email")) {
+        setEmailError(err.message || "Email error");
+      } else {
+        showToast(err.message || "Failed to save employee.", "error");
+      }
+    } finally {
+      setSaving(false);
     }
-
-    resetForm();
-    setShowModal(false);
   };
 
   const handleEdit = (employee) => {
     resetForm();
-    setName(employee.name || "");
+    setName(employee.name || `${employee.firstName || ""} ${employee.lastName || ""}`.trim());
     setEmail(employee.email || "");
     setRole(employee.role || "Cashier");
     setDepartment(employee.department || "");
     setPhone(employee.phone || "");
-    setPassword(employee.password || "");
+    setPassword("");
 
     if (employee.permissions && typeof employee.permissions === "object") {
       setPermissions({
@@ -204,18 +199,32 @@ export default function UsersScreen() {
       setPermissions({ ...defaults });
     }
 
-    setEditingId(employee.id);
+    setEditingId(employee.id || employee._id);
     setShowModal(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("Delete this employee?")) {
-      setEmployeeList(employeeList.filter((emp) => emp.id !== id));
+      try {
+        const res = await deleteEmployee(id);
+        showToast(res.message || "Employee deleted.", "success");
+        await loadEmployees();
+      } catch (err) {
+        console.error("Delete employee error:", err);
+        showToast(err.message || "Failed to delete employee.", "error");
+      }
     }
   };
 
   return (
     <div className="space-y-5">
+      {toast && (
+        <Toast
+          message={toast.msg}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       {showModal && (
         <Modal
           title={editingId ? "Update Employee" : "Add Employee"}
@@ -297,11 +306,10 @@ export default function UsersScreen() {
                     if (passwordError) setPasswordError("");
                   }}
                   placeholder="Enter temporary password"
-                  className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 pl-9 pr-10 ${
-                    passwordError
+                  className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 pl-9 pr-10 ${passwordError
                       ? "border-red-500 focus:ring-red-500 focus:border-red-500"
                       : ""
-                  }`}
+                    }`}
                 />
                 <button
                   type="button"
@@ -358,8 +366,8 @@ export default function UsersScreen() {
               >
                 Cancel
               </Btn>
-              <Btn variant="primary" onClick={handleSaveEmployee}>
-                {editingId ? "Update Employee" : "Add Employee"}
+              <Btn variant="primary" onClick={handleSaveEmployee} disabled={saving}>
+                {saving ? "Saving..." : editingId ? "Update Employee" : "Add Employee"}
               </Btn>
             </div>
           </div>
@@ -415,9 +423,9 @@ export default function UsersScreen() {
                         <span className="text-xs font-bold text-blue-600">
                           {e.name
                             ? e.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
                             : "?"}
                         </span>
                       </div>

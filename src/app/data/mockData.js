@@ -335,44 +335,6 @@ export const expenses = [
   },
 ];
 
-export const employees = [
-  {
-    id: 1,
-    name: "Priya Sharma",
-    email: "priya@business.in",
-    role: "Manager",
-    department: "Operations",
-    lastActive: "2 mins ago",
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Arjun Nair",
-    email: "arjun@business.in",
-    role: "Cashier",
-    department: "Sales",
-    lastActive: "1 hour ago",
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "Kavita Reddy",
-    email: "kavita@business.in",
-    role: "Accountant",
-    department: "Finance",
-    lastActive: "Yesterday",
-    status: "Active",
-  },
-  {
-    id: 4,
-    name: "Rahul Mishra",
-    email: "rahul@business.in",
-    role: "Cashier",
-    department: "Sales",
-    lastActive: "3 days ago",
-    status: "Inactive",
-  },
-];
 
 export const notifications = [
   {

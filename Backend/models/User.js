@@ -2,6 +2,13 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
     firstName: {
       type: String,
       required: true,
@@ -9,12 +16,12 @@ const userSchema = new mongoose.Schema(
 
     lastName: {
       type: String,
-      required: true,
+      default: "",
     },
 
     businessName: {
       type: String,
-      required: true,
+      default: "",
     },
 
     email: {
@@ -26,8 +33,7 @@ const userSchema = new mongoose.Schema(
 
     phone: {
       type: String,
-      required: true,
-      unique: true,
+      default: "",
     },
 
     businessType: {
@@ -42,8 +48,23 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["owner", "superadmin"],
       default: "owner",
+    },
+
+    department: {
+      type: String,
+      default: "",
+    },
+
+    permissions: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+
+    status: {
+      type: String,
+      enum: ["Active", "Inactive"],
+      default: "Active",
     },
   },
   {

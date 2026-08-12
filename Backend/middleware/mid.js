@@ -36,7 +36,15 @@ export const protect = async (req, res, next) => {
         .json({ message: "Not authorized, user not found." });
     }
 
-    req.user = user;
+    const effectiveOwnerId = user.ownerId ? user.ownerId : user._id;
+
+    req.user = user.toObject();
+    req.user.actualUserId = user._id;
+    req.user.ownerId = effectiveOwnerId;
+    req.user.effectiveOwnerId = effectiveOwnerId;
+    req.user._id = effectiveOwnerId;
+    req.user.id = effectiveOwnerId.toString();
+
     next();
   } catch (error) {
     return res
