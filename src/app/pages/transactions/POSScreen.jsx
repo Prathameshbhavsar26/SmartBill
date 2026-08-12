@@ -356,7 +356,7 @@ export default function POSScreen() {
             <p className="text-xs text-slate-400">Add products in the Products section to sell here.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 overflow-y-auto">
+          <div className="flex flex-col gap-3 overflow-y-auto pr-2">
             {filteredProducts.map((p, idx) => {
               const pId = getProductId(p) || idx;
               const isOut = (p.stock || 0) <= 0;
@@ -365,20 +365,22 @@ export default function POSScreen() {
                   key={pId}
                   onClick={() => addToCart(p)}
                   disabled={isOut}
-                  className={`bg-white border rounded-xl p-4 text-left transition-all group active:scale-[0.98] ${
+                  className={`bg-white border rounded-xl p-3 text-left transition-all group active:scale-[0.98] flex items-center gap-4 ${
                     isOut
                       ? "opacity-60 border-slate-200 cursor-not-allowed bg-slate-50"
                       : "border-slate-200 hover:border-blue-400 hover:shadow-md"
                   }`}
                 >
-                  <div className="w-full h-20 bg-slate-100 rounded-lg mb-3 flex items-center justify-center">
-                    <Package className="w-8 h-8 text-slate-400" />
+                  <div className="w-12 h-12 bg-slate-100 rounded-lg flex-shrink-0 flex items-center justify-center">
+                    <Package className="w-6 h-6 text-slate-400" />
                   </div>
-                  <p className="text-xs font-semibold text-slate-900 mb-1 line-clamp-2 leading-snug">
-                    {p.name}
-                  </p>
-                  <p className="text-xs text-slate-400 font-mono mb-2">{p.sku || "NO-SKU"}</p>
-                  <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">
+                      {p.name}
+                    </p>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">{p.sku || "NO-SKU"}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <span className="text-sm font-bold text-blue-600">
                       {fmt(p.price)}
                     </span>

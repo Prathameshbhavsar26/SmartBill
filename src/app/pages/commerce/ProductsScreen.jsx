@@ -8,10 +8,12 @@ import {
   Package,
   Plus,
   Search,
+  Settings,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
-import { suppliers } from "../../data/mockData";
+import { fetchSuppliers } from "../../api/supplierAPI";
 import { fmt } from "../../utils/format";
 import {
   Badge,
@@ -58,18 +60,6 @@ export default function ProductsScreen() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const [units, setUnits] = useState([
-    "Piece",
-    "Kg",
-    "Litre",
-    "Box",
-    "Dozen",
-    "Metre",
-  ]);
-
-  const [newUnit, setNewUnit] = useState("");
-  const [showUnitInput, setShowUnitInput] = useState(false);
-  const [showEditUnitInput, setShowEditUnitInput] = useState(false);
   // Products are loaded from the backend API.
   const [productList, setProductList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,28 +82,96 @@ export default function ProductsScreen() {
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+  
+  // Load suppliers dynamically
+  useEffect(() => {
+    fetchSuppliers()
+      .then((data) => {
+        const list = Array.isArray(data.suppliers) ? data.suppliers : data;
+        setSupplierList(list);
+      })
+      .catch((err) => console.error('Failed to load suppliers', err));
+  }, []);
 
-  // --- ADDED FOR DYNAMIC CATEGORIES IN PROJECT 1 ---
-  const [categories, setCategories] = useState([
-    "Electronics",
-    "Clothing",
-    "Groceries",
-    "Hardware",
-  ]);
-
+  // --- DYNAMIC & PERSISTENT CATEGORIES WITH REMOVE FEATURE ---
+  const [categories, setCategories] = useState(() => {
+    const saved = localStorage.getItem("smartbill_categories");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return ["Electronics", "Clothing", "Groceries", "Hardware"];
+  });
   const [newCategory, setNewCategory] = useState("");
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [showEditCategoryInput, setShowEditCategoryInput] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [categoryToRemove, setCategoryToRemove] = useState(null);
+  const [supplierList, setSupplierList] = useState([]);
 
+  // Persist categories list to localStorage
+  useEffect(() => {
+    localStorage.setItem("smartbill_categories", JSON.stringify(categories));
+  }, [categories]);
 
+  // Automatically include any category from loaded products into the categories list
+  useEffect(() => {
+    if (productList.length > 0) {
+      setCategories((prev) => {
+        const set = new Set([...prev]);
+        productList.forEach((p) => {
+          if (p.category && String(p.category).trim()) {
+            set.add(String(p.category).trim());
+          }
+        });
+        const updated = Array.from(set);
+        return updated.length !== prev.length ? updated : prev;
+      });
+    }
+  }, [productList]);
 
+  // Remove category function with product auto-reassignment to General
+  const confirmRemoveCategory = async (catName) => {
+    const affectedProducts = productList.filter((p) => p.category === catName);
+
+    // Remove category from list
+    const updated = categories.filter((c) => c !== catName);
+    const finalCategories = updated.length > 0 ? updated : ["General"];
+    setCategories(finalCategories);
+
+    if (catFilter === catName) {
+      setCatFilter("All");
+    }
+
+    // Reassign any products under this category to "General"
+    if (affectedProducts.length > 0) {
+      for (const p of affectedProducts) {
+        const pId = p._id || p.id;
+        try {
+          await updateProduct(pId, { category: "General" });
+        } catch (err) {
+          console.error("Failed to reassign product category:", err);
+        }
+      }
+      await loadProducts();
+      showToast(
+        `Category "${catName}" removed. ${affectedProducts.length} product(s) updated to "General".`,
+        "success"
+      );
+    } else {
+      showToast(`Category "${catName}" removed successfully.`, "success");
+    }
+    setCategoryToRemove(null);
+  };
   // -------------------------------------------------
 
   const [form, setForm] = useState({
     name: "",
     sku: "",
     category: "Electronics",
-    supplier: suppliers[0]?.name ?? "",
+    supplier: supplierList[0]?.name ?? "",
     cost: "0",
     price: "0",
     gst: "",
@@ -157,6 +215,156 @@ export default function ProductsScreen() {
           }}
           onCancel={() => setDeleteId(null)}
         />
+      )}
+
+      {/* REMOVE CATEGORY CONFIRM DIALOG */}
+      {categoryToRemove !== null && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900 text-sm">Remove Category?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Are you sure you want to remove <strong>&quot;{categoryToRemove}&quot;</strong>?
+                </p>
+              </div>
+            </div>
+            {productList.filter((p) => p.category === categoryToRemove).length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                <p className="text-xs text-amber-700">
+                  ⚠️ <strong>{productList.filter((p) => p.category === categoryToRemove).length} product(s)</strong> in this category will be moved to &quot;General&quot;.
+                </p>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCategoryToRemove(null)}
+                className="flex-1 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => confirmRemoveCategory(categoryToRemove)}
+                className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORY MANAGER MODAL */}
+      {showCategoryManager && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div>
+                <h3 className="font-semibold text-slate-900">Manage Categories</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Add or remove product categories</p>
+              </div>
+              <button
+                onClick={() => setShowCategoryManager(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
+              {categories.map((cat) => (
+                <div
+                  key={cat}
+                  className="flex items-center justify-between px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-sm font-medium text-slate-800">{cat}</span>
+                    {productList.filter((p) => p.category === cat).length > 0 && (
+                      <span className="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-mono">
+                        {productList.filter((p) => p.category === cat).length} products
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setCategoryToRemove(cat);
+                    }}
+                    title={`Remove "${cat}" category`}
+                    className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {/* Add New Category Row */}
+              <div className="border-t border-slate-100 pt-3">
+                {!showCategoryInput ? (
+                  <button
+                    onClick={() => setShowCategoryInput(true)}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-blue-300 text-blue-600 text-sm hover:bg-blue-50 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add New Category
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newCategory.trim()) {
+                          if (!categories.includes(newCategory.trim())) {
+                            setCategories([...categories, newCategory.trim()]);
+                          }
+                          setNewCategory("");
+                          setShowCategoryInput(false);
+                        }
+                        if (e.key === "Escape") {
+                          setShowCategoryInput(false);
+                          setNewCategory("");
+                        }
+                      }}
+                      placeholder="Category name (press Enter)"
+                      className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => {
+                        if (newCategory.trim() && !categories.includes(newCategory.trim())) {
+                          setCategories([...categories, newCategory.trim()]);
+                        }
+                        setNewCategory("");
+                        setShowCategoryInput(false);
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => { setShowCategoryInput(false); setNewCategory(""); }}
+                      className="px-3 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-slate-100 bg-slate-50">
+              <button
+                onClick={() => setShowCategoryManager(false)}
+                className="w-full py-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-900 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* EDIT PRODUCT MODAL */}
@@ -229,7 +437,7 @@ export default function ProductsScreen() {
               label="Supplier"
               value={editForm.supplier}
               onChange={(v) => setEditForm((f) => ({ ...f, supplier: v }))}
-              options={suppliers.map((s) => s.name)}
+              options={supplierList.map((s) => s.name)}
             />
 
             <div className="grid grid-cols-3 gap-3">
@@ -268,62 +476,13 @@ export default function ProductsScreen() {
               />
             </div>
 
+            <Select
+              label="Unit"
+              value={editForm.unit}
+              onChange={(v) => setEditForm((f) => ({ ...f, unit: v }))}
+              options={["Piece", "Kg", "Litre", "Box", "Dozen", "Metre"]}
+            />
 
-            <div className="space-y-2">
-              <Select
-                label="Unit"
-                value={editForm.unit}
-                onChange={(v) => {
-                  if (v === "+ New Unit") {
-                    setShowEditUnitInput(true);
-                    return;
-                  }
-
-                  setEditForm((f) => ({
-                    ...f,
-                    unit: v,
-                  }));
-
-                  setShowEditUnitInput(false);
-                }}
-                options={[...units, "+ New Unit"]}
-              />
-
-              {showEditUnitInput && (
-                <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
-                  <Input
-                    label="New Unit"
-                    value={newUnit}
-                    onChange={setNewUnit}
-                    placeholder="Enter unit name"
-                  />
-
-                  <Btn
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      const unit = newUnit.trim();
-
-                      if (!unit) return;
-
-                      setUnits((prev) =>
-                        prev.includes(unit) ? prev : [...prev, unit]
-                      );
-
-                      setEditForm((f) => ({
-                        ...f,
-                        unit: unit,
-                      }));
-
-                      setNewUnit("");
-                      setShowEditUnitInput(false);
-                    }}
-                  >
-                    Save Unit
-                  </Btn>
-                </div>
-              )}
-            </div>
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -353,17 +512,17 @@ export default function ProductsScreen() {
                       stock: Number(editForm.stock || 0),
                       minStock: Number(editForm.minStock || 0),
                       unit: editForm.unit,
+                      status: "Active",
                     });
                     await loadProducts();
-                    showToast("Product updated successfully", "success");
                     setShowEditModal(false);
                     setEditId(null);
                     setShowEditCategoryInput(false);
-                    setShowEditUnitInput(false);
+                    showToast("Product updated successfully", "success");
                   } catch (err) {
                     showToast(
                       err.message || "Failed to update product.",
-                      "error"
+                      "error",
                     );
                   } finally {
                     setSaving(false);
@@ -385,8 +544,6 @@ export default function ProductsScreen() {
           onClose={() => {
             setShowModal(false);
             setShowCategoryInput(false);
-            setShowUnitInput(false);
-            setNewUnit("");
           }}
         >
           <div className="space-y-4">
@@ -449,7 +606,7 @@ export default function ProductsScreen() {
               label="Supplier"
               value={form.supplier}
               onChange={(v) => setForm((f) => ({ ...f, supplier: v }))}
-              options={suppliers.map((s) => s.name)}
+              options={supplierList.map((s) => s.name)}
             />
             <div className="grid grid-cols-3 gap-3">
               <Input
@@ -485,58 +642,18 @@ export default function ProductsScreen() {
                 onChange={(v) => setForm((f) => ({ ...f, minStock: v }))}
               />
             </div>
-
-            <div className="space-y-2">
-              <Select
-                label="Unit"
-                value={form.unit}
-                onChange={(v) => {
-                  if (v === "+ New Unit") {
-                    setShowUnitInput(true);
-                    return;
-                  }
-                  setForm((f) => ({ ...f, unit: v }));
-                  setShowUnitInput(false);
-                }}
-                options={[...units, "+ New Unit"]}
-              />
-
-              {showUnitInput && (
-                <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
-                  <Input
-                    label="New Unit"
-                    value={newUnit}
-                    onChange={setNewUnit}
-                    placeholder="Enter unit name"
-                  />
-                  <Btn
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      const unit = newUnit.trim();
-                      if (!unit) return;
-                      setUnits((prev) =>
-                        prev.includes(unit) ? prev : [...prev, unit]
-                      );
-                      setForm((f) => ({ ...f, unit: unit }));
-                      setNewUnit("");
-                      setShowUnitInput(false);
-                    }}
-                  >
-                    Save Unit
-                  </Btn>
-                </div>
-              )}
-            </div>
-
+            <Select
+              label="Unit"
+              value={form.unit}
+              onChange={(v) => setForm((f) => ({ ...f, unit: v }))}
+              options={["Piece", "Kg", "Litre", "Box", "Dozen", "Metre"]}
+            />
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
                 onClick={() => {
                   setShowModal(false);
                   setShowCategoryInput(false);
-                  setShowUnitInput(false);
-                  setNewUnit("");
                 }}
                 className="flex-1 justify-center"
               >
@@ -547,6 +664,12 @@ export default function ProductsScreen() {
                 disabled={saving}
                 onClick={async () => {
                   setSaving(true);
+                  // Check for duplicate SKU
+                  if (productList.some((p) => p.sku === form.sku)) {
+                    showToast('SKU already exists. Please use a unique SKU.', 'error');
+                    setSaving(false);
+                    return;
+                  }
                   try {
                     await createProduct({
                       name: form.name,
@@ -564,13 +687,11 @@ export default function ProductsScreen() {
                     await loadProducts();
                     setShowModal(false);
                     setShowCategoryInput(false);
-                    setShowUnitInput(false);
-                    setNewUnit("");
                     setForm({
                       name: "",
                       sku: "",
                       category: "Electronics",
-                      supplier: suppliers[0]?.name ?? "",
+                      supplier: supplierList[0]?.name ?? "",
                       cost: "0",
                       price: "0",
                       gst: "",
@@ -598,34 +719,95 @@ export default function ProductsScreen() {
       )}
 
       {/* FILTER AND HEADER CONTROLS */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex-1 min-w-48">
-          <Input
-            value={search}
-            onChange={setSearch}
-            placeholder="Search by name, SKU..."
-            icon={<Search className="w-4 h-4" />}
-          />
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-48">
+            <Input
+              value={search}
+              onChange={setSearch}
+              placeholder="Search by name, SKU..."
+              icon={<Search className="w-4 h-4" />}
+            />
+          </div>
+          <Btn
+            variant="outline"
+            size="md"
+            onClick={() => setShowCategoryManager(true)}
+            icon={<Settings className="w-4 h-4" />}
+          >
+            Manage Categories
+          </Btn>
+          <Btn
+            variant="primary"
+            size="md"
+            onClick={() => setShowModal(true)}
+            icon={<Plus className="w-4 h-4" />}
+          >
+            Add Product
+          </Btn>
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Category Filter Chips */}
+        <div className="flex items-center gap-2 flex-wrap">
           {["All", ...categories].map((c) => (
-            <button
-              key={c}
-              onClick={() => setCatFilter(c)}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${catFilter === c ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"}`}
-            >
-              {c}
-            </button>
+            <div key={c} className="flex items-center">
+              {c === "All" ? (
+                <button
+                  onClick={() => setCatFilter("All")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    catFilter === "All"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"
+                  }`}
+                >
+                  All
+                </button>
+              ) : (
+                <div
+                  className={`group flex items-center rounded-lg border text-xs font-medium transition-all overflow-hidden ${
+                    catFilter === c
+                      ? "bg-blue-600 border-blue-600 text-white"
+                      : "bg-white border-slate-200 text-slate-600 hover:border-blue-400"
+                  }`}
+                >
+                  <button
+                    onClick={() => setCatFilter(c)}
+                    className={`pl-3 pr-2 py-1.5 transition-colors ${
+                      catFilter === c
+                        ? "text-white"
+                        : "hover:text-blue-700"
+                    }`}
+                  >
+                    {c}
+                    {productList.filter((p) => p.category === c).length > 0 && (
+                      <span
+                        className={`ml-1.5 text-[10px] font-mono ${
+                          catFilter === c ? "opacity-75" : "text-slate-400"
+                        }`}
+                      >
+                        ({productList.filter((p) => p.category === c).length})
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCategoryToRemove(c);
+                    }}
+                    title={`Remove "${c}" category`}
+                    className={`pr-2 pl-0.5 py-1.5 transition-all opacity-0 group-hover:opacity-100 ${
+                      catFilter === c
+                        ? "text-blue-200 hover:text-white"
+                        : "text-slate-400 hover:text-red-500"
+                    }`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
-        <Btn
-          variant="primary"
-          size="md"
-          onClick={() => setShowModal(true)}
-          icon={<Plus className="w-4 h-4" />}
-        >
-          Add Product
-        </Btn>
       </div>
 
       {/* TABLE SECTION */}
@@ -699,7 +881,6 @@ export default function ProductsScreen() {
                             e.stopPropagation();
                             setShowEditModal(true);
                             setEditId(p.id);
-                            const u = p.unit || "Piece";
                             setEditForm({
                               name: p.name,
                               sku: p.sku,
@@ -707,14 +888,11 @@ export default function ProductsScreen() {
                               supplier: p.supplier,
                               cost: String(p.cost ?? 0),
                               price: String(p.price ?? 0),
-                              gst: String(p.gst ?? ""),
+                              gst: "",
                               stock: String(p.stock ?? 0),
                               minStock: String(p.minStock ?? 0),
-                              unit: u,
+                              unit: "Piece",
                             });
-                            if (p.unit && !units.includes(p.unit)) {
-                              setUnits((prev) => [...prev, p.unit]);
-                            }
                           }}
                           icon={<Edit2 className="w-3.5 h-3.5" />}
                         />

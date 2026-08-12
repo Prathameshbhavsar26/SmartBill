@@ -53,7 +53,7 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {isSuperAdmin ? (
           <div className="space-y-0.5 px-3">
             {SUPER_ADMIN_ITEMS.map(({ key, label, icon: Icon }) => {
