@@ -1,13 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import ReportFilters from "./components/ReportFilters";
-
-import {
-  ArrowUpRight,
-  Printer,
-  Download,
-  TrendingUp,
-  ArrowDownRight,
-} from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Loader2, TrendingUp, PackageCheck } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -18,95 +11,34 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart as RechartsPie,
-  Pie,
-  Cell,
 } from "recharts";
-
 import ReportCard from "./components/ReportCard";
 import { Card } from "../../components/common/ui";
+import { useReportData } from "./useReportData";
+import { fmt } from "../../utils/format";
 
-const fmt = (n) => `₹${Number(n).toLocaleString("en-IN")}`;
-
-const salesData = [
-  { month: "Jan", sales: 145000, purchases: 89000, profit: 56000 },
-  { month: "Feb", sales: 178000, purchases: 102000, profit: 76000 },
-  { month: "Mar", sales: 162000, purchases: 95000, profit: 67000 },
-  { month: "Apr", sales: 210000, purchases: 118000, profit: 92000 },
-  { month: "May", sales: 195000, purchases: 110000, profit: 85000 },
-  { month: "Jun", sales: 248000, purchases: 135000, profit: 113000 },
-  { month: "Jul", sales: 231000, purchases: 128000, profit: 103000 },
-  { month: "Aug", sales: 267000, purchases: 142000, profit: 125000 },
-];
-
-const expenses = [
-  { id: 1, category: "Rent", amount: 45000 },
-  { id: 2, category: "Utilities", amount: 8200 },
-  { id: 3, category: "Salaries", amount: 125000 },
-  { id: 4, category: "Marketing", amount: 15000 },
-  { id: 5, category: "Logistics", amount: 12400 },
-];
-
-const invoices = [
-  {
-    id: "INV-2024-1042",
-    customer: "Raj Enterprises",
-    date: "2024-08-14",
-    amount: 28750,
-    gst: 5175,
-    total: 33925,
-    status: "Paid",
-  },
-  {
-    id: "INV-2024-1041",
-    customer: "Mehta Traders",
-    date: "2024-08-13",
-    amount: 12400,
-    gst: 2232,
-    total: 14632,
-    status: "Pending",
-  },
-  {
-    id: "INV-2024-1040",
-    customer: "Gupta Wholesale",
-    date: "2024-08-12",
-    amount: 67800,
-    gst: 12204,
-    total: 80004,
-    status: "Paid",
-  },
-  {
-    id: "INV-2024-1039",
-    customer: "Sharma & Sons",
-    date: "2024-08-11",
-    amount: 5600,
-    gst: 1008,
-    total: 6608,
-    status: "Overdue",
-  },
-  {
-    id: "INV-2024-1038",
-    customer: "Singh Distributors",
-    date: "2024-08-10",
-    amount: 19200,
-    gst: 3456,
-    total: 22656,
-    status: "Paid",
-  },
-];
-
-const topProducts = [
-  { name: "Boult Audio Airbus", qty: 48, revenue: 335520 },
-  { name: "Denim Jeans (32)", qty: 76, revenue: 114000 },
-  { name: "Basmati Rice Premium 5kg", qty: 8, revenue: 4160 },
-  { name: "Zeronics Mouse", qty: 22, revenue: 98978 },
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ];
 
 export default function SalesReport() {
+  const [appliedRange, setAppliedRange] = useState({ from: "2024-01-01", to: "2026-12-31" });
+  const { filteredOrders, filteredExpenses, products, loading } = useReportData(
+    appliedRange.from,
+    appliedRange.to
+  );
+
   const derived = useMemo(() => {
-    const totalRevenue = salesData.reduce((s, d) => s + d.sales, 0);
-    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-    const netProfit = salesData.reduce((s, d) => s + d.profit, 0);
+    const totalRevenue = filteredOrders.reduce(
+      (s, o) => s + (Number(o.totalOrderValue || o.total) || 0),
+      0
+    );
+    const totalExpenses = filteredExpenses.reduce(
+      (s, e) => s + (Number(e.amount) || 0),
+      0
+    );
+    const netProfit = totalRevenue - totalExpenses;
     const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
     return {
@@ -115,43 +47,160 @@ export default function SalesReport() {
       netProfit,
       margin,
     };
-  }, []);
+  }, [filteredOrders, filteredExpenses]);
+
+  // Monthly Revenue & Profit Trend
+  const monthlyTrendData = useMemo(() => {
+    const monthsMap = {};
+    MONTH_NAMES.forEach((m) => {
+      monthsMap[m] = { month: m, sales: 0, profit: 0, expenses: 0 };
+    });
+
+    filteredOrders.forEach((o) => {
+      const dateObj = new Date(o.createdAt || o.date);
+      if (!isNaN(dateObj.getTime())) {
+        const monthName = MONTH_NAMES[dateObj.getMonth()];
+        const val = Number(o.totalOrderValue || o.total) || 0;
+        monthsMap[monthName].sales += val;
+      }
+    });
+
+    filteredExpenses.forEach((e) => {
+      const dateObj = new Date(e.date || e.createdAt);
+      if (!isNaN(dateObj.getTime())) {
+        const monthName = MONTH_NAMES[dateObj.getMonth()];
+        const val = Number(e.amount) || 0;
+        monthsMap[monthName].expenses += val;
+      }
+    });
+
+    return MONTH_NAMES.map((m) => {
+      const s = monthsMap[m].sales;
+      const exp = monthsMap[m].expenses;
+      return {
+        month: m,
+        sales: s,
+        expenses: exp,
+        profit: s - exp,
+      };
+    });
+  }, [filteredOrders, filteredExpenses]);
+
+  // Expense Breakdown by Category
+  const expensesByCategory = useMemo(() => {
+    const catMap = {};
+    filteredExpenses.forEach((e) => {
+      const cat = e.category || "Other";
+      catMap[cat] = (catMap[cat] || 0) + (Number(e.amount) || 0);
+    });
+
+    const items = Object.entries(catMap).map(([category, amount], idx) => ({
+      id: idx + 1,
+      category,
+      amount,
+    }));
+
+    items.sort((a, b) => b.amount - a.amount);
+    return items;
+  }, [filteredExpenses]);
+
+  // Top Selling Products
+  const topProducts = useMemo(() => {
+    const productMap = {};
+
+    filteredOrders.forEach((o) => {
+      (o.items || []).forEach((item) => {
+        const name = item.productName || item.name || "Product";
+        const qty = Number(item.quantity || item.qty) || 0;
+        const price = Number(item.price || item.rate) || 0;
+        const revenue = item.total ? Number(item.total) : qty * price;
+
+        if (!productMap[name]) {
+          productMap[name] = { name, qty: 0, revenue: 0 };
+        }
+        productMap[name].qty += qty;
+        productMap[name].revenue += revenue;
+      });
+    });
+
+    const list = Object.values(productMap);
+    list.sort((a, b) => b.revenue - a.revenue);
+
+    if (list.length > 0) return list.slice(0, 6);
+
+    // Fallback if no sales yet: list items from products inventory
+    return products.slice(0, 4).map((p) => ({
+      name: p.name,
+      qty: 0,
+      revenue: (p.stock || 0) * (p.price || 0),
+    }));
+  }, [filteredOrders, products]);
+
+  // Invoices mapping
+  const invoices = useMemo(() => {
+    return filteredOrders.map((inv) => {
+      const subtotal = Number(inv.subtotal) || (Number(inv.totalOrderValue) || 0) * 0.85;
+      const gst = Number(inv.gst) || (Number(inv.totalOrderValue) || 0) * 0.15;
+      const total = Number(inv.totalOrderValue || inv.total) || subtotal + gst;
+      const dateStr = inv.createdAt
+        ? new Date(inv.createdAt).toISOString().slice(0, 10)
+        : inv.date || new Date().toISOString().slice(0, 10);
+
+      return {
+        id: inv.orderId || inv._id || inv.id || "INV-001",
+        customer: inv.customerName || "Walk-in Customer",
+        date: dateStr,
+        amount: subtotal,
+        gst: gst,
+        total: total,
+        status: inv.status || "Paid",
+      };
+    });
+  }, [filteredOrders]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+        <Loader2 className="w-8 h-8 animate-spin mb-3 text-blue-600" />
+        <p className="text-sm font-medium">Loading sales information...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-2 flex-wrap"></div>
+      <ReportFilters onAppliedRangeChange={setAppliedRange} />
 
-      <ReportFilters />
-
+      {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           {
             value: fmt(derived.totalRevenue),
-            label: "Total Revenue",
-            sub: "+12% this month",
+            label: "Total Sales Revenue",
+            sub: `${filteredOrders.length} orders recorded`,
             trend: "up",
           },
           {
             value: fmt(derived.totalExpenses),
             label: "Total Expenses",
-            sub: "+3% this month",
+            sub: `${filteredExpenses.length} expense entries`,
             trend: "up",
           },
           {
             value: fmt(derived.netProfit),
             label: "Net Profit",
-            sub: "+24% this month",
-            trend: "up",
+            sub: derived.netProfit >= 0 ? "Profitable" : "Deficit",
+            trend: derived.netProfit >= 0 ? "up" : "down",
           },
           {
             value: `${derived.margin.toFixed(1)}%`,
             label: "Profit Margin",
-            sub: "+5% this month",
-            trend: "up",
+            sub: "Overall margin",
+            trend: derived.margin >= 0 ? "up" : "down",
           },
         ].map((s) => (
           <Card key={s.label} className="p-4">
-            <p className="text-xl font-bold text-slate-900">{s.value}</p>
+            <p className="text-xl font-bold text-slate-900 font-mono">{s.value}</p>
             <p className="text-xs text-slate-500 mt-0.5 mb-2">{s.label}</p>
             <span
               className={`text-xs font-medium flex items-center gap-1 ${
@@ -169,25 +218,16 @@ export default function SalesReport() {
         ))}
       </div>
 
+      {/* Monthly Revenue Trend & Expense Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <ReportCard className="p-5">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-semibold text-slate-900">
               Monthly Revenue Trend
             </h3>
-            <div className="flex gap-2">
-              {["2024", "2023"].map((y) => (
-                <button
-                  key={y}
-                  className={`text-xs px-2.5 py-1 rounded-lg ${y === "2024" ? "bg-red-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={salesData}>
+            <AreaChart data={monthlyTrendData}>
               <defs>
                 <linearGradient id="repSales" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
@@ -214,7 +254,7 @@ export default function SalesReport() {
                   borderRadius: 10,
                   fontSize: 12,
                 }}
-                formatter={(v) => [`₹${Number(v).toLocaleString("en-IN")}`, ""]}
+                formatter={(v) => [fmt(v), ""]}
               />
               <Area
                 type="monotone"
@@ -222,7 +262,7 @@ export default function SalesReport() {
                 stroke="#2563EB"
                 strokeWidth={2.5}
                 fill="url(#repSales)"
-                name="Sales"
+                name="Sales Revenue"
               />
               <Area
                 type="monotone"
@@ -230,7 +270,7 @@ export default function SalesReport() {
                 stroke="#10B981"
                 strokeWidth={2}
                 fill="none"
-                name="Profit"
+                name="Net Profit"
                 strokeDasharray="4 2"
               />
             </AreaChart>
@@ -241,143 +281,166 @@ export default function SalesReport() {
           <h3 className="font-semibold text-slate-900 mb-5">
             Expense Breakdown
           </h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart
-              data={expenses.map((e) => ({ name: e.category, v: e.amount }))}
-              barSize={32}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `₹${v / 1000}K`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-                formatter={(v) => [`₹${Number(v).toLocaleString("en-IN")}`, ""]}
-              />
-              <Bar dataKey="v" fill="#6366F1" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-4 space-y-2">
-            {expenses.slice(0, 4).map((e) => (
-              <div
-                key={e.id}
-                className="flex items-center justify-between text-xs"
-              >
-                <span className="text-slate-600">{e.category}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-indigo-500 rounded-full"
-                      style={{ width: `${(e.amount / 125000) * 100}%` }}
-                    />
+          {expensesByCategory.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-slate-400 text-xs">
+              No expense records found for this period.
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={expensesByCategory} barSize={32}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                  <XAxis
+                    dataKey="category"
+                    tick={{ fill: "#94A3B8", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: "#94A3B8", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `₹${v / 1000}K`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #E2E8F0",
+                      borderRadius: 10,
+                      fontSize: 12,
+                    }}
+                    formatter={(v) => [fmt(v), "Amount"]}
+                  />
+                  <Bar dataKey="amount" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="mt-4 space-y-2">
+                {expensesByCategory.slice(0, 4).map((e) => (
+                  <div
+                    key={e.id}
+                    className="flex items-center justify-between text-xs"
+                  >
+                    <span className="text-slate-600">{e.category}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-500 rounded-full"
+                          style={{
+                            width: `${
+                              derived.totalExpenses > 0
+                                ? (e.amount / derived.totalExpenses) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                      <span className="font-mono font-medium text-slate-900 w-24 text-right">
+                        {fmt(e.amount)}
+                      </span>
+                    </div>
                   </div>
-                  <span className="font-mono font-medium text-slate-900 w-20 text-right">
-                    {fmt(e.amount)}
-                  </span>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </ReportCard>
       </div>
 
+      {/* Top Selling Products */}
       <ReportCard className="p-5">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">Top selling products</h3>
+          <h3 className="font-semibold text-slate-900">Top Selling Products</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {topProducts.map((p) => (
-            <div
-              key={p.name}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-semibold text-slate-900">{p.name}</p>
-                <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold">
-                  Qty {p.qty}
-                </span>
+        {topProducts.length === 0 ? (
+          <p className="text-xs text-slate-500">No products sold yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {topProducts.map((p) => (
+              <div
+                key={p.name}
+                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-semibold text-slate-900 text-sm truncate">{p.name}</p>
+                  <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold flex-shrink-0">
+                    Qty {p.qty}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">Total Revenue</p>
+                <p className="text-lg font-bold text-slate-900 font-mono">
+                  {fmt(p.revenue)}
+                </p>
               </div>
-              <p className="text-sm text-slate-600">Revenue</p>
-              <p className="text-lg font-bold text-slate-900">
-                {fmt(p.revenue)}
-              </p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </ReportCard>
 
+      {/* Recent Transactions Table */}
       <ReportCard className="p-5">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">Recent transactions</h3>
+          <h3 className="font-semibold text-slate-900">Recent Transactions</h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  "Invoice",
-                  "Customer",
-                  "Date",
-                  "Amount",
-                  "GST",
-                  "Total",
-                  "Status",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {invoices.map((inv) => (
-                <tr
-                  key={inv.id}
-                  className="hover:bg-slate-50 transition-colors"
-                >
-                  <td className="px-5 py-3.5 font-mono text-xs text-blue-600">
-                    {inv.id}
-                  </td>
-                  <td className="px-5 py-3.5 font-medium text-slate-900">
-                    {inv.customer}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
-                    {inv.date}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-900">
-                    {fmt(inv.amount)}
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-600">{fmt(inv.gst)}</td>
-                  <td className="px-5 py-3.5 font-semibold text-slate-900">
-                    {fmt(inv.total)}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 border border-slate-200 text-slate-600">
-                      {inv.status}
-                    </span>
-                  </td>
+        {invoices.length === 0 ? (
+          <p className="text-xs text-slate-500 py-6 text-center">
+            No sales invoices recorded for this date range.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  {[
+                    "Invoice",
+                    "Customer",
+                    "Date",
+                    "Subtotal",
+                    "GST",
+                    "Total",
+                    "Status",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {invoices.map((inv, idx) => (
+                  <tr
+                    key={inv.id || idx}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="px-5 py-3.5 font-mono text-xs text-blue-600 font-semibold">
+                      {inv.id}
+                    </td>
+                    <td className="px-5 py-3.5 font-medium text-slate-900">
+                      {inv.customer}
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
+                      {inv.date}
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-900 font-mono">
+                      {fmt(inv.amount)}
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-600 font-mono">{fmt(inv.gst)}</td>
+                    <td className="px-5 py-3.5 font-semibold text-slate-900 font-mono">
+                      {fmt(inv.total)}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 border border-emerald-200 text-emerald-700">
+                        {inv.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </ReportCard>
     </div>
   );

@@ -12,6 +12,7 @@ import seedAdmin from "./seed/admin.js";
 import productRoutes from "./routes/productRoutes.js";
 import customizationRoutes from "./routes/customizationRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
+import purchaseRoutes from "./routes/purchaseRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -75,6 +76,7 @@ app.use("/api/suppliers", supplierRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/settings/customization", customizationRoutes);
 app.use("/api/employees", employeeRoutes);
+app.use("/api/purchases", purchaseRoutes);
 
 app.get("/", (req, res) => {
   res.send("API working");

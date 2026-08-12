@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-
 const productSchema = new mongoose.Schema(
   {
     name: {
@@ -11,7 +10,6 @@ const productSchema = new mongoose.Schema(
     sku: {
       type: String,
       required: true,
-      unique: true,
     },
 
     category: {
@@ -59,21 +57,16 @@ const productSchema = new mongoose.Schema(
       default: "Active",
     },
 
-    // Add this field
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
-
   },
   {
     timestamps: true,
   }
 );
 
-
-const Product = mongoose.model("Product", productSchema);
-
+const Product = mongoose.models.Product || mongoose.model("Product", productSchema);
 
 export default Product;
