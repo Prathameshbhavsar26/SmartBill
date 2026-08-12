@@ -13,6 +13,7 @@ import productRoutes from "./routes/productRoutes.js";
 import customizationRoutes from "./routes/customizationRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
+import businessSettingsRoutes from "./routes/businessSettingsRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -53,6 +54,7 @@ app.use(
 
       // Allow any localhost / 127.0.0.1 origin or explicitly listed client origins
       const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
       if (isLocalhost || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
@@ -61,7 +63,7 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-  }),
+  })
 );
 
 app.use(express.json({ limit: "10mb" }));
@@ -77,6 +79,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/settings/customization", customizationRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/purchases", purchaseRoutes);
+app.use("/api/settings/business", businessSettingsRoutes);
 
 app.get("/", (req, res) => {
   res.send("API working");
@@ -84,14 +87,15 @@ app.get("/", (req, res) => {
 
 // 404 handler for unknown API routes
 app.use((req, res) => {
-  res
-    .status(404)
-    .json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
+  res.status(404).json({
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
 });
 
 // Global error handler
 app.use((err, req, res, next) => {
   console.error("SERVER ERROR:", err.message);
+
   res.status(err.status || 500).json({
     message: err.message || "Internal server error",
   });
