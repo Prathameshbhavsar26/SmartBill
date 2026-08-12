@@ -116,6 +116,42 @@ export default function ProductsScreen() {
     localStorage.setItem("smartbill_categories", JSON.stringify(categories));
   }, [categories]);
 
+  // --- DYNAMIC & PERSISTENT UNITS ---
+  const [units, setUnits] = useState(() => {
+    const saved = localStorage.getItem("smartbill_units");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return ["Piece", "Kg", "Litre", "Box", "Dozen", "Metre"];
+  });
+  const [newUnit, setNewUnit] = useState("");
+  const [showUnitInput, setShowUnitInput] = useState(false);
+  const [showEditUnitInput, setShowEditUnitInput] = useState(false);
+
+  // Persist units list to localStorage
+  useEffect(() => {
+    localStorage.setItem("smartbill_units", JSON.stringify(units));
+  }, [units]);
+
+  // Automatically include any unit from loaded products into the units list
+  useEffect(() => {
+    if (productList.length > 0) {
+      setUnits((prev) => {
+        const set = new Set([...prev]);
+        productList.forEach((p) => {
+          if (p.unit && String(p.unit).trim()) {
+            set.add(String(p.unit).trim());
+          }
+        });
+        const updated = Array.from(set);
+        return updated.length !== prev.length ? updated : prev;
+      });
+    }
+  }, [productList]);
+
   // Automatically include any category from loaded products into the categories list
   useEffect(() => {
     if (productList.length > 0) {
@@ -479,9 +515,44 @@ export default function ProductsScreen() {
             <Select
               label="Unit"
               value={editForm.unit}
-              onChange={(v) => setEditForm((f) => ({ ...f, unit: v }))}
-              options={["Piece", "Kg", "Litre", "Box", "Dozen", "Metre"]}
+              onChange={(v) => {
+                if (v === "+ Add New Unit") {
+                  setShowEditUnitInput(true);
+                } else {
+                  setEditForm((f) => ({ ...f, unit: v }));
+                  setShowEditUnitInput(false);
+                }
+              }}
+              options={[...units, "+ Add New Unit"]}
             />
+
+            {showEditUnitInput && (
+              <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                <Input
+                  label="New Unit Name"
+                  value={newUnit}
+                  onChange={setNewUnit}
+                  placeholder="e.g. Packet, Gram, Set, Bundle"
+                />
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    const trimmed = newUnit.trim();
+                    if (trimmed) {
+                      if (!units.includes(trimmed)) {
+                        setUnits([...units, trimmed]);
+                      }
+                      setEditForm((f) => ({ ...f, unit: trimmed }));
+                      setNewUnit("");
+                      setShowEditUnitInput(false);
+                    }
+                  }}
+                >
+                  Save Unit
+                </Btn>
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <Btn
@@ -645,9 +716,44 @@ export default function ProductsScreen() {
             <Select
               label="Unit"
               value={form.unit}
-              onChange={(v) => setForm((f) => ({ ...f, unit: v }))}
-              options={["Piece", "Kg", "Litre", "Box", "Dozen", "Metre"]}
+              onChange={(v) => {
+                if (v === "+ Add New Unit") {
+                  setShowUnitInput(true);
+                } else {
+                  setForm((f) => ({ ...f, unit: v }));
+                  setShowUnitInput(false);
+                }
+              }}
+              options={[...units, "+ Add New Unit"]}
             />
+
+            {showUnitInput && (
+              <div className="space-y-2 border border-blue-100 p-3 rounded-lg bg-slate-50/50">
+                <Input
+                  label="New Unit Name"
+                  value={newUnit}
+                  onChange={setNewUnit}
+                  placeholder="e.g. Packet, Gram, Set, Bundle"
+                />
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    const trimmed = newUnit.trim();
+                    if (trimmed) {
+                      if (!units.includes(trimmed)) {
+                        setUnits([...units, trimmed]);
+                      }
+                      setForm((f) => ({ ...f, unit: trimmed }));
+                      setNewUnit("");
+                      setShowUnitInput(false);
+                    }
+                  }}
+                >
+                  Save Unit
+                </Btn>
+              </div>
+            )}
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -891,7 +997,7 @@ export default function ProductsScreen() {
                               gst: "",
                               stock: String(p.stock ?? 0),
                               minStock: String(p.minStock ?? 0),
-                              unit: "Piece",
+                              unit: p.unit || "Piece",
                             });
                           }}
                           icon={<Edit2 className="w-3.5 h-3.5" />}

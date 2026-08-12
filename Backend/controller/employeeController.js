@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import { sendEmployeeCredentialsEmail } from "../utils/emailService.js";
 
 // ======================================================
 // GET ALL EMPLOYEES FOR THE OWNER
@@ -126,9 +127,38 @@ export const createEmployee = async (req, res) => {
       status: status || "Active",
     });
 
+    // Send login credentials via email to employee
+    let emailStatus = "sent";
+    let emailErrorDetail = null;
+
+    try {
+      const emailResult = await sendEmployeeCredentialsEmail({
+        toEmail: newEmployee.email,
+        employeeName: `${newEmployee.firstName} ${newEmployee.lastName}`.trim(),
+        tempPassword: String(password),
+        businessName: owner.businessName || "Smart Bill",
+        role: newEmployee.role,
+      });
+
+      if (!emailResult || !emailResult.success) {
+        emailStatus = "failed";
+        emailErrorDetail = emailResult?.error || "Email delivery failed";
+      }
+    } catch (emailErr) {
+      emailStatus = "failed";
+      emailErrorDetail = emailErr.message || "Failed to dispatch email";
+    }
+
+    const message =
+      emailStatus === "sent"
+        ? "Employee created successfully. Login credentials sent to employee's email."
+        : `Employee created successfully, BUT email failed to send: ${emailErrorDetail}`;
+
     res.status(201).json({
       success: true,
-      message: "Employee created successfully.",
+      message,
+      emailSent: emailStatus === "sent",
+      emailError: emailErrorDetail,
       employee: {
         id: newEmployee._id.toString(),
         _id: newEmployee._id.toString(),
