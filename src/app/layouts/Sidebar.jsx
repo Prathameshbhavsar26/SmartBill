@@ -151,6 +151,19 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }
             </div>
           )}
         </div>
+        {!collapsed && !isSuperAdmin && (
+          <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between">
+            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
+              {user?.subscription?.plan ? String(user.subscription.plan).toUpperCase() : "STARTER"} PLAN
+            </span>
+            <button
+              onClick={() => onNav("profile")}
+              className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
+            >
+              Manage
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

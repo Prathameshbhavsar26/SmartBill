@@ -1,9 +1,9 @@
-# Fix Customer API Errors — Progress Tracker
+# Fix Customer API & Subscription Errors — Progress Tracker
 
-- [ ] 1. Fix `src/app/api/customerAPI.js` (duplicates + stray text)
-- [ ] 2. Fix `Backend/controller/customerController.js` (merge conflicts)
-- [ ] 3. Fix `Backend/routes/customerRoutes.js` (merge conflicts)
-- [ ] 4. Fix `Backend/models/Customer.js` (merge conflicts)
-- [ ] 5. Fix `Backend/server.js` (merge conflicts)
-- [ ] 6. Verify backend with `node --check`
-- [ ] 7. Verify frontend with `npm run build`
+- [x] 1. Fix `src/app/api/customerAPI.js` (verified clean)
+- [x] 2. Fix `Backend/controller/customerController.js` (verified clean)
+- [x] 3. Fix `Backend/routes/customerRoutes.js` (verified clean)
+- [x] 4. Fix `Backend/models/Customer.js` (verified clean)
+- [x] 5. Fix `Backend/server.js` (verified clean)
+- [x] 6. Verify backend with `node --check`
+- [x] 7. Verify frontend with `npm run build`

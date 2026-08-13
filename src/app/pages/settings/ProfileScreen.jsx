@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { Check, Edit2, Mail, Phone } from "lucide-react";
+import { Check, Edit2, Mail, Phone, Users, Package, FileText, TrendingUp } from "lucide-react";
 import { Badge, Btn, Card, Input } from "../../components/common/ui";
 import { getUserDisplayName, getUserInitials } from "../../utils/userUtils";
 import { getProfile, updateProfile } from "../../api/authAPI";
+import { fetchCustomers } from "../../api/customerAPI";
+import { getProducts } from "../../api/productAPI";
+import { fetchOrders } from "../../api/orderAPI";
 
 export default function ProfileScreen() {
   const [profileUser, setProfileUser] = useState(null);
@@ -20,6 +23,10 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  // Account summary live counts
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
 
   // ======================================================
   // LOAD CURRENT LOGGED-IN USER
@@ -70,6 +77,52 @@ export default function ProfileScreen() {
     };
 
     loadProfile();
+  }, []);
+
+  // ======================================================
+  // LOAD LIVE ACCOUNT SUMMARY
+  // ======================================================
+
+  useEffect(() => {
+    const loadSummary = async () => {
+      setSummaryLoading(true);
+      try {
+        const [customersRes, productsRes, ordersRes] = await Promise.allSettled([
+          fetchCustomers(),
+          getProducts(),
+          fetchOrders(),
+        ]);
+
+        const customers = customersRes.status === "fulfilled"
+          ? (customersRes.value?.customers ?? [])
+          : [];
+        const products = productsRes.status === "fulfilled"
+          ? (productsRes.value?.products ?? [])
+          : [];
+        const orders = ordersRes.status === "fulfilled"
+          ? (ordersRes.value?.orders ?? [])
+          : [];
+
+        const totalRevenue = orders.reduce(
+          (sum, o) => sum + Number(o.amountPaid || 0),
+          0
+        );
+
+        setSummary({
+          customers: customers.length,
+          products: products.filter((p) => p.stock > 0 || p.quantity > 0).length || products.length,
+          invoices: orders.length,
+          revenue: totalRevenue,
+        });
+      } catch (err) {
+        console.error("SUMMARY LOAD ERROR:", err);
+        setSummary({ customers: 0, products: 0, invoices: 0, revenue: 0 });
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
+
+    loadSummary();
   }, []);
 
   // ======================================================
@@ -340,32 +393,74 @@ export default function ProfileScreen() {
 
       <Card className="p-6">
 
-        <h3 className="font-semibold text-slate-900 mb-4">
-          Account Summary
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-slate-900">Account Summary</h3>
+          {summaryLoading && (
+            <span className="text-xs text-slate-400 animate-pulse">Loading live data...</span>
+          )}
+        </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
-          {[
-            ["342", "Customers"],
-            ["7", "Products Active"],
-            ["1,042", "Invoices"],
-          ].map(([v, l]) => (
-
-            <div
-              key={l}
-              className="bg-slate-50 rounded-xl p-4 text-center"
-            >
-              <p className="text-xl font-bold text-blue-600">
-                {v}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-0.5">
-                {l}
-              </p>
+          {/* Customers */}
+          <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
+            <div className="flex justify-center mb-1.5">
+              <Users className="w-5 h-5 text-blue-500" />
             </div>
+            <p className="text-2xl font-bold text-blue-700">
+              {summaryLoading ? (
+                <span className="inline-block w-10 h-6 bg-blue-200 rounded animate-pulse" />
+              ) : (
+                (summary?.customers ?? 0).toLocaleString("en-IN")
+              )}
+            </p>
+            <p className="text-xs text-blue-500 mt-0.5 font-medium">Customers</p>
+          </div>
 
-          ))}
+          {/* Products Active */}
+          <div className="bg-emerald-50 rounded-xl p-4 text-center border border-emerald-100">
+            <div className="flex justify-center mb-1.5">
+              <Package className="w-5 h-5 text-emerald-500" />
+            </div>
+            <p className="text-2xl font-bold text-emerald-700">
+              {summaryLoading ? (
+                <span className="inline-block w-10 h-6 bg-emerald-200 rounded animate-pulse" />
+              ) : (
+                (summary?.products ?? 0).toLocaleString("en-IN")
+              )}
+            </p>
+            <p className="text-xs text-emerald-500 mt-0.5 font-medium">Products</p>
+          </div>
+
+          {/* Invoices */}
+          <div className="bg-violet-50 rounded-xl p-4 text-center border border-violet-100">
+            <div className="flex justify-center mb-1.5">
+              <FileText className="w-5 h-5 text-violet-500" />
+            </div>
+            <p className="text-2xl font-bold text-violet-700">
+              {summaryLoading ? (
+                <span className="inline-block w-10 h-6 bg-violet-200 rounded animate-pulse" />
+              ) : (
+                (summary?.invoices ?? 0).toLocaleString("en-IN")
+              )}
+            </p>
+            <p className="text-xs text-violet-500 mt-0.5 font-medium">Invoices</p>
+          </div>
+
+          {/* Total Revenue */}
+          <div className="bg-amber-50 rounded-xl p-4 text-center border border-amber-100">
+            <div className="flex justify-center mb-1.5">
+              <TrendingUp className="w-5 h-5 text-amber-500" />
+            </div>
+            <p className="text-2xl font-bold text-amber-700">
+              {summaryLoading ? (
+                <span className="inline-block w-16 h-6 bg-amber-200 rounded animate-pulse" />
+              ) : (
+                `₹${(summary?.revenue ?? 0).toLocaleString("en-IN")}`
+              )}
+            </p>
+            <p className="text-xs text-amber-500 mt-0.5 font-medium">Revenue Collected</p>
+          </div>
 
         </div>
 
@@ -373,4 +468,4 @@ export default function ProfileScreen() {
 
     </div>
   );
-}
+}

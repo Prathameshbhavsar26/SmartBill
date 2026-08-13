@@ -92,6 +92,28 @@ const userSchema = new mongoose.Schema(
     // Business Branding
     logoUrl: { type: String, default: "" },
     signatureUrl: { type: String, default: "" },
+
+    // Subscription & Plan Details
+    subscription: {
+      plan: {
+        type: String,
+        enum: ["starter", "pro", "enterprise"],
+        default: "starter",
+      },
+      status: {
+        type: String,
+        enum: ["active", "trialing", "canceled", "expired"],
+        default: "trialing",
+      },
+      trialEndsAt: {
+        type: Date,
+        default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      },
+      currentPeriodStart: { type: Date, default: Date.now },
+      currentPeriodEnd: { type: Date },
+      razorpayOrderId: { type: String, default: "" },
+      razorpayPaymentId: { type: String, default: "" },
+    },
   },
   {
     timestamps: true,

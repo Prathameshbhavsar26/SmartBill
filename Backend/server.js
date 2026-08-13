@@ -9,11 +9,13 @@ import orderRoutes from "./routes/orderRoutes.js";
 import expenseRoutes from "./routes/expenseRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import seedAdmin from "./seed/admin.js";
+import migrateExistingUserTrials from "./seed/migrateTrials.js";
 import productRoutes from "./routes/productRoutes.js";
 import customizationRoutes from "./routes/customizationRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
 import businessSettingsRoutes from "./routes/businessSettingsRoutes.js";
+import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -33,6 +35,9 @@ await connectDB();
 
 // Seed the default Super Admin account (idempotent).
 await seedAdmin();
+
+// Migrate existing user accounts to 14-day trial status (idempotent)
+await migrateExistingUserTrials();
 
 // CORS - allow local development origins and configured client origins
 const allowedOrigins = [
@@ -80,6 +85,7 @@ app.use("/api/settings/customization", customizationRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/settings/business", businessSettingsRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
 
 app.get("/", (req, res) => {
   res.send("API working");

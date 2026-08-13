@@ -29,6 +29,7 @@ import {
   MODULE_PERMISSIONS,
   ROLE_DEFAULT_PERMISSIONS,
 } from "../../utils/permissions";
+import { getUserPlan } from "../../utils/planPermissions";
 import {
   fetchEmployees,
   createEmployee,
@@ -36,7 +37,7 @@ import {
   deleteEmployee,
 } from "../../api/employeeAPI";
 
-export default function UsersScreen() {
+export default function UsersScreen({ user }) {
   const [employeeList, setEmployeeList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -216,6 +217,18 @@ export default function UsersScreen() {
     }
   };
 
+  const currentUser = user || (() => {
+    try {
+      return JSON.parse(localStorage.getItem("smartbill_user"));
+    } catch {
+      return null;
+    }
+  })();
+
+  const plan = getUserPlan(currentUser);
+  const userCount = 1 + (employeeList ? employeeList.length : 0);
+  const isUserLimitReached = plan.maxUsers !== Infinity && userCount >= plan.maxUsers;
+
   return (
     <div className="space-y-5">
       {toast && (
@@ -283,33 +296,20 @@ export default function UsersScreen() {
             />
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Temporary Password
+                {editingId ? "New Password (Optional)" : "Password"}
               </label>
               <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
-                  title={showPassword ? "Lock Password" : "Unlock Password"}
-                >
-                  {showPassword ? (
-                    <Unlock className="w-4 h-4 text-blue-600" />
-                  ) : (
-                    <Lock className="w-4 h-4 text-slate-400" />
-                  )}
-                </button>
                 <input
                   type={showPassword ? "text" : "password"}
+                  placeholder={editingId ? "Leave empty to keep current" : "Min. 4 characters"}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     if (passwordError) setPasswordError("");
                   }}
-                  placeholder="Enter temporary password"
-                  className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 pl-9 pr-10 ${passwordError
-                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                      : ""
-                    }`}
+                  className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 pl-3 pr-10 ${
+                    passwordError ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""
+                  }`}
                 />
                 <button
                   type="button"
@@ -376,15 +376,19 @@ export default function UsersScreen() {
 
       <div className="flex justify-end">
         <Btn
-          variant="primary"
+          variant={isUserLimitReached ? "outline" : "primary"}
           size="md"
           onClick={() => {
+            if (isUserLimitReached) {
+              alert(`User limit reached (${plan.maxUsers} max). Upgrade your plan to Pro or Enterprise to add more employees.`);
+              return;
+            }
             resetForm();
             setShowModal(true);
           }}
           icon={<Plus className="w-4 h-4" />}
         >
-          Add Employee
+          Add Employee {isUserLimitReached && `(Limit Reached)`}
         </Btn>
       </div>
 

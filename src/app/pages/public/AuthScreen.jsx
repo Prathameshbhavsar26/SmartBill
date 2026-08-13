@@ -194,6 +194,7 @@ onLogin(loggedInUser.role, loggedInUser);
 
     setLoading(true);
     try {
+      const pendingPlan = localStorage.getItem("pending_subscription_plan");
       const normalizedBizType = String(bizType ?? "Retail").trim();
       const data = await registerUser({
         firstName: firstName.trim(),
@@ -203,7 +204,12 @@ onLogin(loggedInUser.role, loggedInUser);
         email: email.trim(),
         phone: phone.replace(PHONE_PREFIX, "").replace(/\D/g, ""),
         password,
+        ...(pendingPlan ? { planName: pendingPlan } : {}),
       });
+
+      if (pendingPlan) {
+        localStorage.removeItem("pending_subscription_plan");
+      }
 
       localStorage.setItem("smartbill_token", data.token);
       localStorage.setItem("smartbill_user", JSON.stringify(data.user));

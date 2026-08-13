@@ -3,6 +3,7 @@ import Revenue from "./pages/admin/Revenue";
 import BusinessesNew from "./pages/admin/BusinessesNew";
 import Sidebar from "./layouts/Sidebar";
 import Topbar from "./layouts/Topbar";
+import TrialBanner from "./components/common/TrialBanner";
 import { notifications } from "./data/mockData";
 import SuperAdminDashboard from "./pages/dashboard/SuperAdminDashboard";
 import BusinessDashboard from "./pages/dashboard/BusinessDashboard";
@@ -155,16 +156,16 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
       case "inventory":
         return <InventoryScreen onNav={onNav} />;
       case "reports":
-        return <ReportsScreen />;
+        return <ReportsScreen user={user} />;
       case "expenses":
         return <ExpensesScreen />;
       case "users":
-        return <UsersScreen />;
+        return <UsersScreen user={user} />;
       case "settings":
         return role === "superadmin" ? (
           <SuperAdminSettingsScreen />
         ) : (
-          <SettingsScreen />
+          <SettingsScreen user={user} />
         );
       case "notifications":
         return <NotificationsScreen />;
@@ -189,6 +190,7 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
         onToggle={() => setCollapsed((v) => !v)}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <TrialBanner user={user} onNav={onNav} />
         <Topbar
           page={page}
           onLogout={onLogout}

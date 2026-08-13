@@ -37,6 +37,15 @@ export default function POSScreen() {
   const [error, setError] = useState("");
   const [lastOrder, setLastOrder] = useState(null);
 
+  // Derived selected customer matching current customer input
+  const selectedCustomer = (customers || []).find(
+    (c) =>
+      c &&
+      c.name &&
+      customer &&
+      String(c.name).trim().toLowerCase() === String(customer).trim().toLowerCase()
+  );
+
   // Helper to extract product ID safely (supporting MongoDB _id and legacy id)
   const getProductId = (p) => {
     if (!p) return undefined;
@@ -149,7 +158,31 @@ export default function POSScreen() {
     ? Math.max(0, total - paidValue)
     : total;
 
-  const selectedCustomer = customers.find((c) => c.name === customer);
+  const activeBiz = (() => {
+    try {
+      const rawUser = localStorage.getItem("smartbill_user");
+      const u = rawUser ? JSON.parse(rawUser) : {};
+      const id = u?._id || u?.id;
+      const key = id ? `businessInfo_${id}` : "businessInfo";
+      const rawB = localStorage.getItem(key) || localStorage.getItem("businessInfo");
+      const b = rawB ? JSON.parse(rawB) : {};
+      return { ...u, ...b };
+    } catch {
+      return {};
+    }
+  })();
+
+  const bName = activeBiz.businessName || "Smart Bill Business";
+  const bTagline = activeBiz.tagline || "";
+  const bAddress = [activeBiz.address, activeBiz.city, activeBiz.state, activeBiz.pincode].filter(Boolean).join(", ");
+  const bGstin = activeBiz.gstin ? `GSTIN: ${activeBiz.gstin}` : "";
+  const bPhone = activeBiz.phone ? `Ph: ${activeBiz.phone}` : "";
+  const bBankName = activeBiz.bankName || "";
+  const bAccNo = activeBiz.accountNumber || "";
+  const bIfsc = activeBiz.ifscCode || "";
+  const bUpiId = activeBiz.upiId || "";
+  const bTerms = activeBiz.invoiceTerms || "";
+  const bFooter = activeBiz.invoiceFooter || activeBiz.invoiceFooterNote || "Thank you for your business! Visit Again 🙏";
 
   const handleGenerateInvoice = async () => {
     if (cart.length === 0) return;
@@ -263,26 +296,6 @@ export default function POSScreen() {
     const statusColor =
       status === "Paid" ? "#15803d" : status === "Partial" ? "#a16207" : "#b91c1c";
 
-    const activeBiz = (() => {
-      try {
-        const rawUser = localStorage.getItem("smartbill_user");
-        const u = rawUser ? JSON.parse(rawUser) : {};
-        const id = u?._id || u?.id;
-        const key = id ? `businessInfo_${id}` : "businessInfo";
-        const rawB = localStorage.getItem(key) || localStorage.getItem("businessInfo");
-        const b = rawB ? JSON.parse(rawB) : {};
-        return { ...u, ...b };
-      } catch {
-        return {};
-      }
-    })();
-
-    const bName = activeBiz.businessName || "Smart Bill Business";
-    const bTagline = activeBiz.tagline || "";
-    const bAddress = [activeBiz.address, activeBiz.city, activeBiz.state, activeBiz.pincode].filter(Boolean).join(", ");
-    const bGstin = activeBiz.gstin ? `GSTIN: ${activeBiz.gstin}` : "";
-    const bPhone = activeBiz.phone ? `Ph: ${activeBiz.phone}` : "";
-
     const printHtml = `
       <!DOCTYPE html>
       <html>
@@ -322,7 +335,11 @@ export default function POSScreen() {
             .row { display: flex; justify-content: space-between; font-size: 12px; color: #475569; margin-bottom: 6px; }
             .row.total { border-top: 2px solid #e2e8f0; padding-top: 8px; margin-top: 8px; font-size: 15px; font-weight: 800; color: #0f172a; }
             .row.due { border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 6px; font-weight: 700; }
-            .footer-note { margin-top: 28px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 16px; }
+            .bank-info { margin-top: 20px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11px; }
+            .footer-note { margin-top: 28px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+            .footer-greeting { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+            .footer-terms { font-size: 10px; color: #64748b; margin-bottom: 6px; white-space: pre-line; }
+            .footer-brand { font-size: 10px; color: #94a3b8; font-weight: 500; }
           </style>
         </head>
         <body>
@@ -387,8 +404,18 @@ export default function POSScreen() {
               </div>
             </div>
 
+            ${bBankName || bUpiId ? `
+              <div class="bank-info">
+                <strong>Payment & Bank Details:</strong>
+                ${bBankName ? `<div>Bank: ${bBankName} ${bAccNo ? `| A/C: ${bAccNo}` : ""} ${bIfsc ? `| IFSC: ${bIfsc}` : ""}</div>` : ""}
+                ${bUpiId ? `<div>UPI ID: ${bUpiId}</div>` : ""}
+              </div>
+            ` : ""}
+
             <div class="footer-note">
-              Thank you for your business! Powered by SmartBill Pro
+              <div class="footer-greeting">${bFooter}</div>
+              ${bTerms ? `<div class="footer-terms">Terms & Conditions: ${bTerms}</div>` : ""}
+              <div class="footer-brand">Powered by SmartBill Pro</div>
             </div>
           </div>
         </body>
@@ -443,14 +470,32 @@ export default function POSScreen() {
         <Card className="p-8">
           <div className="flex items-start justify-between mb-8">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center text-white">
-                  <BarChart2 className="w-4 h-4 text-white" />
+              <div className="flex items-center gap-3 mb-1">
+                {activeBiz.logoUrl ? (
+                  <img src={activeBiz.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700" />
+                ) : (
+                  <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                    <BarChart2 className="w-5 h-5 text-white" />
+                  </div>
+                )}
+                <div>
+                  <h2 className="font-extrabold text-gray-900 dark:text-white text-lg tracking-tight">
+                    {activeBiz.businessName || "Smart Bill"}
+                  </h2>
+                  {activeBiz.tagline && (
+                    <p className="text-xs font-medium text-blue-600 dark:text-blue-400">{activeBiz.tagline}</p>
+                  )}
                 </div>
-                <span className="font-extrabold text-gray-900 dark:text-white text-base tracking-tight">SmartBill Pro</span>
               </div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Sharma Traders, Mumbai</p>
-              <p className="text-xs font-mono text-slate-400">GSTIN: 27AAPCS0510Q1Z6</p>
+              {bAddress && (
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">{bAddress}</p>
+              )}
+              {bGstin && (
+                <p className="text-xs font-mono text-slate-400 mt-0.5">{bGstin}</p>
+              )}
+              {bPhone && (
+                <p className="text-xs font-mono text-slate-400">{bPhone}</p>
+              )}
             </div>
             <div className="text-right">
               <p className="font-bold text-blue-600 dark:text-blue-400 font-mono text-xl tracking-tight">
@@ -538,6 +583,35 @@ export default function POSScreen() {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Bank & Payment Info Section */}
+          {(bBankName || bUpiId) && (
+            <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs bg-slate-50/60 dark:bg-slate-800/40 p-3.5 rounded-xl">
+              <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">Bank & Payment Details</p>
+              {bBankName && <p className="text-slate-500 dark:text-slate-400">Bank: {bBankName} {bAccNo ? `| A/C: ${bAccNo}` : ""} {bIfsc ? `| IFSC: ${bIfsc}` : ""}</p>}
+              {bUpiId && <p className="text-blue-600 dark:text-blue-400 font-mono font-semibold mt-0.5">UPI ID: {bUpiId}</p>}
+            </div>
+          )}
+
+          {/* Invoice Terms Section */}
+          {bTerms && (
+            <div className="mt-4 text-xs bg-slate-50/60 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">Terms & Conditions</p>
+              <p className="text-slate-500 dark:text-slate-400 whitespace-pre-line text-[11px] leading-relaxed">{bTerms}</p>
+            </div>
+          )}
+
+          {/* Invoice Footer Greeting Note Section */}
+          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 text-center">
+            <div className="p-3 bg-blue-50/60 dark:bg-blue-950/40 rounded-xl border border-blue-100/60 dark:border-blue-900/40 inline-block max-w-md w-full">
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                {bFooter}
+              </p>
+            </div>
+            <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-2">
+              Powered by SmartBill Pro
+            </p>
           </div>
 
           {/* Bottom Action Controls (Hidden on Print) */}

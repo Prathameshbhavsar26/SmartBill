@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import User from "../models/User.js";
 import Verification from "../models/verifiy.js";
+import BusinessSettings from "../models/BusinessSettings.js";
 
 // ======================================================
 // HELPER: BUILD AUTH RESPONSE
@@ -61,6 +62,15 @@ const buildAuthPayload = (user, ownerUser = null) => {
       invoiceFooter: user.invoiceFooter || "",
       logoUrl: user.logoUrl || "",
       signatureUrl: user.signatureUrl || "",
+      // ✅ CRITICAL: Always include subscription so plan-based features work after upgrade
+      subscription: user.subscription
+        ? {
+            plan: user.subscription.plan || "starter",
+            status: user.subscription.status || "trial",
+            currentPeriodStart: user.subscription.currentPeriodStart || null,
+            currentPeriodEnd: user.subscription.currentPeriodEnd || null,
+          }
+        : { plan: "starter", status: "trial" },
     },
   };
 };
@@ -168,6 +178,17 @@ export const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const planToActivate = (req.body.planName || req.body.subscriptionPlan || "").toLowerCase().replace(/\s*plan\s*/gi, "").trim();
+    const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const subscriptionData = planToActivate
+      ? {
+          plan: planToActivate,
+          status: "active",
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: periodEnd,
+        }
+      : undefined;
+
     const user = await User.create({
       firstName: String(firstName).trim(),
       lastName: String(lastName).trim(),
@@ -176,6 +197,7 @@ export const register = async (req, res) => {
       email: normalizedEmail,
       phone: normalizedPhone,
       password: hashedPassword,
+      ...(subscriptionData ? { subscription: subscriptionData } : {}),
     });
 
     return res.status(201).json(buildAuthPayload(user));
@@ -335,8 +357,11 @@ export const getProfile = async (req, res) => {
 // ======================================================
 
 export const updateProfile = async (req, res) => {
+  let updateFields = {};
+  let userId = null;
+
   try {
-    const userId = req.user.id;
+    userId = req.user._id || req.user.id;
 
     const {
       firstName,
@@ -387,8 +412,8 @@ export const updateProfile = async (req, res) => {
     }
 
     let normalizedPhone = normalizePhone(phone);
-    if (!/^\d{10}$/.test(normalizedPhone)) {
-      normalizedPhone = currentUserDoc.phone || "9876543210";
+    if (!normalizedPhone || normalizedPhone.length < 5) {
+      normalizedPhone = currentUserDoc.phone || "";
     }
 
     const normalizedBusinessType = String(businessType ?? currentUserDoc.businessType ?? "Retail").trim() || "Retail";
@@ -412,28 +437,10 @@ export const updateProfile = async (req, res) => {
     }
 
     // ----------------------------------------------
-    // Check whether phone belongs to another user (only if phone changed)
+    // Prepare update fields
     // ----------------------------------------------
 
-    if (normalizedPhone && normalizedPhone !== currentUserDoc.phone && normalizedPhone !== "9876543210") {
-      const existingPhone = await User.findOne({
-        phone: normalizedPhone,
-        _id: { $ne: userId },
-      });
-
-      if (existingPhone) {
-        return res.status(409).json({
-          message: "Mobile number already belongs to another account.",
-          field: "phone",
-        });
-      }
-    }
-
-    // ----------------------------------------------
-    // Update ONLY the currently logged-in user
-    // ----------------------------------------------
-
-    const updateFields = {
+    updateFields = {
       firstName: String(firstName).trim(),
       lastName: String(lastName || "").trim(),
       businessName: String(businessName).trim(),
@@ -469,6 +476,30 @@ export const updateProfile = async (req, res) => {
       }
     });
 
+    // Sync to BusinessSettings collection
+    try {
+      await BusinessSettings.findOneAndUpdate(
+        { userId },
+        {
+          $set: {
+            businessName: updateFields.businessName,
+            ownerName: `${updateFields.firstName} ${updateFields.lastName}`.trim(),
+            phone: updateFields.phone,
+            email: updateFields.email,
+            businessType: updateFields.businessType,
+            address: updateFields.address || "",
+            city: updateFields.city || "",
+            state: updateFields.state || "",
+            pincode: updateFields.pincode || "",
+            country: updateFields.country || "India",
+          },
+        },
+        { upsert: true, new: true }
+      );
+    } catch (bsErr) {
+      console.warn("Sync to BusinessSettings warning:", bsErr.message);
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updateFields },
@@ -495,9 +526,37 @@ export const updateProfile = async (req, res) => {
     });
   } catch (error) {
     if (error?.code === 11000) {
-      return res.status(409).json({
-        message: "Email or mobile number already belongs to another account.",
-      });
+      const isEmail = error.keyPattern?.email || String(error.message || "").includes("email");
+      if (isEmail) {
+        return res.status(409).json({
+          message: "Email already belongs to another account.",
+          field: "email",
+        });
+      }
+
+      // Handle non-email index conflicts (e.g. legacy phone_1 index in MongoDB)
+      console.warn("Legacy index conflict on profile update:", error.message);
+      try {
+        const fallbackFields = { ...updateFields };
+        delete fallbackFields.phone;
+
+        const retryUser = await User.findByIdAndUpdate(
+          userId,
+          { $set: fallbackFields },
+          { new: true, runValidators: false }
+        ).select("-password");
+
+        if (retryUser) {
+          const authPayload = buildAuthPayload(retryUser);
+          return res.status(200).json({
+            message: "Profile updated successfully.",
+            token: authPayload.token,
+            user: authPayload.user,
+          });
+        }
+      } catch (retryErr) {
+        console.error("Retry profile update failed:", retryErr.message);
+      }
     }
 
     console.error("UPDATE PROFILE ERROR:", error);

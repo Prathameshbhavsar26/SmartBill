@@ -68,36 +68,56 @@ export const ROLE_DEFAULT_PERMISSIONS = {
 };
 
 /**
+ * Helper to determine if user is a primary business owner or superadmin.
+ */
+export function isOwnerOrSuperAdmin(user) {
+  if (!user) return true;
+  const roleStr = String(user.role || "").toLowerCase().replace(/[-_\s]/g, "");
+  return (
+    roleStr === "owner" ||
+    roleStr === "businessowner" ||
+    roleStr === "superadmin" ||
+    !user.ownerId
+  );
+}
+
+/**
  * Resolves permissions object for the given user.
  * Owners and Superadmins always receive full permissions.
- * Employees receive the specific module permissions granted to them by the owner.
+ * Employees receive default role permissions merged with specific module overrides.
  */
 export function getUserPermissions(user) {
-  if (!user || user.role === "owner" || user.role === "superadmin") {
+  if (isOwnerOrSuperAdmin(user)) {
     return { ...ROLE_DEFAULT_PERMISSIONS.Owner };
   }
 
-  // If user object contains specific permissions saved by owner
-  if (user.permissions && typeof user.permissions === "object" && Object.keys(user.permissions).length > 0) {
-    return { ...user.permissions };
-  }
-
-  // Fallback by role name
   const roleName = user.role
-    ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+    ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()
     : "Cashier";
 
-  return {
-    ...(ROLE_DEFAULT_PERMISSIONS[roleName] || ROLE_DEFAULT_PERMISSIONS.Cashier),
-  };
+  const defaultPerms =
+    ROLE_DEFAULT_PERMISSIONS[roleName] || ROLE_DEFAULT_PERMISSIONS.Cashier;
+
+  if (
+    user.permissions &&
+    typeof user.permissions === "object" &&
+    Object.keys(user.permissions).length > 0
+  ) {
+    return {
+      ...defaultPerms,
+      ...user.permissions,
+    };
+  }
+
+  return { ...defaultPerms };
 }
 
 /**
  * Checks whether the current user has permission to access a specific page module.
  */
 export function hasPermission(user, pageKey) {
-  if (!user || user.role === "owner" || user.role === "superadmin") return true;
-  if (!pageKey || pageKey === "profile" || pageKey === "notifications") return true;
+  if (isOwnerOrSuperAdmin(user)) return true;
+  if (!pageKey || pageKey === "profile" || pageKey === "notifications" || pageKey === "dashboard") return true;
 
   const permissions = getUserPermissions(user);
   return Boolean(permissions[pageKey]);
