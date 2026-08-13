@@ -85,7 +85,7 @@ export default function PurchaseReport() {
     const items = Object.entries(catMap).map(([name, v]) => ({ name, v }));
     items.sort((a, b) => b.v - a.v);
 
-    if (items.length > 0) return items.slice(0, 5);
+    if (items.length > 0) return items;
 
     return [{ name: "General Goods", v: 0 }];
   }, [products]);
@@ -263,11 +263,11 @@ export default function PurchaseReport() {
                 </RechartsPie>
               </ResponsiveContainer>
             </div>
-            <div className="space-y-2 w-full md:w-auto">
+            <div className="space-y-2 w-full md:w-auto max-h-48 overflow-y-auto pr-2">
               {categoryPie.map((c) => (
                 <div
                   key={c.name}
-                  className="flex items-center gap-2 text-xs text-slate-600"
+                  className="flex items-center gap-2 text-xs text-gray-600"
                 >
                   <span
                     className="w-3 h-3 rounded-full flex-shrink-0"
@@ -276,7 +276,7 @@ export default function PurchaseReport() {
                   <span className="font-medium truncate max-w-[120px]">
                     {c.name}
                   </span>
-                  <span className="font-mono text-slate-400">
+                  <span className="font-mono text-gray-400">
                     ({c.value.toFixed(1)}%)
                   </span>
                 </div>
@@ -286,31 +286,30 @@ export default function PurchaseReport() {
         </ReportCard>
       </div>
 
-      {/* Supplier Breakdown Table */}
       <Card className="p-5">
-        <h3 className="font-semibold text-slate-900 mb-4">Supplier Summary</h3>
-        <div className="overflow-x-auto">
+        <h3 className="font-semibold text-gray-900 mb-4">Supplier Summary</h3>
+        <div className="overflow-auto max-h-96">
           <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider">
+            <thead className="sticky top-0 bg-white">
+              <tr className="border-b border-gray-100 text-gray-400 font-semibold uppercase tracking-wider">
                 <th className="pb-3">Supplier</th>
                 <th className="pb-3 text-right">Total Purchases</th>
                 <th className="pb-3 text-right">Amount Paid</th>
                 <th className="pb-3 text-right">Pending Balance</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-gray-100">
               {topSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-center text-slate-400">
+                  <td colSpan={4} className="py-6 text-center text-gray-400">
                     No purchase data available.
                   </td>
                 </tr>
               ) : (
                 topSuppliers.map((s) => (
-                  <tr key={s.name} className="hover:bg-slate-50/50">
-                    <td className="py-3 font-semibold text-slate-800">{s.name}</td>
-                    <td className="py-3 text-right font-mono text-slate-900">
+                  <tr key={s.name} className="hover:bg-gray-50/50">
+                    <td className="py-3 font-semibold text-gray-800">{s.name}</td>
+                    <td className="py-3 text-right font-mono text-gray-900">
                       {fmt(s.amount)}
                     </td>
                     <td className="py-3 text-right font-mono text-emerald-600">

@@ -16,7 +16,7 @@ import {
 import { posProducts } from "../../data/mockData";
 import { fmt } from "../../utils/format";
 import { Badge, Btn, Card, Input, Select } from "../../components/common/ui";
-import { fetchCustomers } from "../../api/customerAPI";
+import { fetchCustomers, createCustomer } from "../../api/customerAPI";
 import { createOrder } from "../../api/orderAPI";
 import { getProducts } from "../../api/productAPI";
 
@@ -25,7 +25,10 @@ export default function POSScreen() {
   const [customers, setCustomers] = useState([]);
   const [productList, setProductList] = useState(posProducts);
   const [loadingProducts, setLoadingProducts] = useState(true);
-  const [customer, setCustomer] = useState("Walk-in Customer");
+  const [customer, setCustomer] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerCity, setCustomerCity] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [paymentMode, setPaymentMode] = useState("Cash");
   const [search, setSearch] = useState("");
   const [showInvoice, setShowInvoice] = useState(false);
@@ -152,7 +155,6 @@ export default function POSScreen() {
     if (cart.length === 0) return;
     setError("");
 
-    // Default amount paid to the full total if left blank.
     const effectivePaid = paidValue > 0 ? paidValue : total;
 
     const items = cart.map((i) => ({
@@ -165,10 +167,33 @@ export default function POSScreen() {
       amount: (Number(i.product.price) || 0) * i.qty,
     }));
 
+    let currentCustomerId = selectedCustomer ? (selectedCustomer._id || selectedCustomer.id) : null;
+    let currentCustomerName = customer || "Walk-in Customer";
+    let currentCustomerEmail = selectedCustomer?.email || customerEmail.trim();
+
+    if (!selectedCustomer && customer.trim()) {
+      try {
+        const newCust = await createCustomer({
+          name: customer.trim(),
+          phone: customerPhone.trim(),
+          city: customerCity.trim(),
+          email: customerEmail.trim()
+        });
+        currentCustomerId = newCust.customer?._id || newCust.customer?.id || newCust._id || null;
+        currentCustomerName = newCust.customer?.name || newCust.name || customer.trim();
+        // Refresh customer list in background
+        fetchCustomers().then(res => {
+          if (res && Array.isArray(res.customers)) setCustomers(res.customers);
+        }).catch(() => { });
+      } catch (err) {
+        console.error("Failed to auto-create customer", err);
+      }
+    }
+
     const payload = {
-      customerId: selectedCustomer ? (selectedCustomer._id || selectedCustomer.id) : null,
-      customerName: customer,
-      customerEmail: selectedCustomer?.email || "",
+      customerId: currentCustomerId,
+      customerName: currentCustomerName,
+      customerEmail: currentCustomerEmail,
       items,
       subtotal: Math.round(subtotal),
       gstRate: effectiveGstRate,
@@ -196,11 +221,11 @@ export default function POSScreen() {
       order?.items && order.items.length > 0
         ? order.items
         : cart.map((i) => ({
-            name: i.product?.name || "Item",
-            qty: i.qty,
-            price: Number(i.product?.price) || 0,
-            amount: (Number(i.product?.price) || 0) * i.qty,
-          }));
+          name: i.product?.name || "Item",
+          qty: i.qty,
+          price: Number(i.product?.price) || 0,
+          amount: (Number(i.product?.price) || 0) * i.qty,
+        }));
 
     const invoiceSubtotal = order?.subtotal ?? subtotal;
     const invoiceGst = order?.gst ?? gst;
@@ -388,11 +413,11 @@ export default function POSScreen() {
       order?.items && order.items.length > 0
         ? order.items
         : cart.map((i) => ({
-            name: i.product?.name || "Item",
-            qty: i.qty,
-            price: Number(i.product?.price) || 0,
-            amount: (Number(i.product?.price) || 0) * i.qty,
-          }));
+          name: i.product?.name || "Item",
+          qty: i.qty,
+          price: Number(i.product?.price) || 0,
+          amount: (Number(i.product?.price) || 0) * i.qty,
+        }));
 
     const invoiceSubtotal = order?.subtotal ?? subtotal;
     const invoiceGst = order?.gst ?? gst;
@@ -401,50 +426,28 @@ export default function POSScreen() {
     const invoiceDue = order?.balanceDue ?? Math.max(0, invoiceTotal - invoicePaid);
 
     return (
-      <div className="max-w-2xl mx-auto space-y-4">
-        {/* Top Control Bar (Hidden on Print) */}
-        <div className="no-print flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-          <Btn
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setShowInvoice(false);
-              setCart([]);
-              setAmountPaid("");
-              setLastOrder(null);
-            }}
-          >
-            ← Back to Billing
-          </Btn>
-          <div className="flex gap-2">
-            <Btn
-              variant="primary"
-              size="sm"
-              onClick={handlePrintInvoice}
-              icon={<Printer className="w-4 h-4" />}
-            >
-              Print Invoice
-            </Btn>
-            <Btn
-              variant="outline"
-              size="sm"
-              onClick={handlePrintInvoice}
-              icon={<Download className="w-4 h-4" />}
-            >
-              Download PDF
-            </Btn>
-          </div>
-        </div>
-
-        {/* Printable Invoice Document Card */}
-        <Card id="printable-invoice" className="p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-lg">
-          <div className="flex items-start justify-between mb-8 pb-6 border-b border-slate-100 dark:border-slate-800">
+      <div className="max-w-2xl mx-auto">
+        <Btn
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setShowInvoice(false);
+            setCart([]);
+            setAmountPaid("");
+            setLastOrder(null);
+          }}
+          className="mb-4"
+        >
+          ← Back to Billing
+        </Btn>
+        <Card className="p-8">
+          <div className="flex items-start justify-between mb-8">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-sm">
+                <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center text-white">
                   <BarChart2 className="w-4 h-4 text-white" />
                 </div>
-                <span className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight">SmartBill Pro</span>
+                <span className="font-extrabold text-gray-900 dark:text-white text-base tracking-tight">SmartBill Pro</span>
               </div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Sharma Traders, Mumbai</p>
               <p className="text-xs font-mono text-slate-400">GSTIN: 27AAPCS0510Q1Z6</p>
@@ -571,7 +574,7 @@ export default function POSScreen() {
   }
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-160px)]">
+    <div className="flex gap-5 h-[calc(100vh-110px)]">
       {/* Left: Products */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
         <div className="flex items-center gap-3">
@@ -598,10 +601,10 @@ export default function POSScreen() {
             Loading products from database...
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-sm bg-slate-50 rounded-xl border border-dashed border-slate-200 p-6">
-            <Package className="w-10 h-10 text-slate-300 mb-2" />
-            <p className="font-medium text-slate-700">No products found</p>
-            <p className="text-xs text-slate-400">Add products in the Products section to sell here.</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-500 text-sm bg-gray-50 rounded-md border border-dashed border-gray-200 p-6">
+            <Package className="w-10 h-10 text-gray-300 mb-2" />
+            <p className="font-medium text-gray-700">No products found</p>
+            <p className="text-xs text-gray-400">Add products in the Products section to sell here.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3 overflow-y-auto pr-2">
@@ -613,14 +616,13 @@ export default function POSScreen() {
                   key={pId}
                   onClick={() => addToCart(p)}
                   disabled={isOut}
-                  className={`bg-white border rounded-xl p-3 text-left transition-all group active:scale-[0.98] flex items-center gap-4 ${
-                    isOut
-                      ? "opacity-60 border-slate-200 cursor-not-allowed bg-slate-50"
-                      : "border-slate-200 hover:border-blue-400 hover:shadow-md"
-                  }`}
+                  className={`bg-white border rounded-md p-3 text-left transition-colors group flex items-center gap-4 ${isOut
+                      ? "opacity-60 border-gray-200 cursor-not-allowed bg-gray-50"
+                      : "border-gray-200 hover:border-blue-400"
+                    }`}
                 >
-                  <div className="w-12 h-12 bg-slate-100 rounded-lg flex-shrink-0 flex items-center justify-center">
-                    <Package className="w-6 h-6 text-slate-400" />
+                  <div className="w-12 h-12 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center">
+                    <Package className="w-6 h-6 text-gray-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-900 truncate">
@@ -633,13 +635,12 @@ export default function POSScreen() {
                       {fmt(p.price)}
                     </span>
                     <span
-                      className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                        isOut
+                      className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isOut
                           ? "bg-red-50 text-red-500"
                           : p.stock < 10
                             ? "bg-amber-50 text-amber-600"
                             : "bg-emerald-50 text-emerald-600"
-                      }`}
+                        }`}
                     >
                       {isOut ? "Out of Stock" : `Stock: ${p.stock}`}
                     </span>
@@ -652,12 +653,12 @@ export default function POSScreen() {
       </div>
 
       {/* Right: Current Bill Sidebar */}
-      <Card className="w-96 flex-shrink-0 flex flex-col h-full shadow-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+      <Card className="w-[420px] flex-shrink-0 flex flex-col h-full rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden bg-white dark:bg-gray-900 shadow-sm">
         {/* Header & Customer Selection */}
-        <div className="p-3.5 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200/80 dark:border-slate-800 space-y-2.5 flex-shrink-0">
+        <div className="p-3.5 bg-gray-50/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800 space-y-2.5 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+              <div className="w-8 h-8 rounded bg-blue-600 text-white flex items-center justify-center">
                 <Receipt className="w-4 h-4" />
               </div>
               <div>
@@ -689,19 +690,60 @@ export default function POSScreen() {
             <label className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
               Customer
             </label>
-            <select
+            <input
+              list="pos-customers-list"
               value={customer}
               onChange={(e) => setCustomer(e.target.value)}
-              className="w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs transition-all cursor-pointer"
-            >
+              className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <datalist id="pos-customers-list">
               <option value="Walk-in Customer">Walk-in Customer</option>
               {customers.map((c) => (
-                <option key={c._id || c.name} value={c.name}>
-                  {c.name}
-                </option>
+                <option key={c._id || c.name} value={c.name} />
               ))}
-            </select>
+            </datalist>
           </div>
+
+          {!selectedCustomer && customer.trim() !== "" && (
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                  Phone
+                </label>
+                <input
+                  type="text"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="Phone"
+                  className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                  City
+                </label>
+                <input
+                  type="text"
+                  value={customerCity}
+                  onChange={(e) => setCustomerCity(e.target.value)}
+                  placeholder="City"
+                  className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                  Email (Optional)
+                </label>
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="Email"
+                  className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )}
 
           {selectedCustomer && (
             <div className="rounded-xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 p-2.5 space-y-2 text-[11px] shadow-2xs">
@@ -747,7 +789,7 @@ export default function POSScreen() {
         <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-2">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-8">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center mb-2.5 text-slate-400 dark:text-slate-500 shadow-inner">
+              <div className="w-12 h-12 rounded bg-gray-100 dark:bg-gray-800/80 flex items-center justify-center mb-2.5 text-gray-400 dark:text-gray-500">
                 <ShoppingCart className="w-6 h-6" />
               </div>
               <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">
@@ -765,46 +807,46 @@ export default function POSScreen() {
               return (
                 <div
                   key={itemId}
-                  className="bg-slate-50/90 dark:bg-slate-800/70 hover:bg-slate-100/90 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-2.5 transition-all shadow-2xs group"
+                  className="bg-slate-50/90 dark:bg-slate-800/70 hover:bg-slate-100/90 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-3.5 transition-all shadow-2xs group"
                 >
-                  <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate flex-1 leading-snug">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate flex-1 leading-snug">
                       {prodName}
                     </p>
                     <button
                       type="button"
                       onClick={() => removeItem(itemId)}
-                      className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                      className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                       title="Remove item"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="flex items-center justify-between pt-0.5">
-                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-1 shadow-2xs">
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-1.5 shadow-2xs">
                       <button
                         type="button"
                         onClick={() => updateQty(itemId, -1)}
-                        className="w-5 h-5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                        className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
                       >
-                        <Minus className="w-3 h-3" />
+                        <Minus className="w-4 h-4" />
                       </button>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white min-w-[20px] text-center font-mono">
+                      <span className="text-base font-bold text-slate-900 dark:text-white min-w-[32px] text-center font-mono">
                         {item.qty}
                       </span>
                       <button
                         type="button"
                         onClick={() => updateQty(itemId, 1)}
-                        className="w-5 h-5 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white transition-colors cursor-pointer shadow-xs"
+                        className="w-7 h-7 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white transition-colors cursor-pointer shadow-xs"
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className="w-4 h-4" />
                       </button>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] text-slate-400 font-mono block font-medium">
+                      <span className="text-xs text-slate-400 font-mono block font-medium mb-0.5">
                         @{fmt(prodPrice)}
                       </span>
-                      <span className="text-xs font-bold font-mono text-slate-900 dark:text-white">
+                      <span className="text-base font-bold font-mono text-slate-900 dark:text-white">
                         {fmt(prodPrice * item.qty)}
                       </span>
                     </div>
@@ -920,7 +962,7 @@ export default function POSScreen() {
             type="button"
             onClick={handleGenerateInvoice}
             disabled={cart.length === 0 || saving}
-            className="w-full bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs py-3 rounded-xl shadow-md hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
           >
             <Receipt className="w-4 h-4 text-white" />
             <span>{saving ? "Saving..." : "Generate Invoice"}</span>

@@ -127,9 +127,9 @@ export default function SalesReport() {
     const list = Object.values(productMap);
     list.sort((a, b) => b.revenue - a.revenue);
 
-    if (list.length > 0) return list.slice(0, 6);
+    if (list.length > 0) return list;
 
-    return products.slice(0, 4).map((p) => ({
+    return products.map((p) => ({
       name: p.name,
       qty: 0,
       revenue: (p.stock || 0) * (p.price || 0),
@@ -228,7 +228,7 @@ export default function SalesReport() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <ReportCard className="p-5">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-slate-900">
+            <h3 className="font-semibold text-gray-900">
               Monthly Revenue Trend
             </h3>
           </div>
@@ -284,11 +284,11 @@ export default function SalesReport() {
         </ReportCard>
 
         <ReportCard className="p-5">
-          <h3 className="font-semibold text-slate-900 mb-5">
+          <h3 className="font-semibold text-gray-900 mb-5">
             Expense Breakdown
           </h3>
           {expensesByCategory.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-slate-400 text-xs">
+            <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-xs">
               No expense records found for this period.
             </div>
           ) : (
@@ -320,13 +320,13 @@ export default function SalesReport() {
                   <Bar dataKey="amount" fill="#6366F1" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-              <div className="mt-4 space-y-2">
-                {expensesByCategory.slice(0, 4).map((e) => (
+              <div className="mt-4 space-y-2 max-h-48 overflow-y-auto pr-2">
+                {expensesByCategory.map((e) => (
                   <div
                     key={e.id}
                     className="flex items-center justify-between text-xs"
                   >
-                    <span className="text-slate-600">{e.category}</span>
+                    <span className="text-gray-600">{e.category}</span>
                     <div className="flex items-center gap-3">
                       <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
@@ -355,25 +355,25 @@ export default function SalesReport() {
       {/* Top Selling Products */}
       <ReportCard className="p-5">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">Top Selling Products</h3>
+          <h3 className="font-semibold text-gray-900">Top Selling Products</h3>
         </div>
         {topProducts.length === 0 ? (
-          <p className="text-xs text-slate-500">No products sold yet.</p>
+          <p className="text-xs text-gray-500">No products sold yet.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto p-1">
             {topProducts.map((p) => (
               <div
                 key={p.name}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                className="rounded-md border border-gray-200 bg-gray-50 p-4"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <p className="font-semibold text-slate-900 text-sm truncate">{p.name}</p>
-                  <span className="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-600 font-semibold flex-shrink-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{p.name}</p>
+                  <span className="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-600 font-semibold flex-shrink-0">
                     Qty {p.qty}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">Total Revenue</p>
-                <p className="text-lg font-bold text-slate-900 font-mono">
+                <p className="text-xs text-gray-500">Total Revenue</p>
+                <p className="text-lg font-bold text-gray-900 font-mono">
                   {fmt(p.revenue)}
                 </p>
               </div>
@@ -385,17 +385,17 @@ export default function SalesReport() {
       {/* Recent Transactions Table */}
       <ReportCard className="p-5">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">Recent Transactions</h3>
+          <h3 className="font-semibold text-gray-900">Recent Transactions</h3>
         </div>
         {invoices.length === 0 ? (
-          <p className="text-xs text-slate-500 py-6 text-center">
+          <p className="text-xs text-gray-500 py-6 text-center">
             No sales invoices recorded for this date range.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-96">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-gray-200">
                   {[
                     "Invoice",
                     "Customer",

@@ -15,11 +15,6 @@ const customerSchema = new mongoose.Schema(
       trim: true,
     },
 
-    contact: {
-      type: String,
-      trim: true,
-      default: "",
-    },
 
     phone: {
       type: String,

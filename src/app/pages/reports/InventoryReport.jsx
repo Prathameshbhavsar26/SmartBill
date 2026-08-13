@@ -110,14 +110,14 @@ export default function InventoryReport() {
       });
     });
 
-    return products.slice(0, 6).map((p) => {
+    return products.map((p) => {
       const soldQty = salesMap[p.name] || 0;
       return {
         name: p.name,
         stock: Number(p.stock) || 0,
         moving: soldQty,
       };
-    });
+    }).sort((a, b) => b.moving - a.moving);
   }, [products, filteredOrders]);
 
   // Inventory valuation rows
@@ -212,7 +212,7 @@ export default function InventoryReport() {
       {/* Stock Movement & Category Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <ReportCard className="p-5">
-          <h3 className="font-semibold text-slate-900 mb-5">
+          <h3 className="font-semibold text-gray-900 mb-5">
             Weekly Stock Movement (Inflow vs Outflow)
           </h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -259,10 +259,10 @@ export default function InventoryReport() {
         </ReportCard>
 
         <ReportCard className="p-5">
-          <h3 className="font-semibold text-slate-900 mb-5">
+          <h3 className="font-semibold text-gray-900 mb-5">
             Category Share & Stock Breakdown
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
             {categoryDist.map((c) => (
               <div key={c.name}>
                 <div className="flex justify-between text-xs mb-1">
@@ -312,25 +312,25 @@ export default function InventoryReport() {
       {/* Top Moving Products */}
       <ReportCard className="p-5">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">Top Moving Products</h3>
+          <h3 className="font-semibold text-gray-900">Top Moving Products</h3>
         </div>
         {topMoving.length === 0 ? (
-          <p className="text-xs text-slate-500">No products available.</p>
+          <p className="text-xs text-gray-500">No products available.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto p-1">
             {topMoving.map((p) => (
               <div
                 key={p.name}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                className="rounded-md border border-gray-200 bg-gray-50 p-4"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <p className="font-semibold text-slate-900 text-sm truncate">{p.name}</p>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 flex-shrink-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{p.name}</p>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-50 text-blue-600 flex-shrink-0">
                     Units Sold: {p.moving}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">Current Stock</p>
-                <p className="text-lg font-bold text-slate-900 font-mono">{p.stock}</p>
+                <p className="text-xs text-gray-500">Current Stock</p>
+                <p className="text-lg font-bold text-gray-900 font-mono">{p.stock}</p>
               </div>
             ))}
           </div>
@@ -340,19 +340,19 @@ export default function InventoryReport() {
       {/* Inventory Valuation Table */}
       <ReportCard className="p-5">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-slate-900">
+          <h3 className="font-semibold text-gray-900">
             Inventory Valuation Table
           </h3>
         </div>
         {inventoryValuationRows.length === 0 ? (
-          <p className="text-xs text-slate-500 py-6 text-center">
+          <p className="text-xs text-gray-500 py-6 text-center">
             No products found in inventory.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-96">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-gray-100">
                   {["SKU", "Product", "Category", "Stock", "Asset Value", "Status"].map(
                     (h) => (
                       <th
