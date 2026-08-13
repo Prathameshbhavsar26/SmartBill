@@ -25,18 +25,17 @@ export function Btn({
     md: "px-4 py-2 text-sm",
     lg: "px-6 py-2.5 text-sm",
   };
-  const variants = {
     primary:
-      "text-white shadow-sm active:scale-[0.98] hover:opacity-90 transition-all",
+      "text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors",
     secondary:
-      "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.98]",
+      "bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors",
     outline:
-      "border border-slate-300 text-slate-700 hover:bg-slate-50 active:scale-[0.98]",
-    ghost: "text-slate-600 hover:bg-slate-100 active:scale-[0.98]",
+      "border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors",
+    ghost: "text-gray-600 hover:bg-gray-100 transition-colors",
     danger:
-      "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 active:scale-[0.98]",
+      "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors",
     success:
-      "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm active:scale-[0.98]",
+      "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-colors",
   };
   return (
     <button
@@ -52,12 +51,11 @@ export function Btn({
 }
 
 export function Badge({ label, variant = "gray" }) {
-  const v = {
-    blue: "bg-red-50 text-red-700 border border-red-200",
+    blue: "bg-blue-50 text-blue-700 border border-blue-200",
     green: "bg-emerald-50 text-emerald-700 border border-emerald-200",
     yellow: "bg-amber-50 text-amber-700 border border-amber-200",
     red: "bg-red-50 text-red-700 border border-red-200",
-    gray: "bg-slate-100 text-slate-600 border border-slate-200",
+    gray: "bg-gray-100 text-gray-600 border border-gray-200",
     purple: "bg-purple-50 text-purple-700 border border-purple-200",
   };
   return (
@@ -88,7 +86,7 @@ export function statusBadge(status) {
 export function Card({ children, className = "" }) {
   return (
     <div
-      className={`bg-white rounded-xl border border-slate-200 shadow-sm ${className}`}
+      className={`bg-white rounded-md border border-gray-200 shadow-sm ${className}`}
     >
       {children}
     </div>
@@ -288,7 +286,7 @@ export function FixedPhoneInput({
           }}
           placeholder={placeholder}
           inputMode="numeric"
-          className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 ${icon ? "pl-9 pr-3" : "px-3"} ${error ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""}`}
+          className={`w-full border border-gray-300 rounded-md bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors py-2 ${icon ? "pl-9 pr-3" : "px-3"} ${error ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""}`}
         />
       </div>
       {error ? <p className="text-xs text-red-600 mt-0.5">{error}</p> : null}
@@ -325,7 +323,7 @@ export function Input({
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           placeholder={placeholder}
-          className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 ${icon ? "pl-9 pr-3" : "px-3"} ${error ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""} ${inputClassName}`}
+          className={`w-full border border-gray-300 rounded-md bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors py-2 ${icon ? "pl-9 pr-3" : "px-3"} ${error ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""} ${inputClassName}`}
         />
       </div>
       {error && <p className="text-xs text-red-600 mt-0.5">{error}</p>}
@@ -344,7 +342,7 @@ export function Select({ label, value, onChange, options }) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border border-slate-200 rounded-lg bg-white text-sm text-slate-900 px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="border border-gray-300 rounded-md bg-white text-sm text-gray-900 px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
       >
         {options.map((o) => (
           <option key={o} value={o}>
@@ -386,10 +384,10 @@ export function StatCard({ label, value, sub, trend, icon, color }) {
 
 export function Modal({ title, onClose, children }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <h3 className="font-semibold text-slate-900">{title}</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-md shadow-lg">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 className="font-semibold text-gray-900">{title}</h3>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -405,8 +403,8 @@ export function Modal({ title, onClose, children }) {
 
 export function ConfirmDialog({ message, onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <Card className="w-full max-w-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <Card className="w-full max-w-sm rounded-md shadow-lg">
         <div className="p-6 text-center">
           <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-6 h-6 text-red-500" />

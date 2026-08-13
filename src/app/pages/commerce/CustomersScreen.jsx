@@ -64,7 +64,6 @@ export default function CustomersScreen() {
 
   const initialFormState = {
     name: "",
-    contact: "",
     phone: "",
     email: "",
     city: "",
@@ -183,7 +182,6 @@ export default function CustomersScreen() {
     try {
       const response = await createCustomer({
         name: form.name,
-        contact: isWholesale ? form.contact : "",
         phone: form.phone,
         email: form.email,
         city: form.city,
@@ -217,7 +215,6 @@ export default function CustomersScreen() {
     try {
       const response = await updateCustomer(editId, {
         name: editForm.name,
-        contact: isWholesale ? editForm.contact : "",
         phone: editForm.phone,
         email: editForm.email,
         city: editForm.city,
@@ -277,7 +274,6 @@ export default function CustomersScreen() {
     setEditId(customer._id || customer.id);
     setEditForm({
       name: customer.name || "",
-      contact: customer.contact || "",
       phone: customer.phone || "",
       email: customer.email || "",
       city: customer.city || "",
@@ -656,11 +652,7 @@ export default function CustomersScreen() {
               <p className="text-lg font-semibold text-slate-900">
                 {viewCustomer.name}
               </p>
-              {isWholesale && viewCustomer.contact && (
-                <p className="text-sm text-slate-500">
-                  Contact: {viewCustomer.contact}
-                </p>
-              )}
+
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -738,35 +730,14 @@ export default function CustomersScreen() {
       {showEditModal && editId !== null && (
         <Modal title="Edit Customer" onClose={closeEditModal}>
           <div className="space-y-4">
-            {isWholesale ? (
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Business Name"
-                  placeholder="Raj Enterprises"
-                  value={editForm.name}
-                  onChange={(value) =>
-                    setEditForm((f) => ({ ...f, name: value }))
-                  }
-                />
-                <Input
-                  label="Contact Person"
-                  placeholder="Rajesh Kumar"
-                  value={editForm.contact}
-                  onChange={(value) =>
-                    setEditForm((f) => ({ ...f, contact: value }))
-                  }
-                />
-              </div>
-            ) : (
-              <Input
-                label="Customer Name"
-                placeholder="Rahul Sharma"
-                value={editForm.name}
-                onChange={(value) =>
-                  setEditForm((f) => ({ ...f, name: value }))
-                }
-              />
-            )}
+            <Input
+              label={isWholesale ? "Business Name" : "Customer Name"}
+              placeholder={isWholesale ? "Raj Enterprises" : "Rahul Sharma"}
+              value={editForm.name}
+              onChange={(value) =>
+                setEditForm((f) => ({ ...f, name: value }))
+              }
+            />
 
             <div className="grid grid-cols-2 gap-3">
               <Input
@@ -846,35 +817,14 @@ export default function CustomersScreen() {
       {showModal && (
         <Modal title="Add New Customer" onClose={closeCreateModal}>
           <div className="space-y-4">
-            {isWholesale ? (
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Business Name"
-                  placeholder="Raj Enterprises"
-                  value={form.name}
-                  onChange={(value) =>
-                    setForm((f) => ({ ...f, name: value }))
-                  }
-                />
-                <Input
-                  label="Contact Person"
-                  placeholder="Rajesh Kumar"
-                  value={form.contact}
-                  onChange={(value) =>
-                    setForm((f) => ({ ...f, contact: value }))
-                  }
-                />
-              </div>
-            ) : (
-              <Input
-                label="Customer Name"
-                placeholder="Rahul Sharma"
-                value={form.name}
-                onChange={(value) =>
-                  setForm((f) => ({ ...f, name: value }))
-                }
-              />
-            )}
+            <Input
+              label={isWholesale ? "Business Name" : "Customer Name"}
+              placeholder={isWholesale ? "Raj Enterprises" : "Rahul Sharma"}
+              value={form.name}
+              onChange={(value) =>
+                setForm((f) => ({ ...f, name: value }))
+              }
+            />
 
             <div className="grid grid-cols-2 gap-3">
               <Input
@@ -1024,7 +974,7 @@ export default function CustomersScreen() {
               <tr className="border-b border-slate-100">
                 {[
                   isWholesale ? "Business" : "Customer Name",
-                  isWholesale ? "Contact" : "Email",
+                  "Email",
                   "Phone",
                   "City",
                   "Balance",
@@ -1084,11 +1034,9 @@ export default function CustomersScreen() {
                         </button>
                       </td>
 
-                      {/* CONTACT / EMAIL */}
+                      {/* EMAIL */}
                       <td className="px-5 py-4 text-slate-600">
-                        {isWholesale
-                          ? customer.contact || "—"
-                          : customer.email || "—"}
+                        {customer.email || "—"}
                       </td>
 
                       {/* PHONE */}

@@ -181,14 +181,12 @@ export default function BusinessDashboard({ onNav }) {
     }));
 
     items.sort((a, b) => b.amount - a.amount);
-    return items.slice(0, 5);
+    return items;
   }, [orders, products]);
 
-  // Recent 5 Invoices
   const recentInvoices = useMemo(() => {
     return [...orders]
-      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
-      .slice(0, 5);
+      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
   }, [orders]);
 
   if (loading) {
@@ -303,22 +301,22 @@ export default function BusinessDashboard({ onNav }) {
 
         <div className="space-y-4">
           <Card className="p-5 h-[340px] flex flex-col">
-            <h3 className="font-semibold text-slate-900 dark:text-white mb-4 text-base">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-base">
               Sales by Category
             </h3>
-            <div className="space-y-3 flex-1 flex flex-col justify-center">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-2">
               {salesByCategory.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center">No category data available</p>
+                <p className="text-xs text-gray-400 text-center">No category data available</p>
               ) : (
                 salesByCategory.map((d) => (
                   <div key={d.name} className="space-y-1">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-slate-700 dark:text-slate-300">{d.name}</span>
-                      <span className="font-bold text-slate-900 dark:text-white font-mono">
+                      <span className="text-gray-700 dark:text-gray-300">{d.name}</span>
+                      <span className="font-bold text-gray-900 dark:text-white font-mono">
                         {fmt(d.amount)} ({d.value}%)
                       </span>
                     </div>
-                    <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-300"
                         style={{ width: `${Math.max(4, d.value)}%`, backgroundColor: d.color }}
@@ -335,15 +333,15 @@ export default function BusinessDashboard({ onNav }) {
       {/* Recent Invoices & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card className="lg:col-span-2">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="font-semibold text-slate-900 dark:text-white text-base">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+            <h3 className="font-semibold text-gray-900 dark:text-white text-base">
               Recent Sales Invoices
             </h3>
             <Btn variant="ghost" size="sm" onClick={() => onNav("pos")}>
               Go to POS →
             </Btn>
           </div>
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-96 overflow-y-auto">
             {recentInvoices.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-xs">
                 No recent invoices recorded yet. Start billing in POS screen!
