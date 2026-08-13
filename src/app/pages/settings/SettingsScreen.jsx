@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useCustomization } from "../../hooks/useCustomization";
+import { updateProfile, getProfile } from "../../api/authAPI";
 import {
   Building2,
   Percent,
@@ -19,24 +20,225 @@ import {
   Upload,
   Check,
   Package,
+  QrCode,
+  FileCheck,
+  Loader2,
 } from "lucide-react";
-import { Input, Btn, Select, Card } from "../../components/common/ui";
+import { Input, Btn, Select } from "../../components/common/ui";
+
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman & Nicobar Islands",
+  "Chandigarh",
+  "Dadra & Nagar Haveli and Daman & Diu",
+  "Delhi",
+  "Jammu & Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry",
+];
 
 export default function SettingsScreen() {
   const [activeTab, setActiveTab] = useState("business");
-  const [businessInfo, setBusinessInfo] = useState({
-    businessName: "Sharma Traders",
-    ownerName: "Vikram Sharma",
-    phone: "+91 9876543210",
-    email: "contact@sharmatraders.in",
-    businessType: "Retail",
-    financialYear: "April (Standard India)",
-    address: "Shop No.14, Sadar Bazaar, Nagpur",
-    city: "Nagpur",
-    state: "Maharashtra",
-    pincode: "440001",
-    country: "India",
+  const [savingBusiness, setSavingBusiness] = useState(false);
+  const [businessSuccess, setBusinessSuccess] = useState(null);
+  const [businessError, setBusinessError] = useState(null);
+
+  const [businessInfo, setBusinessInfo] = useState(() => {
+    try {
+      const rawUser = localStorage.getItem("smartbill_user");
+      const user = rawUser ? JSON.parse(rawUser) : {};
+      const key = user?._id || user?.id ? `businessInfo_${user._id || user.id}` : "businessInfo";
+      const rawLocal = localStorage.getItem(key) || localStorage.getItem("businessInfo");
+      const localObj = rawLocal ? JSON.parse(rawLocal) : {};
+
+      const ownerName = user.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : (localObj.ownerName || "");
+
+      return {
+        businessName: user.businessName || localObj.businessName || "SmartBill Business",
+        ownerName: ownerName || "Vikram Sharma",
+        tagline: user.tagline || localObj.tagline || "",
+        phone: user.phone || localObj.phone || "+91 9876543210",
+        email: user.email || localObj.email || "contact@business.in",
+        businessType: user.businessType || localObj.businessType || "Retail",
+        financialYear: localObj.financialYear || "April (Standard India)",
+        address: user.address || localObj.address || "Shop No. 14, Sadar Bazaar",
+        city: user.city || localObj.city || "Nagpur",
+        state: user.state || localObj.state || "Maharashtra",
+        pincode: user.pincode || localObj.pincode || "440001",
+        country: user.country || localObj.country || "India",
+        gstin: user.gstin || localObj.gstin || "",
+        registrationType: localObj.registrationType || (user.gstin ? "Regular" : "Unregistered"),
+        panNumber: user.panNumber || localObj.panNumber || "",
+        msmeNumber: user.msmeNumber || localObj.msmeNumber || "",
+        bankName: user.bankName || localObj.bankName || "",
+        accountNumber: user.accountNumber || localObj.accountNumber || "",
+        ifscCode: user.ifscCode || localObj.ifscCode || "",
+        branchName: user.branchName || localObj.branchName || "",
+        upiId: user.upiId || localObj.upiId || "",
+        invoiceTerms: user.invoiceTerms || localObj.invoiceTerms || "1. Goods once sold will not be taken back.\n2. Interest @18% p.a. will be charged on overdue payments.",
+        invoiceFooter: user.invoiceFooter || localObj.invoiceFooter || "Thank you for your business!",
+        logoUrl: user.logoUrl || localObj.logoUrl || "",
+        signatureUrl: user.signatureUrl || localObj.signatureUrl || "",
+      };
+    } catch {
+      return {
+        businessName: "SmartBill Business",
+        ownerName: "Owner",
+        tagline: "",
+        phone: "+91 9876543210",
+        email: "contact@business.in",
+        businessType: "Retail",
+        financialYear: "April (Standard India)",
+        address: "",
+        city: "Nagpur",
+        state: "Maharashtra",
+        pincode: "440001",
+        country: "India",
+        gstin: "",
+        registrationType: "Regular",
+        panNumber: "",
+        msmeNumber: "",
+        bankName: "",
+        accountNumber: "",
+        ifscCode: "",
+        branchName: "",
+        upiId: "",
+        invoiceTerms: "1. Goods once sold will not be taken back.\n2. Interest @18% p.a. will be charged on overdue payments.",
+        invoiceFooter: "Thank you for your business!",
+        logoUrl: "",
+        signatureUrl: "",
+      };
+    }
   });
+
+  // Load latest user profile from backend on mount
+  useEffect(() => {
+    const token = localStorage.getItem("smartbill_token");
+    if (!token) return;
+
+    getProfile()
+      .then((res) => {
+        if (res?.user) {
+          const u = res.user;
+          const ownerName = u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : "";
+          setBusinessInfo((prev) => ({
+            ...prev,
+            ...u,
+            businessName: u.businessName || prev.businessName,
+            ownerName: ownerName || prev.ownerName,
+          }));
+          localStorage.setItem("smartbill_user", JSON.stringify(u));
+          window.dispatchEvent(new Event("userUpdated"));
+        }
+      })
+      .catch((err) => {
+        console.warn("Profile fetch notice:", err.message);
+      });
+  }, []);
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image size must be under 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      handleBusinessChange("logoUrl", reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSignatureUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Signature size must be under 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      handleBusinessChange("signatureUrl", reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveBusiness = async () => {
+    setSavingBusiness(true);
+    setBusinessSuccess(null);
+    setBusinessError(null);
+
+    try {
+      const nameParts = (businessInfo.ownerName || "").trim().split(" ");
+      const firstName = nameParts[0] || "Owner";
+      const lastName = nameParts.slice(1).join(" ");
+
+      const payload = {
+        ...businessInfo,
+        firstName,
+        lastName,
+      };
+
+      const token = localStorage.getItem("smartbill_token");
+      if (!token) {
+        setBusinessError("Authentication token missing. Please sign in again.");
+        return;
+      }
+
+      const res = await updateProfile(payload);
+      if (res?.user) {
+        if (res.token) {
+          localStorage.setItem("smartbill_token", res.token);
+        }
+        localStorage.setItem("smartbill_user", JSON.stringify(res.user));
+
+        const id = res.user._id || res.user.id;
+        const key = id ? `businessInfo_${id}` : "businessInfo";
+        localStorage.setItem(key, JSON.stringify(businessInfo));
+        localStorage.setItem("businessInfo", JSON.stringify(businessInfo));
+
+        window.dispatchEvent(new Event("userUpdated"));
+        setBusinessSuccess("✓ Business Profile updated and saved permanently across database & invoices!");
+      } else {
+        setBusinessError("Failed to save profile. Server did not return user details.");
+      }
+    } catch (apiErr) {
+      console.error("Backend profile update notice:", apiErr);
+      const msg = apiErr?.response?.data?.message || apiErr?.message || "Failed to update profile on backend.";
+      setBusinessError(msg);
+    } finally {
+      setSavingBusiness(false);
+    }
+  };
 
   // GST & Tax toggle states
   const [enableIgst, setEnableIgst] = useState(true);
@@ -136,15 +338,6 @@ export default function SettingsScreen() {
   // Security states
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
   const [sessionTimeout, setSessionTimeout] = useState(true);
-
-
-  const handleSaveBusiness = () => {
-    console.log(businessInfo);
-
-    localStorage.setItem("businessInfo", JSON.stringify(businessInfo));
-
-    alert("Business Information Saved");
-  };
 
   // Handle GST settings save
   const handleSaveGstSettings = () => {
@@ -447,98 +640,405 @@ export default function SettingsScreen() {
       <div className="flex-1 space-y-5">
         {/* TAB 1: BUSINESS PROFILE */}
         {activeTab === "business" && (
-          <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              Business Information
-            </h3>
-            <div className="flex items-start gap-6 mb-6">
-              <div className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center border-2 border-dashed border-slate-300 cursor-pointer hover:bg-slate-50 flex-shrink-0">
-                <div className="text-center">
-                  <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
-                  <p className="text-[10px] text-slate-400">Upload Logo</p>
+          <div className="space-y-6">
+            {/* Header Alert Banners */}
+            {businessSuccess && (
+              <div className="p-4 text-sm font-medium rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                <Check className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                <span>{businessSuccess}</span>
+              </div>
+            )}
+            {businessError && (
+              <div className="p-4 text-sm font-medium rounded-xl bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/40 dark:border-red-800 dark:text-red-300 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <span>{businessError}</span>
+              </div>
+            )}
+
+            {/* Business Header Card with Logo & GST Status */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-4">
+                  {/* Logo Upload Box */}
+                  <div className="relative group">
+                    <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 overflow-hidden flex-shrink-0 shadow-inner">
+                      {businessInfo.logoUrl ? (
+                        <img
+                          src={businessInfo.logoUrl}
+                          alt="Business Logo"
+                          className="w-full h-full object-contain p-1"
+                        />
+                      ) : (
+                        <div className="text-center p-2">
+                          <Upload className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                          <p className="text-[10px] font-medium text-slate-400">Logo</p>
+                        </div>
+                      )}
+                    </div>
+                    <label className="absolute inset-0 bg-black/50 text-white rounded-2xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-xs font-semibold">
+                      <Upload className="w-4 h-4 mb-0.5" />
+                      Change
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                      {businessInfo.businessName || "SmartBill Business"}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {businessInfo.tagline || "Wholesale & Retail Billing Management"}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span
+                        className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                          businessInfo.gstin
+                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            : "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                        }`}
+                      >
+                        <FileCheck className="w-3 h-3" />
+                        {businessInfo.gstin
+                          ? `GSTIN: ${businessInfo.gstin}`
+                          : "GST Unregistered"}
+                      </span>
+                      <span className="text-xs text-slate-400">·</span>
+                      <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        {businessInfo.businessType}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <Btn
+                  variant="primary"
+                  disabled={savingBusiness}
+                  onClick={handleSaveBusiness}
+                  icon={
+                    savingBusiness ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )
+                  }
+                >
+                  {savingBusiness
+                    ? "Saving Business Profile..."
+                    : "Save Business Profile"}
+                </Btn>
+              </div>
+
+              {/* Section 1: Business Identity */}
+              <div className="pt-6 space-y-4">
+                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-semibold text-sm">
+                  <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span>General Business Identity</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Input
+                    label="Business Name (Legal/Trade Name)"
+                    value={businessInfo.businessName}
+                    onChange={(value) =>
+                      handleBusinessChange("businessName", value)
+                    }
+                    placeholder="e.g. Sharma Traders Pvt Ltd"
+                  />
+                  <Input
+                    label="Business Tagline / Subtitle"
+                    value={businessInfo.tagline}
+                    onChange={(value) =>
+                      handleBusinessChange("tagline", value)
+                    }
+                    placeholder="e.g. Quality Wholesale Electronics"
+                  />
+                  <Input
+                    label="Owner / Contact Person Name"
+                    value={businessInfo.ownerName}
+                    onChange={(value) =>
+                      handleBusinessChange("ownerName", value)
+                    }
+                    placeholder="e.g. Vikram Sharma"
+                  />
+                  <Select
+                    label="Business Category / Type"
+                    value={businessInfo.businessType}
+                    onChange={(value) =>
+                      handleBusinessChange("businessType", value)
+                    }
+                    options={[
+                      "Retail",
+                      "Wholesale",
+                      "Manufacturing",
+                      "Services",
+                      "Pharmacy / Medical",
+                      "Supermarket / Grocery",
+                      "Restaurant / Cafe",
+                      "Hardware & Electrical",
+                      "General Store",
+                    ]}
+                  />
+                  <Select
+                    label="Financial Year Cycle"
+                    value={businessInfo.financialYear}
+                    onChange={(value) =>
+                      handleBusinessChange("financialYear", value)
+                    }
+                    options={[
+                      "April (Standard India - FY 2026-27)",
+                      "January (Calendar Year)",
+                    ]}
+                  />
                 </div>
               </div>
-              <div className="flex-1 grid grid-cols-2 gap-4">
+            </div>
+
+            {/* Section 2: Contact & Address Information */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-semibold text-sm mb-1">
+                <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>Contact & Location Address</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="Business Name"
-                  value={businessInfo.businessName}
-                  onChange={(value) =>
-                    handleBusinessChange("businessName", value)
-                  }
+                  label="Primary Phone Number"
+                  value={businessInfo.phone}
+                  icon={<Phone className="w-4 h-4" />}
+                  onChange={(value) => handleBusinessChange("phone", value)}
+                  placeholder="+91 9876543210"
                 />
                 <Input
-                  label="Owner Name"
+                  label="Official Email Address"
+                  value={businessInfo.email}
+                  icon={<Mail className="w-4 h-4" />}
+                  onChange={(value) => handleBusinessChange("email", value)}
+                  placeholder="contact@sharmatraders.in"
+                />
+                <div className="md:col-span-2">
+                  <Input
+                    label="Shop / Office Building Address"
+                    value={businessInfo.address}
+                    icon={<MapPin className="w-4 h-4" />}
+                    onChange={(value) => handleBusinessChange("address", value)}
+                    placeholder="e.g. Shop No. 14, Sadar Main Market"
+                  />
+                </div>
+                <Input
+                  label="City / District"
+                  value={businessInfo.city}
+                  onChange={(value) => handleBusinessChange("city", value)}
+                  placeholder="Nagpur"
+                />
+                <Select
+                  label="State (India)"
+                  value={businessInfo.state}
+                  onChange={(value) => handleBusinessChange("state", value)}
+                  options={INDIAN_STATES}
+                />
+                <Input
+                  label="Pincode"
+                  value={businessInfo.pincode}
+                  onChange={(value) => handleBusinessChange("pincode", value)}
+                  placeholder="440001"
+                />
+                <Select
+                  label="Country"
+                  value={businessInfo.country}
+                  onChange={(value) => handleBusinessChange("country", value)}
+                  options={["India"]}
+                />
+              </div>
+            </div>
+
+            {/* Section 3: Tax & Registration Identifiers */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-semibold text-sm mb-1">
+                <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>GST, Tax & Government Registrations</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Input
+                  label="GSTIN Number"
+                  value={businessInfo.gstin}
+                  onChange={(value) =>
+                    handleBusinessChange("gstin", value.toUpperCase())
+                  }
+                  placeholder="e.g. 27AAPCS0510Q1Z6"
+                />
+                <Select
+                  label="GST Registration Type"
+                  value={businessInfo.registrationType}
+                  onChange={(value) =>
+                    handleBusinessChange("registrationType", value)
+                  }
+                  options={["Regular", "Composition", "Unregistered"]}
+                />
+                <Input
+                  label="PAN Number"
+                  value={businessInfo.panNumber}
+                  onChange={(value) =>
+                    handleBusinessChange("panNumber", value.toUpperCase())
+                  }
+                  placeholder="e.g. ABCDE1234F"
+                />
+                <Input
+                  label="MSME / Udyam Reg. No. (Optional)"
+                  value={businessInfo.msmeNumber}
+                  onChange={(value) =>
+                    handleBusinessChange("msmeNumber", value)
+                  }
+                  placeholder="e.g. UDYAM-MH-00-1234567"
+                />
+              </div>
+            </div>
+
+            {/* Section 4: Bank Account & Payment Details */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-semibold text-sm mb-1">
+                <Landmark className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>Bank Account & UPI Details (Printed on Invoices)</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Input
+                  label="Bank Name"
+                  value={businessInfo.bankName}
+                  onChange={(value) => handleBusinessChange("bankName", value)}
+                  placeholder="e.g. HDFC Bank"
+                />
+                <Input
+                  label="Account Holder Name"
                   value={businessInfo.ownerName}
                   onChange={(value) => handleBusinessChange("ownerName", value)}
+                  placeholder="e.g. Sharma Traders"
                 />
                 <Input
-                  label="Phone"
-                  value={businessInfo.phone}
-                  onChange={(value) => handleBusinessChange("phone", value)}
-                  icon={<Phone className="w-4 h-4" />}
+                  label="Account Number"
+                  value={businessInfo.accountNumber}
+                  onChange={(value) =>
+                    handleBusinessChange("accountNumber", value)
+                  }
+                  placeholder="e.g. 50100234567890"
                 />
                 <Input
-                  label="Email"
-                  value={businessInfo.email}
-                  onChange={(value) => handleBusinessChange("email", value)}
-                  icon={<Mail className="w-4 h-4" />}
+                  label="IFSC Code"
+                  value={businessInfo.ifscCode}
+                  onChange={(value) =>
+                    handleBusinessChange("ifscCode", value.toUpperCase())
+                  }
+                  placeholder="e.g. HDFC0001234"
+                />
+                <Input
+                  label="Bank Branch"
+                  value={businessInfo.branchName}
+                  onChange={(value) =>
+                    handleBusinessChange("branchName", value)
+                  }
+                  placeholder="e.g. Sadar Bazaar Branch"
+                />
+                <Input
+                  label="UPI ID / VPA for Billing QR"
+                  value={businessInfo.upiId}
+                  icon={<QrCode className="w-4 h-4" />}
+                  onChange={(value) => handleBusinessChange("upiId", value)}
+                  placeholder="e.g. sharmatraders@upi"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <Select
-                label="Business Type"
-                value={businessInfo.businessType}
-                onChange={(value) =>
-                  handleBusinessChange("businessType", value)
-                }
-                options={["Retail", "Wholesale", "Manufacturing", "Services"]}
-              />
-              <Select
-                label="Financial Year Start"
-                value={businessInfo.financialYear}
-                onChange={(value) =>
-                  handleBusinessChange("financialYear", value)
-                }
-                options={["April (Standard India)", "January"]}
-              />
-              <div className="col-span-2">
-                <Input
-                  label="Address"
-                  value={businessInfo.address}
-                  icon={<MapPin className="w-4 h-4" />}
-                  onChange={(value) => handleBusinessChange("address", value)}
-                />
+
+            {/* Section 5: Invoice Terms & Digital Signature */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-semibold text-sm mb-1">
+                <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>Invoice Terms & Authorized Signature</span>
               </div>
-              <Input
-                label="City"
-                value={businessInfo.city}
-                onChange={(value) => handleBusinessChange("city", value)}
-              />
-              <Input
-                label="State"
-                value={businessInfo.state}
-                onChange={(value) => handleBusinessChange("state", value)}
-              />
-              <Input
-                label="Pincode"
-                value={businessInfo.pincode}
-                onChange={(value) => handleBusinessChange("pincode", value)}
-              />
-              <Select
-                label="Country"
-                value={businessInfo.country}
-                onChange={(value) => handleBusinessChange("country", value)}
-                options={["India"]}
-              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                    Default Invoice Terms & Conditions
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={businessInfo.invoiceTerms}
+                    onChange={(e) =>
+                      handleBusinessChange("invoiceTerms", e.target.value)
+                    }
+                    placeholder="Enter invoice terms..."
+                    className="w-full p-3 text-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                    Invoice Footer Greeting Note
+                  </label>
+                  <input
+                    type="text"
+                    value={businessInfo.invoiceFooter}
+                    onChange={(e) =>
+                      handleBusinessChange("invoiceFooter", e.target.value)
+                    }
+                    placeholder="e.g. Thank you for your business!"
+                    className="w-full p-3 text-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-4"
+                  />
+
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                    Authorized Digital Signature Stamp
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-36 h-16 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex items-center justify-center overflow-hidden">
+                      {businessInfo.signatureUrl ? (
+                        <img
+                          src={businessInfo.signatureUrl}
+                          alt="Signature"
+                          className="w-full h-full object-contain p-1"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-slate-400 text-center">
+                          Upload Signature Image
+                        </span>
+                      )}
+                    </div>
+                    <label className="px-3.5 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl cursor-pointer transition-colors flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload Image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleSignatureUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <Btn
+                  variant="primary"
+                  disabled={savingBusiness}
+                  onClick={handleSaveBusiness}
+                  icon={
+                    savingBusiness ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )
+                  }
+                >
+                  {savingBusiness
+                    ? "Saving Business Profile..."
+                    : "Save Business Profile"}
+                </Btn>
+              </div>
             </div>
-            <Btn
-              variant="primary"
-              icon={<Check className="w-4 h-4" />}
-              onClick={handleSaveBusiness}
-            >
-              Save Changes
-            </Btn>
           </div>
         )}
 

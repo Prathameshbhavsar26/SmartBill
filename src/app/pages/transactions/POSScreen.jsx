@@ -238,6 +238,26 @@ export default function POSScreen() {
     const statusColor =
       status === "Paid" ? "#15803d" : status === "Partial" ? "#a16207" : "#b91c1c";
 
+    const activeBiz = (() => {
+      try {
+        const rawUser = localStorage.getItem("smartbill_user");
+        const u = rawUser ? JSON.parse(rawUser) : {};
+        const id = u?._id || u?.id;
+        const key = id ? `businessInfo_${id}` : "businessInfo";
+        const rawB = localStorage.getItem(key) || localStorage.getItem("businessInfo");
+        const b = rawB ? JSON.parse(rawB) : {};
+        return { ...u, ...b };
+      } catch {
+        return {};
+      }
+    })();
+
+    const bName = activeBiz.businessName || "Smart Bill Business";
+    const bTagline = activeBiz.tagline || "";
+    const bAddress = [activeBiz.address, activeBiz.city, activeBiz.state, activeBiz.pincode].filter(Boolean).join(", ");
+    const bGstin = activeBiz.gstin ? `GSTIN: ${activeBiz.gstin}` : "";
+    const bPhone = activeBiz.phone ? `Ph: ${activeBiz.phone}` : "";
+
     const printHtml = `
       <!DOCTYPE html>
       <html>
@@ -285,9 +305,10 @@ export default function POSScreen() {
             <table class="header-table">
               <tr>
                 <td style="border:none; padding:0;">
-                  <div class="brand">SmartBill Pro</div>
-                  <div class="subtext">Sharma Traders, Mumbai</div>
-                  <div class="subtext">GSTIN: 27AAPCS0510Q1Z6</div>
+                  <div class="brand">${bName}</div>
+                  ${bTagline ? `<div class="subtext">${bTagline}</div>` : ""}
+                  ${bAddress ? `<div class="subtext">${bAddress}</div>` : ""}
+                  ${bGstin ? `<div class="subtext">${bGstin} ${bPhone ? " | " + bPhone : ""}</div>` : ""}
                 </td>
                 <td style="border:none; padding:0; text-align:right;">
                   <div class="inv-title">${invoiceNo}</div>

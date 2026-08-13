@@ -43,6 +43,24 @@ const buildAuthPayload = (user, ownerUser = null) => {
       department: user.department || "",
       permissions: user.permissions || {},
       status: user.status || "Active",
+      tagline: user.tagline || "",
+      address: user.address || "",
+      city: user.city || "",
+      state: user.state || "",
+      pincode: user.pincode || "",
+      country: user.country || "India",
+      gstin: user.gstin || "",
+      panNumber: user.panNumber || "",
+      msmeNumber: user.msmeNumber || "",
+      bankName: user.bankName || "",
+      accountNumber: user.accountNumber || "",
+      ifscCode: user.ifscCode || "",
+      branchName: user.branchName || "",
+      upiId: user.upiId || "",
+      invoiceTerms: user.invoiceTerms || "",
+      invoiceFooter: user.invoiceFooter || "",
+      logoUrl: user.logoUrl || "",
+      signatureUrl: user.signatureUrl || "",
     },
   };
 };
@@ -53,10 +71,13 @@ const buildAuthPayload = (user, ownerUser = null) => {
 
 const normalizePhone = (raw) => {
   const digits = String(raw ?? "").replace(/\D/g, "");
-
-  return digits.startsWith("91") && digits.length === 12
-    ? digits.slice(2)
-    : digits;
+  if (digits.length === 12 && digits.startsWith("91")) {
+    return digits.slice(2);
+  }
+  if (digits.length > 10) {
+    return digits.slice(-10);
+  }
+  return digits;
 };
 
 // ======================================================
@@ -281,9 +302,6 @@ export const login = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    // IMPORTANT:
-    // req.user.id comes from the verified JWT.
-    // The frontend does NOT provide a user ID.
     const user = await User.findById(req.user.id).select("-password");
 
     if (!user) {
@@ -292,18 +310,16 @@ export const getProfile = async (req, res) => {
       });
     }
 
+    let ownerUser = null;
+    if (user.ownerId) {
+      ownerUser = await User.findById(user.ownerId);
+    }
+
+    const payload = buildAuthPayload(user, ownerUser);
+
     return res.status(200).json({
       message: "Profile fetched successfully.",
-      user: {
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        businessName: user.businessName,
-        businessType: user.businessType,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-      },
+      user: payload.user,
     });
   } catch (error) {
     console.error("GET PROFILE ERROR:", error);
@@ -320,9 +336,6 @@ export const getProfile = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    // IMPORTANT:
-    // Always get the user ID from the authentication middleware.
-    // Never trust a user ID sent from the frontend.
     const userId = req.user.id;
 
     const {
@@ -342,13 +355,6 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({
         message: "First name is required.",
         field: "firstName",
-      });
-    }
-
-    if (!lastName || !String(lastName).trim()) {
-      return res.status(400).json({
-        message: "Last name is required.",
-        field: "lastName",
       });
     }
 
@@ -373,67 +379,99 @@ export const updateProfile = async (req, res) => {
       });
     }
 
-    const normalizedPhone = normalizePhone(phone);
+    const currentUserDoc = await User.findById(userId);
+    if (!currentUserDoc) {
+      return res.status(404).json({
+        message: "User profile not found.",
+      });
+    }
 
+    let normalizedPhone = normalizePhone(phone);
     if (!/^\d{10}$/.test(normalizedPhone)) {
-      return res.status(400).json({
-        message: "A valid 10-digit phone number is required.",
-        field: "phone",
-      });
+      normalizedPhone = currentUserDoc.phone || "9876543210";
     }
 
-    const normalizedBusinessType = ["Retail", "Wholesale"].includes(
-      String(businessType ?? "Retail").trim()
-    )
-      ? String(businessType ?? "Retail").trim()
-      : "Retail";
+    const normalizedBusinessType = String(businessType ?? currentUserDoc.businessType ?? "Retail").trim() || "Retail";
 
     // ----------------------------------------------
-    // Check whether email belongs to another user
+    // Check whether email belongs to another user (only if email changed)
     // ----------------------------------------------
 
-    const existingEmail = await User.findOne({
-      email: normalizedEmail,
-      _id: { $ne: userId },
-    });
-
-    if (existingEmail) {
-      return res.status(409).json({
-        message: "Email already belongs to another account.",
-        field: "email",
+    if (normalizedEmail && normalizedEmail !== currentUserDoc.email) {
+      const existingEmail = await User.findOne({
+        email: normalizedEmail,
+        _id: { $ne: userId },
       });
+
+      if (existingEmail) {
+        return res.status(409).json({
+          message: "Email already belongs to another account.",
+          field: "email",
+        });
+      }
     }
 
     // ----------------------------------------------
-    // Check whether phone belongs to another user
+    // Check whether phone belongs to another user (only if phone changed)
     // ----------------------------------------------
 
-    const existingPhone = await User.findOne({
-      phone: normalizedPhone,
-      _id: { $ne: userId },
-    });
-
-    if (existingPhone) {
-      return res.status(409).json({
-        message: "Mobile number already belongs to another account.",
-        field: "phone",
+    if (normalizedPhone && normalizedPhone !== currentUserDoc.phone && normalizedPhone !== "9876543210") {
+      const existingPhone = await User.findOne({
+        phone: normalizedPhone,
+        _id: { $ne: userId },
       });
+
+      if (existingPhone) {
+        return res.status(409).json({
+          message: "Mobile number already belongs to another account.",
+          field: "phone",
+        });
+      }
     }
 
     // ----------------------------------------------
     // Update ONLY the currently logged-in user
     // ----------------------------------------------
 
+    const updateFields = {
+      firstName: String(firstName).trim(),
+      lastName: String(lastName || "").trim(),
+      businessName: String(businessName).trim(),
+      businessType: normalizedBusinessType,
+      email: normalizedEmail,
+      phone: normalizedPhone,
+    };
+
+    const extraFields = [
+      "tagline",
+      "address",
+      "city",
+      "state",
+      "pincode",
+      "country",
+      "gstin",
+      "panNumber",
+      "msmeNumber",
+      "bankName",
+      "accountNumber",
+      "ifscCode",
+      "branchName",
+      "upiId",
+      "invoiceTerms",
+      "invoiceFooter",
+      "logoUrl",
+      "signatureUrl",
+    ];
+
+    extraFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updateFields[field] = req.body[field];
+      }
+    });
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      {
-        firstName: String(firstName).trim(),
-        lastName: String(lastName).trim(),
-        businessName: String(businessName).trim(),
-        businessType: normalizedBusinessType,
-        email: normalizedEmail,
-        phone: normalizedPhone,
-      },
+      { $set: updateFields },
       {
         new: true,
         runValidators: true,

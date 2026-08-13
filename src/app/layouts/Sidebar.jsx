@@ -33,7 +33,9 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }
 
         {!collapsed && (
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white truncate">Smart Bill</p>
+            <p className="text-sm font-bold text-white truncate">
+              {user?.businessName || "Smart Bill"}
+            </p>
             <p className="text-[10px] text-slate-500 capitalize">
               {role.replace("-", " ")}
             </p>
@@ -90,8 +92,10 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }
             {visibleNavGroups.map((group) => (
               <div key={group.label}>
                 {!collapsed && (
-                  <p className="px-6 mb-1 text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
-                    {group.label}
+                  <p className="px-6 mb-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                    {t(`nav.group_${group.label.toLowerCase()}`) !== `nav.group_${group.label.toLowerCase()}`
+                      ? t(`nav.group_${group.label.toLowerCase()}`)
+                      : group.label}
                   </p>
                 )}
                 <div className="space-y-0.5 px-3">

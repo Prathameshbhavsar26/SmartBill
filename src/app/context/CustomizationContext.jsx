@@ -71,10 +71,41 @@ function adjustColor(hex, percent) {
   return "#" + (g | (b << 8) | (r << 16)).toString(16).padStart(6, "0");
 }
 
-function applyDOMCustomization(settings) {
+function getUserStorageKey() {
+  try {
+    const userRaw = localStorage.getItem("smartbill_user");
+    if (!userRaw) return "appSettings_guest";
+    const user = JSON.parse(userRaw);
+    const id = user?._id || user?.id || user?.email;
+    return id ? `appSettings_${id}` : "appSettings_guest";
+  } catch {
+    return "appSettings_guest";
+  }
+}
+
+export function applyDOMCustomization(settings, isAppRoute) {
   if (typeof window === "undefined" || !document) return;
 
-  const { theme, accentColor, fontSize } = settings;
+  const appRouteCheck =
+    typeof isAppRoute === "boolean"
+      ? isAppRoute
+      : window.location.pathname.startsWith("/app");
+
+  if (!appRouteCheck) {
+    document.documentElement.classList.remove("dark");
+    document.body.style.backgroundColor = "";
+    document.body.style.color = "";
+    document.documentElement.style.fontSize = "16px";
+    document.documentElement.style.setProperty("--base-font-size", "16px");
+    document.documentElement.style.setProperty("--primary", "#2563eb");
+    document.documentElement.style.setProperty("--primary-hover", "#1d4ed8");
+    document.documentElement.style.setProperty("--primary-dark", "#1e40af");
+    document.documentElement.style.setProperty("--primary-light", "#2563eb1f");
+    document.documentElement.style.setProperty("--primary-foreground", "#ffffff");
+    return;
+  }
+
+  const { theme, accentColor, fontSize } = settings || DEFAULT_CUSTOMIZATION;
 
   // 1. Theme Mode
   const isSystemDark =
@@ -117,7 +148,8 @@ function applyDOMCustomization(settings) {
 export function CustomizationProvider({ children }) {
   const [settings, setSettings] = useState(() => {
     try {
-      const raw = localStorage.getItem("appSettings");
+      const key = getUserStorageKey();
+      const raw = localStorage.getItem(key);
       return raw
         ? { ...DEFAULT_CUSTOMIZATION, ...JSON.parse(raw) }
         : DEFAULT_CUSTOMIZATION;
@@ -158,7 +190,8 @@ export function CustomizationProvider({ children }) {
           };
           setSettings(loaded);
           setTempSettings(loaded);
-          localStorage.setItem("appSettings", JSON.stringify(loaded));
+          const key = getUserStorageKey();
+          localStorage.setItem(key, JSON.stringify(loaded));
         }
       })
       .catch((err) => {
@@ -180,8 +213,9 @@ export function CustomizationProvider({ children }) {
     setError(null);
     setSuccessMessage(null);
 
-    // Persist to localStorage immediately
-    localStorage.setItem("appSettings", JSON.stringify(tempSettings));
+    // Persist to user-scoped localStorage immediately
+    const key = getUserStorageKey();
+    localStorage.setItem(key, JSON.stringify(tempSettings));
     setSettings(tempSettings);
 
     const token = localStorage.getItem("smartbill_token");
@@ -192,7 +226,7 @@ export function CustomizationProvider({ children }) {
           const saved = { ...DEFAULT_CUSTOMIZATION, ...res.customization };
           setSettings(saved);
           setTempSettings(saved);
-          localStorage.setItem("appSettings", JSON.stringify(saved));
+          localStorage.setItem(key, JSON.stringify(saved));
         }
       } catch (err) {
         console.error("Failed to save customization to backend:", err.message);
@@ -217,7 +251,8 @@ export function CustomizationProvider({ children }) {
 
     setTempSettings(DEFAULT_CUSTOMIZATION);
     setSettings(DEFAULT_CUSTOMIZATION);
-    localStorage.setItem("appSettings", JSON.stringify(DEFAULT_CUSTOMIZATION));
+    const key = getUserStorageKey();
+    localStorage.setItem(key, JSON.stringify(DEFAULT_CUSTOMIZATION));
 
     const token = localStorage.getItem("smartbill_token");
     if (token) {

@@ -31,10 +31,12 @@ import { fetchPurchases } from "../../api/purchaseAPI";
 import { getExpenses } from "../../api/expenseApi";
 import { fmt } from "../../utils/format";
 import { Btn, Card, StatCard, statusBadge } from "../../components/common/ui";
+import { useCustomization } from "../../hooks/useCustomization";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function BusinessDashboard({ onNav }) {
+  const { t, formatCurrency } = useCustomization();
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -206,10 +208,10 @@ export default function BusinessDashboard({ onNav }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Business Overview
+            {t("dashboard.title") || "Business Dashboard"}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Real-time analytics for sales, inventory, and customer activity
+            {t("dashboard.subtitle") || "Real-time performance summary and business analytics"}
           </p>
         </div>
         <button
@@ -219,30 +221,30 @@ export default function BusinessDashboard({ onNav }) {
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-2xs hover:shadow transition-all cursor-pointer disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-          <span>{refreshing ? "Syncing..." : "Refresh Live Data"}</span>
+          <span>{refreshing ? t("common.saving") || "Syncing..." : "Refresh Live Data"}</span>
         </button>
       </div>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Today's Sales"
-          value={fmt(metrics.todaySales)}
+          label={t("dashboard.total_sales") || "Today's Sales"}
+          value={formatCurrency(metrics.todaySales)}
           sub="Live today total"
           trend="up"
           icon={<TrendingUp className="w-5 h-5" />}
           color="bg-blue-50 text-blue-600"
         />
         <StatCard
-          label="Monthly Revenue"
-          value={fmt(metrics.monthlyRevenue)}
+          label={t("dashboard.total_revenue") || "Monthly Revenue"}
+          value={formatCurrency(metrics.monthlyRevenue)}
           sub="Current month total"
           trend="up"
           icon={<DollarSign className="w-5 h-5" />}
           color="bg-emerald-50 text-emerald-600"
         />
         <StatCard
-          label="Total Customers"
+          label={t("dashboard.total_customers") || "Total Customers"}
           value={`${metrics.totalCustomers}`}
           sub="Active client records"
           trend="up"

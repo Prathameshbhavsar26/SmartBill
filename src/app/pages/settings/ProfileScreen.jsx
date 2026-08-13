@@ -122,6 +122,8 @@ export default function ProfileScreen() {
         JSON.stringify(updatedUser)
       );
 
+      window.dispatchEvent(new Event("userUpdated"));
+
       // Backend returns a fresh JWT.
       if (response.token) {
         localStorage.setItem("smartbill_token", response.token);

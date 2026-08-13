@@ -66,6 +66,32 @@ const userSchema = new mongoose.Schema(
       enum: ["Active", "Inactive"],
       default: "Active",
     },
+
+    // Business Profile & Invoice Customization Fields
+    tagline: { type: String, default: "" },
+    address: { type: String, default: "" },
+    city: { type: String, default: "" },
+    state: { type: String, default: "" },
+    pincode: { type: String, default: "" },
+    country: { type: String, default: "India" },
+    gstin: { type: String, default: "" },
+    panNumber: { type: String, default: "" },
+    msmeNumber: { type: String, default: "" },
+
+    // Bank & Payment Details for Billing / Invoices
+    bankName: { type: String, default: "" },
+    accountNumber: { type: String, default: "" },
+    ifscCode: { type: String, default: "" },
+    branchName: { type: String, default: "" },
+    upiId: { type: String, default: "" },
+
+    // Invoice Terms & Footer
+    invoiceTerms: { type: String, default: "1. Goods once sold will not be taken back.\n2. Interest @18% p.a. will be charged on overdue payments." },
+    invoiceFooter: { type: String, default: "Thank you for your business!" },
+
+    // Business Branding
+    logoUrl: { type: String, default: "" },
+    signatureUrl: { type: String, default: "" },
   },
   {
     timestamps: true,

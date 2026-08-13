@@ -9,7 +9,11 @@ import {
 import LandingPage from "./pages/public/LandingPage";
 import AuthScreen from "./pages/public/AuthScreen";
 import AppShell from "./AppShell";
-import { CustomizationProvider } from "./context/CustomizationContext";
+import {
+  CustomizationProvider,
+  applyDOMCustomization,
+} from "./context/CustomizationContext";
+import { useCustomization } from "./hooks/useCustomization";
 
 const APP_PAGES = [
   "dashboard",
@@ -35,6 +39,18 @@ function getPageFromPath(pathname) {
   if (segments[0] !== "app") return null;
   const pageKey = segments[1];
   return APP_PAGES.includes(pageKey) ? pageKey : "dashboard";
+}
+
+function ThemeRouteManager() {
+  const location = useLocation();
+  const { tempSettings } = useCustomization();
+
+  useEffect(() => {
+    const isAppRoute = location.pathname.startsWith("/app");
+    applyDOMCustomization(tempSettings, isAppRoute);
+  }, [location.pathname, tempSettings]);
+
+  return null;
 }
 
 function AppRoutes() {
@@ -67,6 +83,44 @@ function AppRoutes() {
     if (routePage) setPage(routePage);
   }, [location.pathname, role]);
 
+  useEffect(() => {
+    const syncUser = () => {
+      try {
+        const raw = localStorage.getItem("smartbill_user");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setUser(parsed);
+          if (parsed.role) setRole(parsed.role);
+        }
+      } catch {}
+    };
+
+    // On initial app mount / page refresh, fetch authoritative profile from backend
+    const token = localStorage.getItem("smartbill_token");
+    if (token) {
+      import("./api/authAPI").then(({ getProfile }) => {
+        getProfile()
+          .then((res) => {
+            if (res?.user) {
+              setUser(res.user);
+              if (res.user.role) setRole(res.user.role);
+              localStorage.setItem("smartbill_user", JSON.stringify(res.user));
+            }
+          })
+          .catch((err) => {
+            console.warn("Global profile reload notice:", err.message);
+          });
+      });
+    }
+
+    window.addEventListener("userUpdated", syncUser);
+    window.addEventListener("storage", syncUser);
+    return () => {
+      window.removeEventListener("userUpdated", syncUser);
+      window.removeEventListener("storage", syncUser);
+    };
+  }, []);
+
   const handleLogin = (r, u) => {
     setRole(r);
     if (u) {
@@ -86,6 +140,7 @@ function AppRoutes() {
     localStorage.removeItem("smartbill_user");
     setUser(null);
     setPage("dashboard");
+    applyDOMCustomization(null, false);
     navigate("/");
   };
 
@@ -106,50 +161,53 @@ function AppRoutes() {
   );
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage onNav={navAuth} />} />
-      <Route
-        path="/login"
-        element={
-          <AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />
-        }
-      />
-      <Route
-        path="/forgot"
-        element={<AuthScreen view="forgot" onNav={navAuth} />}
-      />
-      <Route
-        path="/app"
-        element={
-          <AppShell
-            role={role}
-            user={user}
-            onLogout={handleLogout}
-            page={page}
-            onNav={navApp}
-          />
-        }
-      />
-      <Route
-        path="/app/:pageKey"
-        element={
-          <AppShell
-            role={role}
-            user={user}
-            onLogout={handleLogout}
-            page={page}
-            onNav={navApp}
-          />
-        }
-      />
-      <Route path="*" element={<LandingPage onNav={navAuth} />} />
-    </Routes>
+    <>
+      <ThemeRouteManager />
+      <Routes>
+        <Route path="/" element={<LandingPage onNav={navAuth} />} />
+        <Route
+          path="/login"
+          element={
+            <AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />
+          }
+        />
+        <Route
+          path="/forgot"
+          element={<AuthScreen view="forgot" onNav={navAuth} />}
+        />
+        <Route
+          path="/app"
+          element={
+            <AppShell
+              role={role}
+              user={user}
+              onLogout={handleLogout}
+              page={page}
+              onNav={navApp}
+            />
+          }
+        />
+        <Route
+          path="/app/:pageKey"
+          element={
+            <AppShell
+              role={role}
+              user={user}
+              onLogout={handleLogout}
+              page={page}
+              onNav={navApp}
+            />
+          }
+        />
+        <Route path="*" element={<LandingPage onNav={navAuth} />} />
+      </Routes>
+    </>
   );
 }
 
