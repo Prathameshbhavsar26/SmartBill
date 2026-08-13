@@ -25,6 +25,7 @@ export function Btn({
     md: "px-4 py-2 text-sm",
     lg: "px-6 py-2.5 text-sm",
   };
+  const variants = {
     primary:
       "text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors",
     secondary:
@@ -51,6 +52,7 @@ export function Btn({
 }
 
 export function Badge({ label, variant = "gray" }) {
+  const v = {
     blue: "bg-blue-50 text-blue-700 border border-blue-200",
     green: "bg-emerald-50 text-emerald-700 border border-emerald-200",
     yellow: "bg-amber-50 text-amber-700 border border-amber-200",
