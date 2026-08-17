@@ -34,18 +34,6 @@ export const FEATURES = [
     desc: "Role-based access control for Owner, Manager, Cashier, and Accountant profiles.",
     color: "bg-amber-50 text-amber-600",
   },
-  {
-    icon: Globe,
-    title: "Cloud-Based",
-    desc: "Access your business data from anywhere, anytime on any device.",
-    color: "bg-rose-50 text-rose-600",
-  },
-  {
-    icon: Shield,
-    title: "Bank-Grade Security",
-    desc: "256-bit SSL encryption, daily backups, and SOC 2 compliant infrastructure.",
-    color: "bg-slate-100 text-slate-600",
-  },
 ];
 
 export const PLANS = [

@@ -616,7 +616,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                 </button>
               </p>
             </>
-          )}
+          ) : null}
 
           {view === "register" && (
             <>

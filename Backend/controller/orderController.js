@@ -1,6 +1,7 @@
 import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
 import Product from "../models/productModel.js";
+import InvoiceSettings from "../models/InvoiceSettings.js";
 import mongoose from "mongoose";
 
 // ================= HELPERS =================
@@ -8,21 +9,56 @@ import mongoose from "mongoose";
 // Keeps retrying with the next sequential number whenever the previous
 // candidate collides with an existing (unique) invoice number.
 const generateInvoiceNo = async (ownerId) => {
-  const year = new Date().getFullYear();
+  // Fetch settings
+  let settings = await InvoiceSettings.findOne({ userId: ownerId });
+  
+  // Default values
+  let prefix = "INV";
+  let startingNumber = 1;
+  let financialYearWise = true;
+  
+  if (settings) {
+    prefix = settings.invoicePrefix || "INV";
+    startingNumber = settings.startingNumber != null ? settings.startingNumber : 1;
+    if (settings.financialYearWise !== undefined) {
+      financialYearWise = settings.financialYearWise;
+    }
+  }
+
+  let yearStr = "";
+  if (financialYearWise) {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-indexed (April is 3)
+    let startYear, endYear;
+    if (currentMonth >= 3) {
+      startYear = currentYear;
+      endYear = currentYear + 1;
+    } else {
+      startYear = currentYear - 1;
+      endYear = currentYear;
+    }
+    yearStr = `/${String(startYear).slice(-2)}-${String(endYear).slice(-2)}`;
+  } else {
+    // If not financial year wise, just use the current year or nothing. We will use just a dash.
+    yearStr = ""; 
+  }
+
   const count = await Order.countDocuments({ ownerId });
-  let candidate = count + 1;
-  let invoiceNo = `INV-${year}-${String(candidate).padStart(4, "0")}`;
+  let candidate = count + startingNumber;
+  let invoiceNo = `${prefix}${yearStr}-${String(candidate).padStart(4, "0")}`;
 
   // Guard against rapid/duplicate creation races on the unique index.
   for (let attempt = 0; attempt < 20; attempt++) {
-    const existing = await Order.exists({ invoiceNo });
+    // Check if exists for this owner
+    const existing = await Order.exists({ invoiceNo, ownerId });
     if (!existing) return invoiceNo;
     candidate += 1;
-    invoiceNo = `INV-${year}-${String(candidate).padStart(4, "0")}`;
+    invoiceNo = `${prefix}${yearStr}-${String(candidate).padStart(4, "0")}`;
   }
 
   // Fall back to a timestamp-based suffix to guarantee uniqueness.
-  return `INV-${year}-${Date.now()}`;
+  return `${prefix}${yearStr}-${Date.now()}`;
 };
 
 // ================= CREATE ORDER =================

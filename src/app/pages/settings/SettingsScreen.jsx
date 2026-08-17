@@ -30,6 +30,7 @@ import { Input, Btn, Select } from "../../components/common/ui";
 import { setUserToStorage } from "../../utils/userUtils";
 import UserPermissionsSettings from "./components/UserPermissionsSettings";
 import SecuritySettings from "./components/SecuritySettings";
+import InvoiceSettingsTab from "./InvoiceSettingsTab";
 
 const INDIAN_STATES = [
   "Andhra Pradesh",
@@ -1328,7 +1329,8 @@ export default function SettingsScreen() {
         )}
 
         {/* TAB 4: INVOICE SETTINGS */}
-        {activeTab === "invoice" && (
+        {activeTab === "invoice" && <InvoiceSettingsTab />}
+        {activeTab === "invoice_deprecated" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
             <h3 className="font-semibold text-slate-900 mb-5">
               Invoice Settings

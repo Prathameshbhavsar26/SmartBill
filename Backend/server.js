@@ -16,6 +16,7 @@ import employeeRoutes from "./routes/employeeRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
 import businessSettingsRoutes from "./routes/businessSettingsRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
+import invoiceSettingsRoutes from "./routes/invoiceSettingsRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -85,6 +86,7 @@ app.use("/api/settings/customization", customizationRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/settings/business", businessSettingsRoutes);
+app.use("/api/settings/invoice", invoiceSettingsRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 
 app.get("/", (req, res) => {
