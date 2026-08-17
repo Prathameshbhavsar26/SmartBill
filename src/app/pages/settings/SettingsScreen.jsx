@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCustomization } from "../../hooks/useCustomization";
 import { updateProfile, getProfile } from "../../api/authAPI";
+import subscriptionAPI from "../../api/subscriptionAPI";
+import UpgradeModal from "../../components/subscription/UpgradeModal";
 import {
   Building2,
   Percent,
@@ -25,6 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Input, Btn, Select } from "../../components/common/ui";
+import { setUserToStorage } from "../../utils/userUtils";
 
 const INDIAN_STATES = [
   "Andhra Pradesh",
@@ -155,7 +158,7 @@ export default function SettingsScreen() {
             businessName: u.businessName || prev.businessName,
             ownerName: ownerName || prev.ownerName,
           }));
-          localStorage.setItem("smartbill_user", JSON.stringify(u));
+          setUserToStorage(u);
           window.dispatchEvent(new Event("userUpdated"));
         }
       })
@@ -219,7 +222,7 @@ export default function SettingsScreen() {
         if (res.token) {
           localStorage.setItem("smartbill_token", res.token);
         }
-        localStorage.setItem("smartbill_user", JSON.stringify(res.user));
+        setUserToStorage(res.user);
 
         const id = res.user._id || res.user.id;
         const key = id ? `businessInfo_${id}` : "businessInfo";
@@ -502,14 +505,15 @@ export default function SettingsScreen() {
       confirmPassword: "",
     });
   };
-  // Naw safe tabs configuration
+  // Tabs configuration
   const tabs = [
     { key: "business", label: "Business Profile", icon: Building2 },
+    { key: "subscription", label: "Subscription & Billing", icon: CreditCard },
     { key: "gst", label: "GST & Tax", icon: Percent },
     { key: "transaction", label: "Transaction Settings", icon: FileText },
     { key: "invoice", label: "Invoice Settings", icon: Receipt },
     { key: "party", label: "Party Management", icon: Users },
-    { key: "item", label: "Item & Inventory", icon: Package2 }, // Fixed here!
+    { key: "item", label: "Item & Inventory", icon: Package2 },
     { key: "accounting", label: "Accounting & Books", icon: Landmark },
     { key: "customization", label: "Customization", icon: Settings },
     { key: "stockalert", label: "Low Stock Alert Numbers", icon: AlertCircle },
@@ -611,8 +615,71 @@ export default function SettingsScreen() {
     }));
   };
 
+  // ── Subscription & Billing state ──────────────────────────
+  const [subData, setSubData] = useState(null);       // from GET /subscriptions/status
+  const [subLoading, setSubLoading] = useState(false);
+  const [upgradePreview, setUpgradePreview] = useState(null);  // prorated preview
+  const [previewLoading, setPreviewLoading] = useState(null);  // planKey being previewed
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Fetch subscription status when tab is opened
+  const fetchSubStatus = useCallback(async () => {
+    setSubLoading(true);
+    try {
+      const res = await subscriptionAPI.getSubscriptionStatus();
+      setSubData(res);
+    } catch (err) {
+      console.warn("Subscription status fetch:", err.message);
+    } finally {
+      setSubLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "subscription") fetchSubStatus();
+  }, [activeTab, fetchSubStatus]);
+
+  // Open upgrade/downgrade modal with prorated preview
+  const handlePlanAction = async (planKey) => {
+    setPreviewLoading(planKey);
+    try {
+      const preview = await subscriptionAPI.getUpgradePreview(planKey);
+      setUpgradePreview(preview);
+      setShowUpgradeModal(true);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Could not load plan preview.");
+    } finally {
+      setPreviewLoading(null);
+    }
+  };
+
+  const handleUpgradeSuccess = () => {
+    setShowUpgradeModal(false);
+    setUpgradePreview(null);
+    fetchSubStatus(); // refresh displayed data
+    // Also refresh user in localStorage
+    getProfile().then((r) => { if (r?.user) window.dispatchEvent(new Event("userUpdated")); }).catch(() => {});
+  };
+
+  const PLAN_INFO = {
+    starter: { name: "Starter", price: 999, color: "from-slate-600 to-slate-700", badge: "bg-slate-100 text-slate-700", border: "border-slate-300", ring: "ring-slate-400" },
+    pro: { name: "Pro", price: 2499, color: "from-violet-600 to-indigo-700", badge: "bg-violet-100 text-violet-700", border: "border-violet-400", ring: "ring-violet-500" },
+    enterprise: { name: "Enterprise", price: 6999, color: "from-amber-500 to-orange-600", badge: "bg-amber-100 text-amber-700", border: "border-amber-400", ring: "ring-amber-500" },
+  };
+
+  const PLAN_FEATURES = {
+    starter: ["Up to 500 invoices/month", "2 users", "Basic reports", "Email support"],
+    pro: ["Unlimited invoices", "Up to 10 users", "Advanced reports", "GST filing", "Priority support", "Barcode scanner"],
+    enterprise: ["Unlimited invoices", "Unlimited users", "All Pro features", "API access", "Custom integrations", "Dedicated manager"],
+  };
+
+  function formatINRLocal(amount) {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+  }
+
   return (
-    <div className="flex gap-6">
+    <>
+      <div className="flex gap-6">
       {/* SIDEBAR NAVIGATION */}
       <div className="w-56 p-3 h-fit flex-shrink-0 bg-white border rounded-xl shadow-sm">
         <nav className="space-y-0.5">
@@ -2218,7 +2285,210 @@ export default function SettingsScreen() {
             </div>
           </div>
         )}
+
+        {/* TAB 13: SUBSCRIPTION & BILLING */}
+        {activeTab === "subscription" && (
+          <div className="space-y-6">
+            {subLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+              </div>
+            ) : subData ? (
+              <>
+                {/* ── Current Plan Card ──────────────────────── */}
+                <div className={`bg-gradient-to-r ${PLAN_INFO[subData.subscription?.plan || "starter"].color} rounded-2xl p-6 text-white shadow-lg`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">Current Plan</p>
+                      <h2 className="text-2xl font-bold">{PLAN_INFO[subData.subscription?.plan || "starter"].name}</h2>
+                      <span className={`inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full ${
+                        subData.subscription?.status === "active" ? "bg-white/20 text-white" :
+                        subData.subscription?.status === "trialing" ? "bg-yellow-400/30 text-yellow-100" :
+                        "bg-red-400/30 text-red-100"
+                      }`}>
+                        {subData.subscription?.status === "active" ? "✓ Active" :
+                         subData.subscription?.status === "trialing" ? "⏳ Trial" : "✗ Expired"}
+                      </span>
+                    </div>
+                    <CreditCard className="w-10 h-10 text-white/40" />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-4">
+                    <div className="bg-white/10 rounded-xl p-3">
+                      <p className="text-white/60 text-xs mb-1">Billing Period</p>
+                      <p className="text-white font-semibold text-sm">
+                        {subData.subscription?.currentPeriodStart
+                          ? new Date(subData.subscription.currentPeriodStart).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+                          : "—"}
+                        {" → "}
+                        {subData.subscription?.currentPeriodEnd
+                          ? new Date(subData.subscription.currentPeriodEnd).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                          : "—"}
+                      </p>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-3">
+                      <p className="text-white/60 text-xs mb-1">Monthly Price</p>
+                      <p className="text-white font-bold text-lg">
+                        {formatINRLocal(PLAN_INFO[subData.subscription?.plan || "starter"].price)}
+                      </p>
+                    </div>
+                  </div>
+                  {subData.subscription?.pendingDowngradePlan && (
+                    <div className="mt-3 bg-amber-400/20 border border-amber-300/30 rounded-xl px-4 py-2.5 text-sm text-amber-100">
+                      ⚠ Downgrade to <strong>{PLAN_INFO[subData.subscription.pendingDowngradePlan]?.name}</strong> scheduled at end of billing period.
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Usage Metrics ──────────────────────────── */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                    <Package className="w-4 h-4 text-violet-500" /> Usage This Month
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex justify-between text-xs text-slate-500 mb-1">
+                        <span>Invoices</span>
+                        <span>{subData.usage.invoicesThisMonth} / {subData.usage.maxInvoicesPerMonth === null || subData.usage.maxInvoicesPerMonth > 10000 ? "∞" : subData.usage.maxInvoicesPerMonth}</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-violet-500 rounded-full transition-all"
+                          style={{ width: subData.usage.maxInvoicesPerMonth > 10000 ? "10%" : `${Math.min(100, (subData.usage.invoicesThisMonth / subData.usage.maxInvoicesPerMonth) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs text-slate-500 mb-1">
+                        <span>Plan</span>
+                        <span className={`font-bold ${PLAN_INFO[subData.subscription?.plan || "starter"].badge.split(" ")[1]}`}>
+                          {PLAN_INFO[subData.subscription?.plan || "starter"].name}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-400 rounded-full" style={{ width: "100%" }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Plan Cards: Upgrade / Downgrade ─────────── */}
+                <div>
+                  <h3 className="font-semibold text-slate-800 mb-3">Change Plan</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {Object.entries(PLAN_INFO).map(([planKey, info]) => {
+                      const isCurrent = planKey === (subData.subscription?.plan || "starter");
+                      const PLAN_ORDER = { starter: 1, pro: 2, enterprise: 3 };
+                      const currentOrder = PLAN_ORDER[subData.subscription?.plan || "starter"];
+                      const thisOrder = PLAN_ORDER[planKey];
+                      const isUpgrade = thisOrder > currentOrder;
+                      const isLoading = previewLoading === planKey;
+
+                      return (
+                        <div
+                          key={planKey}
+                          className={`relative border-2 rounded-2xl p-5 flex flex-col ${
+                            isCurrent
+                              ? `${info.border} bg-gradient-to-br from-white to-slate-50 shadow-md`
+                              : "border-slate-200 bg-white hover:border-violet-300 hover:shadow-md"
+                          } transition-all`}
+                        >
+                          {isCurrent && (
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
+                              CURRENT PLAN
+                            </span>
+                          )}
+                          <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${info.color} flex items-center justify-center mb-3`}>
+                            <CreditCard className="w-4 h-4 text-white" />
+                          </div>
+                          <h4 className="font-bold text-slate-900 text-base">{info.name}</h4>
+                          <p className="text-2xl font-extrabold text-slate-900 mt-1 mb-3">
+                            {formatINRLocal(info.price)}<span className="text-xs font-normal text-slate-500">/mo</span>
+                          </p>
+                          <ul className="space-y-1.5 mb-5 flex-1">
+                            {PLAN_FEATURES[planKey].map((f) => (
+                              <li key={f} className="flex items-start gap-2 text-xs text-slate-600">
+                                <Check className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />{f}
+                              </li>
+                            ))}
+                          </ul>
+                          {isCurrent ? (
+                            <div className="text-center text-xs font-semibold text-slate-500 py-2 border border-slate-200 rounded-xl bg-slate-50">
+                              Your active plan
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handlePlanAction(planKey)}
+                              disabled={!!previewLoading}
+                              className={`w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 ${
+                                isUpgrade
+                                  ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-md shadow-violet-200"
+                                  : "border border-slate-300 text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              {isLoading ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : isUpgrade ? (
+                                <>⚡ Upgrade</>  
+                              ) : (
+                                <>↓ Downgrade</>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ── Plan History Timeline ─────────────────── */}
+                {subData.subscription?.planHistory?.length > 0 && (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <h3 className="font-semibold text-slate-800 mb-4">Plan Change History</h3>
+                    <div className="space-y-3">
+                      {[...subData.subscription.planHistory].reverse().map((h, idx) => (
+                        <div key={idx} className="flex items-start gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold ${
+                            h.reason === "upgrade" ? "bg-violet-500" :
+                            h.reason === "downgrade" ? "bg-amber-500" :
+                            "bg-slate-500"
+                          }`}>
+                            {h.reason === "upgrade" ? "↑" : h.reason === "downgrade" ? "↓" : "★"}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 capitalize">
+                              {h.reason === "upgrade" ? "Upgraded to" : h.reason === "downgrade" ? "Downgraded to" : "Started"} {PLAN_INFO[h.plan]?.name || h.plan}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {h.activatedAt ? new Date(h.activatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—"}
+                              {h.price ? ` · ${formatINRLocal(h.price)}/mo` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-16 text-slate-500">
+                <CreditCard className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+                <p className="font-medium">Could not load subscription data.</p>
+                <button onClick={fetchSubStatus} className="mt-3 text-violet-600 text-sm font-semibold hover:underline cursor-pointer">Retry</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
-  );
+
+    {/* Upgrade / Downgrade Modal */}
+    {showUpgradeModal && upgradePreview && (
+      <UpgradeModal
+        preview={upgradePreview}
+        userEmail={businessInfo.email}
+        onClose={() => { setShowUpgradeModal(false); setUpgradePreview(null); }}
+        onSuccess={handleUpgradeSuccess}
+      />
+    )}
+  </>);
 }

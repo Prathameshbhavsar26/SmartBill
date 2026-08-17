@@ -14,6 +14,7 @@ import {
   applyDOMCustomization,
 } from "./context/CustomizationContext";
 import { useCustomization } from "./hooks/useCustomization";
+import { setUserToStorage } from "./utils/userUtils";
 
 const APP_PAGES = [
   "dashboard",
@@ -104,7 +105,7 @@ function AppRoutes() {
             if (res?.user) {
               setUser(res.user);
               if (res.user.role) setRole(res.user.role);
-              localStorage.setItem("smartbill_user", JSON.stringify(res.user));
+              setUserToStorage(res.user);
             }
           })
           .catch((err) => {

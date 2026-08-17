@@ -113,6 +113,20 @@ const userSchema = new mongoose.Schema(
       currentPeriodEnd: { type: Date },
       razorpayOrderId: { type: String, default: "" },
       razorpayPaymentId: { type: String, default: "" },
+
+      // Plan change tracking
+      previousPlan: { type: String, default: "" },
+      upgradedAt: { type: Date },
+      // Pending downgrade: if set, switch to this plan at currentPeriodEnd
+      pendingDowngradePlan: { type: String, default: "" },
+      planHistory: [
+        {
+          plan: { type: String },
+          activatedAt: { type: Date },
+          price: { type: Number },
+          reason: { type: String, default: "upgrade" }, // "initial" | "upgrade" | "downgrade"
+        },
+      ],
     },
   },
   {

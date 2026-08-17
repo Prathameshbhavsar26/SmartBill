@@ -21,6 +21,7 @@ import {
   Toast,
 } from "../../components/common/ui";
 import { registerUser, loginUser, sendOtp, verifyOtp } from "../../api/authAPI";
+import { setUserToStorage } from "../../utils/userUtils";
 
 const PHONE_PREFIX = "+91 ";
 
@@ -155,10 +156,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
       const loggedInUser = data.user;
 
 localStorage.setItem("smartbill_token", data.token);
-localStorage.setItem(
-  "smartbill_user",
-  JSON.stringify(loggedInUser)
-);
+setUserToStorage(loggedInUser);
 
 showToast("Login successful", "success");
 
@@ -212,7 +210,7 @@ onLogin(loggedInUser.role, loggedInUser);
       }
 
       localStorage.setItem("smartbill_token", data.token);
-      localStorage.setItem("smartbill_user", JSON.stringify(data.user));
+      setUserToStorage(data.user);
 
       showToast(
         "Account created successfully. You're now signed in.",

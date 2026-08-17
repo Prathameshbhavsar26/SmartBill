@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Sparkles, Clock, AlertTriangle, ShieldCheck, Zap } from "lucide-react";
 import subscriptionAPI from "../../api/subscriptionAPI";
 import { PLANS } from "../../constants/landing";
+import { setUserToStorage } from "../../utils/userUtils";
 
 export default function TrialBanner({ user, onNav }) {
   const [subData, setSubData] = useState(null);
@@ -48,7 +49,7 @@ export default function TrialBanner({ user, onNav }) {
             const { getProfile } = await import("../../api/authAPI");
             const profileRes = await getProfile();
             if (profileRes?.user) {
-              localStorage.setItem("smartbill_user", JSON.stringify(profileRes.user));
+              setUserToStorage(profileRes.user);
               window.dispatchEvent(new Event("userUpdated"));
             } else if (verifyRes?.subscription) {
               // Fallback: patch subscription into existing cached user
@@ -56,7 +57,7 @@ export default function TrialBanner({ user, onNav }) {
               if (cached) {
                 const parsed = JSON.parse(cached);
                 parsed.subscription = verifyRes.subscription;
-                localStorage.setItem("smartbill_user", JSON.stringify(parsed));
+                setUserToStorage(parsed);
                 window.dispatchEvent(new Event("userUpdated"));
               }
             }

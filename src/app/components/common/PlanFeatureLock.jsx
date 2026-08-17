@@ -3,6 +3,7 @@ import { Lock, Zap, ShieldAlert, Sparkles, CheckCircle2 } from "lucide-react";
 import { getUserPlan, getRequiredPlanForFeature } from "../../utils/planPermissions";
 import { PLANS } from "../../constants/landing";
 import subscriptionAPI from "../../api/subscriptionAPI";
+import { setUserToStorage } from "../../utils/userUtils";
 
 export default function PlanFeatureLock({
   user,
@@ -36,14 +37,14 @@ export default function PlanFeatureLock({
             const { getProfile } = await import("../../api/authAPI");
             const profileRes = await getProfile();
             if (profileRes?.user) {
-              localStorage.setItem("smartbill_user", JSON.stringify(profileRes.user));
+              setUserToStorage(profileRes.user);
               window.dispatchEvent(new Event("userUpdated"));
             } else if (verifyRes?.subscription) {
               const cached = localStorage.getItem("smartbill_user");
               if (cached) {
                 const parsed = JSON.parse(cached);
                 parsed.subscription = verifyRes.subscription;
-                localStorage.setItem("smartbill_user", JSON.stringify(parsed));
+                setUserToStorage(parsed);
                 window.dispatchEvent(new Event("userUpdated"));
               }
             }

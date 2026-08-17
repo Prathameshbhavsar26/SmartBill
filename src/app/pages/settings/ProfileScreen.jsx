@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Edit2, Mail, Phone, Users, Package, FileText, TrendingUp } from "lucide-react";
 import { Badge, Btn, Card, Input } from "../../components/common/ui";
-import { getUserDisplayName, getUserInitials } from "../../utils/userUtils";
+import { getUserDisplayName, getUserInitials, setUserToStorage } from "../../utils/userUtils";
 import { getProfile, updateProfile } from "../../api/authAPI";
 import { fetchCustomers } from "../../api/customerAPI";
 import { getProducts } from "../../api/productAPI";
@@ -60,10 +60,7 @@ export default function ProfileScreen() {
         });
 
         // Keep localStorage synchronized with backend.
-        localStorage.setItem(
-          "smartbill_user",
-          JSON.stringify(currentUser)
-        );
+        setUserToStorage(currentUser);
       } catch (err) {
         console.error("LOAD PROFILE ERROR:", err);
 
@@ -170,10 +167,7 @@ export default function ProfileScreen() {
       });
 
       // Update stored user.
-      localStorage.setItem(
-        "smartbill_user",
-        JSON.stringify(updatedUser)
-      );
+      setUserToStorage(updatedUser);
 
       window.dispatchEvent(new Event("userUpdated"));
 

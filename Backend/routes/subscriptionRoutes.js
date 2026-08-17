@@ -3,6 +3,7 @@ import {
   createSubscriptionOrder,
   verifySubscriptionPayment,
   getSubscriptionStatus,
+  getUpgradePreview,
 } from "../controller/subscriptionController.js";
 import { authMiddleware } from "../middleware/auth.js";
 
@@ -16,6 +17,9 @@ const optionalAuth = (req, res, next) => {
   }
   next();
 };
+
+// Prorated upgrade/downgrade preview (requires auth — reads current plan from user record)
+router.get("/upgrade-preview", authMiddleware, getUpgradePreview);
 
 router.post("/create-order", optionalAuth, createSubscriptionOrder);
 router.post("/verify-payment", optionalAuth, verifySubscriptionPayment);
