@@ -674,11 +674,11 @@ export default function SettingsScreen() {
     pro: {
       name: "Pro",
       price: 2499,
-      color: "from-violet-600 to-indigo-700",
-      badge: "bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300",
-      border: "border-violet-400 dark:border-violet-600",
-      ring: "ring-violet-500",
-      activeBg: "bg-violet-50/30 dark:bg-slate-900 border-violet-500 dark:border-violet-500",
+      color: "from-blue-600 to-indigo-600",
+      badge: "bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300",
+      border: "border-blue-400 dark:border-blue-600",
+      ring: "ring-blue-500",
+      activeBg: "bg-blue-50/30 dark:bg-slate-900 border-blue-500 dark:border-blue-500",
     },
     enterprise: {
       name: "Enterprise",
@@ -2315,7 +2315,7 @@ export default function SettingsScreen() {
           <div className="space-y-6">
             {subLoading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
               </div>
             ) : subData ? (
               <>
@@ -2366,7 +2366,7 @@ export default function SettingsScreen() {
                 {/* ── Usage Metrics ──────────────────────────── */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
                   <h3 className="font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                    <Package className="w-4 h-4 text-violet-500" /> Usage This Month
+                    <Package className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Usage This Month
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -2376,7 +2376,7 @@ export default function SettingsScreen() {
                       </div>
                       <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-violet-500 rounded-full transition-all"
+                          className="h-full bg-blue-600 rounded-full transition-all"
                           style={{ width: subData.usage.maxInvoicesPerMonth > 10000 ? "10%" : `${Math.min(100, (subData.usage.invoicesThisMonth / subData.usage.maxInvoicesPerMonth) * 100)}%` }}
                         />
                       </div>
@@ -2413,11 +2413,11 @@ export default function SettingsScreen() {
                           className={`relative border-2 rounded-2xl p-5 flex flex-col transition-all ${
                             isCurrent
                               ? `${info.activeBg} shadow-lg ring-2 ${info.ring}`
-                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 hover:border-violet-300 dark:hover:border-violet-500/50 hover:shadow-md"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 hover:border-blue-300 dark:hover:border-blue-500/50 hover:shadow-md"
                           }`}
                         >
                           {isCurrent && (
-                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow tracking-wide">
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow tracking-wide">
                               CURRENT PLAN
                             </span>
                           )}
@@ -2446,7 +2446,7 @@ export default function SettingsScreen() {
                               disabled={!!previewLoading}
                               className={`w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 ${
                                 isUpgrade
-                                  ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-md shadow-violet-500/20"
+                                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/20"
                                   : "border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
                               }`}
                             >
@@ -2473,7 +2473,7 @@ export default function SettingsScreen() {
                       {[...subData.subscription.planHistory].reverse().map((h, idx) => (
                         <div key={idx} className="flex items-start gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold ${
-                            h.reason === "upgrade" ? "bg-violet-500" :
+                            h.reason === "upgrade" ? "bg-blue-600" :
                             h.reason === "downgrade" ? "bg-amber-500" :
                             "bg-slate-500"
                           }`}>
@@ -2498,7 +2498,7 @@ export default function SettingsScreen() {
               <div className="text-center py-16 text-slate-500 dark:text-slate-400">
                 <CreditCard className="w-10 h-10 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
                 <p className="font-medium">Could not load subscription data.</p>
-                <button onClick={fetchSubStatus} className="mt-3 text-violet-600 dark:text-violet-400 text-sm font-semibold hover:underline cursor-pointer">Retry</button>
+                <button onClick={fetchSubStatus} className="mt-3 text-blue-600 dark:text-blue-400 text-sm font-semibold hover:underline cursor-pointer">Retry</button>
               </div>
             )}
           </div>

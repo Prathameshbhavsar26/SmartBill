@@ -15,9 +15,9 @@ import {
 import subscriptionAPI from "../../api/subscriptionAPI";
 
 const PLAN_COLORS = {
-  starter: { bg: "from-slate-600 to-slate-700", badge: "bg-slate-100 text-slate-700" },
-  pro: { bg: "from-violet-600 to-indigo-700", badge: "bg-violet-100 text-violet-700" },
-  enterprise: { bg: "from-amber-500 to-orange-600", badge: "bg-amber-100 text-amber-700" },
+  starter: { bg: "from-slate-600 to-slate-700", badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300" },
+  pro: { bg: "from-blue-600 to-indigo-600", badge: "bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300" },
+  enterprise: { bg: "from-amber-500 to-orange-600", badge: "bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300" },
 };
 
 function formatINR(amount) {
@@ -116,7 +116,7 @@ export default function UpgradeModal({ preview, onClose, onSuccess, userEmail })
         description: `${newPlan.name} Plan${proratedCredit > 0 ? ` (₹${proratedCredit} prorated discount applied)` : ""}`,
         order_id: orderData.isMock ? undefined : orderData.orderId,
         prefill: { email: userEmail || "" },
-        theme: { color: "#6D28D9" },
+        theme: { color: "#2563EB" },
         handler: async (response) => {
           try {
             const verifyRes = await subscriptionAPI.verifyPayment({
@@ -166,7 +166,7 @@ export default function UpgradeModal({ preview, onClose, onSuccess, userEmail })
     }
   }
 
-  // ── Success screen ──────────────────────────────────────────
+  // ── Success screen ──────────────────────────
   if (step === "success") {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm p-4">
@@ -262,7 +262,7 @@ export default function UpgradeModal({ preview, onClose, onSuccess, userEmail })
               </p>
             </div>
             <div className="flex items-center text-slate-400 font-bold text-lg">→</div>
-            <div className={`flex-1 border-2 ${isDowngrade ? "border-slate-400 dark:border-slate-600" : "border-violet-400 dark:border-violet-500"} rounded-xl p-4 bg-gradient-to-br ${isDowngrade ? "from-slate-50 to-slate-100 dark:from-slate-800/90 dark:to-slate-800/50" : "from-violet-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800/70"}`}>
+            <div className={`flex-1 border-2 ${isDowngrade ? "border-slate-400 dark:border-slate-600" : "border-blue-400 dark:border-blue-500"} rounded-xl p-4 bg-gradient-to-br ${isDowngrade ? "from-slate-50 to-slate-100 dark:from-slate-800/90 dark:to-slate-800/50" : "from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800/70"}`}>
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">New Plan</p>
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${newPlanColors.badge}`}>
                 {newPlan.name}
@@ -292,7 +292,7 @@ export default function UpgradeModal({ preview, onClose, onSuccess, userEmail })
           {isUpgrade && (
             <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                <Tag className="w-4 h-4 text-violet-500" />
+                <Tag className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 Prorated Pricing Breakdown
               </p>
 
@@ -320,7 +320,7 @@ export default function UpgradeModal({ preview, onClose, onSuccess, userEmail })
 
                 <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between font-bold text-slate-900 dark:text-white text-base">
                   <span>Amount to pay today</span>
-                  <span className="font-mono text-violet-700 dark:text-violet-400">
+                  <span className="font-mono text-blue-600 dark:text-blue-400">
                     {formatINR(discountedPrice)}
                   </span>
                 </div>
@@ -352,7 +352,7 @@ export default function UpgradeModal({ preview, onClose, onSuccess, userEmail })
               className={`flex-1 font-semibold rounded-xl py-3 transition-all cursor-pointer disabled:opacity-70 flex items-center justify-center gap-2 text-white ${
                 isDowngrade
                   ? "bg-slate-700 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600"
-                  : "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-500/20"
+                  : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/20"
               }`}
             >
               {step === "processing" ? (
