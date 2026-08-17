@@ -1,29 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Check,
-  Download,
-  Edit2,
-  Eye,
-  Filter,
   Plus,
   Search,
   Trash2,
-  Truck,
   Loader2,
-  AlertCircle,
 } from "lucide-react";
 import { fetchSuppliers } from "../../api/supplierAPI";
 import { getProducts } from "../../api/productAPI";
 import { createPurchase, fetchPurchases } from "../../api/purchaseAPI";
 import { fmt } from "../../utils/format";
-import {
-  Btn,
-  Card,
-  Input,
-  Select,
-  Toast,
-  statusBadge,
-} from "../../components/common/ui";
+import { Toast } from "../../components/common/ui";
 
 const GST_OPTIONS = [0, 5, 12, 18, 28];
 const PAYMENT_METHODS = [
@@ -41,7 +28,7 @@ export default function PurchaseScreen() {
   const [purchaseList, setPurchaseList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("entry");
+  const [activeTab, setActiveTab] = useState("entry"); // "entry" | "history"
 
   // Form states
   const [supplier, setSupplier] = useState("");
@@ -73,7 +60,7 @@ export default function PurchaseScreen() {
   const [searchHistory, setSearchHistory] = useState("");
   const [toast, setToast] = useState(null);
 
-  const showToast = (msg, type) => {
+  const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
@@ -117,31 +104,38 @@ export default function PurchaseScreen() {
     loadData();
   }, [loadData]);
 
+  // Handle reorder auto-fill from Inventory
   useEffect(() => {
     const reorderData = localStorage.getItem("reorderProduct");
     if (reorderData && productList.length > 0) {
       try {
         const p = JSON.parse(reorderData);
         const selectedProduct = productList.find((prod) => prod.name === p.name);
-        
+
         if (selectedProduct) {
           const qty = p.minStock || 10;
-          const rate = selectedProduct.cost !== undefined && selectedProduct.cost > 0 ? selectedProduct.cost : selectedProduct.price || 0;
-          const gstRate = selectedProduct.gst !== undefined ? selectedProduct.gst : 18;
+          const rate =
+            selectedProduct.cost !== undefined && selectedProduct.cost > 0
+              ? selectedProduct.cost
+              : selectedProduct.price || 0;
+          const gstRate =
+            selectedProduct.gst !== undefined ? selectedProduct.gst : 18;
           const amount = qty * rate;
           const gstAmount = amount * (gstRate / 100);
 
-          setItems([{
-            productId: selectedProduct._id || selectedProduct.id || "",
-            product: selectedProduct.name,
-            qty: qty,
-            unit: selectedProduct.unit || "pcs",
-            rate: rate,
-            gstRate: gstRate,
-            discount: 0,
-            amount: amount,
-            gstAmount: gstAmount,
-          }]);
+          setItems([
+            {
+              productId: selectedProduct._id || selectedProduct.id || "",
+              product: selectedProduct.name,
+              qty: qty,
+              unit: selectedProduct.unit || "pcs",
+              rate: rate,
+              gstRate: gstRate,
+              discount: 0,
+              amount: amount,
+              gstAmount: gstAmount,
+            },
+          ]);
           localStorage.removeItem("reorderProduct");
         }
       } catch (err) {
@@ -190,12 +184,11 @@ export default function PurchaseScreen() {
     );
   };
 
-  // Selected products for duplicate prevention
   const selectedProductNames = useMemo(() => {
     return items.map((it) => it.product).filter(Boolean);
   }, [items]);
 
-  // Real-time Payment Summary calculations
+  // Payment Summary calculations
   const subtotal = useMemo(() => {
     return items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   }, [items]);
@@ -212,7 +205,6 @@ export default function PurchaseScreen() {
     return subtotal + totalGst;
   }, [subtotal, totalGst]);
 
-  // Amount Paid & Remaining Amount calculations
   const { amountPaid, remainingAmount } = useMemo(() => {
     if (paymentStatus === "Paid") {
       return { amountPaid: totalAmount, remainingAmount: 0 };
@@ -225,7 +217,6 @@ export default function PurchaseScreen() {
     return { amountPaid: 0, remainingAmount: totalAmount };
   }, [paymentStatus, totalAmount, amountPaidInput]);
 
-  // Add Item Row
   const addItemRow = () => {
     setItems((prev) => [
       ...prev,
@@ -243,16 +234,14 @@ export default function PurchaseScreen() {
     ]);
   };
 
-  // Remove Item Row
   const removeItemRow = (index) => {
     if (items.length <= 1) {
-      showToast("At least one product item is required", "error");
+      showToast("At least one product row is required", "error");
       return;
     }
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Reset form
   const resetForm = () => {
     setSupplier(supplierList[0]?.name || "");
     setSupplierInvoiceNo("");
@@ -278,44 +267,51 @@ export default function PurchaseScreen() {
     ]);
   };
 
-  // Save Purchase Handler
   const handleSavePurchase = async () => {
-    if (saving) return;
-
-    // Validation
-    if (!supplier || !supplier.trim()) {
-      showToast("Supplier selection is required", "error");
+    if (!supplier) {
+      showToast("Please select a supplier", "error");
       return;
     }
     if (!purchaseDate) {
-      showToast("Purchase date is required", "error");
+      showToast("Please select a purchase date", "error");
       return;
     }
 
     const validItems = [];
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (!item.product || item.product === "Select Product") {
-        showToast(`Please select a product for row ${i + 1}`, "error");
+    for (const item of items) {
+      if (!item.product) {
+        showToast("Please select a product for all rows", "error");
         return;
       }
       const qty = Number(item.qty);
       if (!Number.isFinite(qty) || qty <= 0) {
-        showToast(`Quantity for product "${item.product}" must be greater than 0`, "error");
+        showToast(
+          `Quantity for "${item.product}" must be greater than 0`,
+          "error"
+        );
         return;
       }
       const rate = Number(item.rate);
       if (!Number.isFinite(rate) || rate < 0) {
-        showToast(`Purchase rate for product "${item.product}" cannot be negative`, "error");
+        showToast(
+          `Purchase rate for "${item.product}" cannot be negative`,
+          "error"
+        );
         return;
       }
       const disc = Number(item.discount || 0);
       if (disc < 0) {
-        showToast(`Discount for product "${item.product}" cannot be negative`, "error");
+        showToast(
+          `Discount for "${item.product}" cannot be negative`,
+          "error"
+        );
         return;
       }
       if (disc > qty * rate) {
-        showToast(`Discount for product "${item.product}" cannot exceed item amount`, "error");
+        showToast(
+          `Discount for "${item.product}" cannot exceed total item price`,
+          "error"
+        );
         return;
       }
 
@@ -333,18 +329,24 @@ export default function PurchaseScreen() {
     }
 
     if (validItems.length === 0) {
-      showToast("Please add at least one valid product", "error");
+      showToast("Please add at least one product", "error");
       return;
     }
 
     if (paymentStatus === "Partially Paid") {
       const paid = Number(amountPaidInput);
       if (!Number.isFinite(paid) || paid <= 0) {
-        showToast("Amount paid must be greater than 0 for Partially Paid status", "error");
+        showToast(
+          "Enter amount paid for Partially Paid status",
+          "error"
+        );
         return;
       }
       if (paid > totalAmount) {
-        showToast("Amount paid cannot exceed total purchase amount", "error");
+        showToast(
+          "Amount paid cannot exceed total purchase amount",
+          "error"
+        );
         return;
       }
     }
@@ -375,7 +377,7 @@ export default function PurchaseScreen() {
     setSaving(true);
     try {
       await createPurchase(payload);
-      showToast("Purchase saved and stock updated successfully!", "success");
+      showToast("Purchase saved successfully!", "success");
       resetForm();
       await loadData();
       setActiveTab("history");
@@ -394,15 +396,24 @@ export default function PurchaseScreen() {
   const filteredPurchases = useMemo(() => {
     return purchaseList.filter((purchase) => {
       const q = searchHistory.toLowerCase();
-      const inv = (purchase.supplierInvoiceNo || purchase.invoiceNo || purchase._id || "").toLowerCase();
-      const supp = (purchase.supplierName || purchase.supplier || "").toLowerCase();
+      const inv = (
+        purchase.supplierInvoiceNo ||
+        purchase.invoiceNo ||
+        purchase._id ||
+        ""
+      ).toLowerCase();
+      const supp = (
+        purchase.supplierName ||
+        purchase.supplier ||
+        ""
+      ).toLowerCase();
       const po = (purchase.purchaseOrderNo || "").toLowerCase();
       return inv.includes(q) || supp.includes(q) || po.includes(q);
     });
   }, [purchaseList, searchHistory]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {toast && (
         <Toast
           message={toast.msg}
@@ -411,104 +422,157 @@ export default function PurchaseScreen() {
         />
       )}
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-6">
-        {[
-          ["entry", "New Purchase"],
-          ["history", "Purchase History"],
-        ].map(([k, l]) => (
+      {/* ── Page Header & Simple Tabs ── */}
+      <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-6">
           <button
-            key={k}
-            onClick={() => setActiveTab(String(k))}
-            className={`pb-3 text-sm font-medium transition-all border-b-2 -mb-px cursor-pointer ${
-              activeTab === k
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-slate-500 hover:text-slate-700"
+            onClick={() => setActiveTab("entry")}
+            className={`pb-2.5 text-sm font-semibold transition-colors cursor-pointer border-b-2 -mb-[9px] ${
+              activeTab === "entry"
+                ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
-            {l}
+            New Purchase
           </button>
-        ))}
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`pb-2.5 text-sm font-semibold transition-colors cursor-pointer border-b-2 -mb-[9px] flex items-center gap-1.5 ${
+              activeTab === "history"
+                ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+            }`}
+          >
+            <span>Purchase History</span>
+            <span className="text-xs px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
+              {purchaseList.length}
+            </span>
+          </button>
+        </div>
       </div>
 
       {activeTab === "entry" ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* ── Left Column: Details & Items ── */}
           <div className="lg:col-span-2 space-y-5">
-            {/* Purchase Details Card */}
-            <Card className="p-5">
-              <h3 className="font-semibold text-slate-900 mb-4 text-base">
+            {/* Purchase Details Form */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm mb-4">
                 Purchase Details
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Select
-                  label="Supplier *"
-                  value={supplier}
-                  onChange={setSupplier}
-                  options={supplierList.map((s) => s.name)}
-                />
-                <Input
-                  label="Supplier Invoice No."
-                  placeholder="SUPP-INV-001"
-                  value={supplierInvoiceNo}
-                  onChange={setSupplierInvoiceNo}
-                />
-                <Input
-                  label="Purchase Order No. (Optional)"
-                  placeholder="PO-2024-001"
-                  value={purchaseOrderNo}
-                  onChange={setPurchaseOrderNo}
-                />
-                <Input
-                  label="Purchase Date *"
-                  type="date"
-                  value={purchaseDate}
-                  onChange={setPurchaseDate}
-                />
-                <Input
-                  label="Due Date"
-                  type="date"
-                  value={dueDate}
-                  onChange={setDueDate}
-                />
-              </div>
-            </Card>
 
-            {/* Products Section Card */}
-            <Card className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-900 text-base">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Supplier */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Supplier <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={supplier}
+                    onChange={(e) => setSupplier(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">Select Supplier</option>
+                    {supplierList.map((s) => (
+                      <option key={s._id || s.id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Supplier Invoice No */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Supplier Invoice No.
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. INV-001"
+                    value={supplierInvoiceNo}
+                    onChange={(e) => setSupplierInvoiceNo(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Purchase Order No */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Purchase Order No. (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. PO-001"
+                    value={purchaseOrderNo}
+                    onChange={(e) => setPurchaseOrderNo(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Purchase Date */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Purchase Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={purchaseDate}
+                    onChange={(e) => setPurchaseDate(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Due Date */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Due Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Products Table */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
                   Products
                 </h3>
-                <span className="text-xs text-slate-500">
-                  {items.length} item{items.length !== 1 ? "s" : ""} added
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  {items.length} item{items.length !== 1 ? "s" : ""}
                 </span>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold">
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
                       <th className="pb-2 min-w-[160px]">Product *</th>
-                      <th className="pb-2 w-20 text-center">Qty *</th>
-                      <th className="pb-2 w-20 text-center">Unit</th>
-                      <th className="pb-2 w-28 text-right">Purchase Rate *</th>
-                      <th className="pb-2 w-24 text-center">GST %</th>
-                      <th className="pb-2 w-24 text-right">Discount</th>
-                      <th className="pb-2 w-28 text-right">Amount</th>
-                      <th className="pb-2 w-10 text-center"></th>
+                      <th className="pb-2 w-16 text-center">Qty *</th>
+                      <th className="pb-2 w-16 text-center">Unit</th>
+                      <th className="pb-2 w-24 text-right">Rate *</th>
+                      <th className="pb-2 w-20 text-center">GST %</th>
+                      <th className="pb-2 w-20 text-right">Discount</th>
+                      <th className="pb-2 w-24 text-right">Amount</th>
+                      <th className="pb-2 w-8 text-center"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {items.map((item, i) => (
-                      <tr key={i} className="hover:bg-slate-50/50">
-                        {/* Product Selection */}
-                        <td className="py-2 pr-2">
+                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                        {/* Product */}
+                        <td className="py-2.5 pr-2">
                           <select
                             value={item.product}
                             onChange={(e) =>
                               updateItem(i, "product", e.target.value)
                             }
-                            className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
                           >
                             <option value="">Select Product</option>
                             {productList.map((p) => {
@@ -522,15 +586,15 @@ export default function PurchaseScreen() {
                                   value={pName}
                                   disabled={isTaken}
                                 >
-                                  {pName} {isTaken ? "(Already selected)" : ""}
+                                  {pName} {isTaken ? "(Selected)" : ""}
                                 </option>
                               );
                             })}
                           </select>
                         </td>
 
-                        {/* Quantity */}
-                        <td className="py-2 px-1">
+                        {/* Qty */}
+                        <td className="py-2.5 px-1">
                           <input
                             type="number"
                             min={1}
@@ -544,12 +608,12 @@ export default function PurchaseScreen() {
                                   : Number(e.target.value)
                               )
                             }
-                            className="w-full text-center border border-slate-200 rounded-lg px-1.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-mono"
+                            className="w-full text-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
                           />
                         </td>
 
                         {/* Unit */}
-                        <td className="py-2 px-1">
+                        <td className="py-2.5 px-1">
                           <input
                             type="text"
                             value={item.unit}
@@ -557,12 +621,12 @@ export default function PurchaseScreen() {
                               updateItem(i, "unit", e.target.value)
                             }
                             placeholder="pcs"
-                            className="w-full text-center border border-slate-200 rounded-lg px-1.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 bg-slate-50/50"
+                            className="w-full text-center bg-slate-50 dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 rounded-md py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none"
                           />
                         </td>
 
-                        {/* Purchase Rate */}
-                        <td className="py-2 px-1">
+                        {/* Rate */}
+                        <td className="py-2.5 px-1">
                           <input
                             type="number"
                             min={0}
@@ -577,18 +641,18 @@ export default function PurchaseScreen() {
                               )
                             }
                             placeholder="0"
-                            className="w-full text-right border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-mono"
+                            className="w-full text-right bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
                           />
                         </td>
 
                         {/* GST % */}
-                        <td className="py-2 px-1">
+                        <td className="py-2.5 px-1">
                           <select
                             value={item.gstRate}
                             onChange={(e) =>
                               updateItem(i, "gstRate", Number(e.target.value))
                             }
-                            className="w-full border border-slate-200 rounded-lg px-1.5 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 bg-white text-center font-mono"
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500 text-center font-mono"
                           >
                             {GST_OPTIONS.map((g) => (
                               <option key={g} value={g}>
@@ -599,7 +663,7 @@ export default function PurchaseScreen() {
                         </td>
 
                         {/* Discount */}
-                        <td className="py-2 px-1">
+                        <td className="py-2.5 px-1">
                           <input
                             type="number"
                             min={0}
@@ -614,21 +678,21 @@ export default function PurchaseScreen() {
                               )
                             }
                             placeholder="0"
-                            className="w-full text-right border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-mono"
+                            className="w-full text-right bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
                           />
                         </td>
 
                         {/* Amount */}
-                        <td className="py-2 pl-2 text-right font-mono font-semibold text-slate-900">
+                        <td className="py-2.5 pl-2 text-right font-mono font-semibold text-slate-900 dark:text-slate-100">
                           {fmt(item.amount)}
                         </td>
 
-                        {/* Action */}
-                        <td className="py-2 pl-2 text-center">
+                        {/* Delete */}
+                        <td className="py-2.5 pl-1 text-center">
                           <button
                             type="button"
                             onClick={() => removeItemRow(i)}
-                            className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                            className="text-slate-400 hover:text-red-500 transition-colors p-1 cursor-pointer"
                             title="Remove row"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -640,86 +704,112 @@ export default function PurchaseScreen() {
                 </table>
               </div>
 
-              <div className="mt-4">
-                <Btn
-                  variant="outline"
-                  size="sm"
+              {/* Add Row */}
+              <div className="mt-3 pt-2">
+                <button
+                  type="button"
                   onClick={addItemRow}
-                  icon={<Plus className="w-3.5 h-3.5" />}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                 >
-                  Add Row
-                </Btn>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Product Row</span>
+                </button>
               </div>
-            </Card>
+            </div>
           </div>
 
-          {/* Payment Summary Right Column */}
+          {/* ── Right Column: Payment Summary ── */}
           <div className="space-y-4">
-            <Card className="p-5">
-              <h3 className="font-semibold text-slate-900 mb-4 text-base">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm mb-4">
                 Payment Summary
               </h3>
 
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between text-slate-600">
+              <div className="space-y-2.5 text-xs">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>Subtotal</span>
-                  <span className="font-mono">{fmt(subtotal)}</span>
+                  <span className="font-mono text-slate-900 dark:text-slate-100 font-medium">
+                    {fmt(subtotal)}
+                  </span>
                 </div>
 
-                <div className="flex justify-between text-slate-600">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>GST</span>
-                  <span className="font-mono text-emerald-600">
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">
                     + {fmt(totalGst)}
                   </span>
                 </div>
 
                 {totalDiscount > 0 && (
-                  <div className="flex justify-between text-slate-600">
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
                     <span>Discount</span>
-                    <span className="font-mono text-amber-600">
+                    <span className="font-mono text-amber-600 dark:text-amber-400 font-medium">
                       - {fmt(totalDiscount)}
                     </span>
                   </div>
                 )}
 
-                <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-3 text-base">
+                <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-3 text-sm font-bold text-slate-900 dark:text-white">
                   <span>Total Amount</span>
-                  <span className="font-mono">{fmt(totalAmount)}</span>
+                  <span className="font-mono text-blue-600 dark:text-blue-400">
+                    {fmt(totalAmount)}
+                  </span>
                 </div>
               </div>
 
-              <div className="mt-5 space-y-4 pt-3 border-t border-slate-100">
-                {/* Payment Status Dropdown */}
-                <Select
-                  label="Payment Status"
-                  value={paymentStatus}
-                  onChange={setPaymentStatus}
-                  options={["Unpaid", "Partially Paid", "Paid"]}
-                />
+              <div className="mt-5 space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                {/* Payment Status */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Payment Status
+                  </label>
+                  <select
+                    value={paymentStatus}
+                    onChange={(e) => setPaymentStatus(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                  >
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Partially Paid">Partially Paid</option>
+                    <option value="Paid">Paid</option>
+                  </select>
+                </div>
 
-                {/* Payment Method (Shown for Paid or Partially Paid) */}
+                {/* Payment Mode */}
                 {["Paid", "Partially Paid"].includes(paymentStatus) && (
-                  <Select
-                    label="Payment Method"
-                    value={paymentMethod}
-                    onChange={setPaymentMethod}
-                    options={PAYMENT_METHODS}
-                  />
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Payment Mode
+                    </label>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                    >
+                      {PAYMENT_METHODS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
 
-                {/* Partially Paid Fields */}
+                {/* Partially Paid Section */}
                 {paymentStatus === "Partially Paid" && (
-                  <div className="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <Input
-                      label="Amount Paid *"
+                  <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg p-3 space-y-2">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                      Amount Paid (₹) *
+                    </label>
+                    <input
                       type="number"
                       placeholder="0"
                       value={amountPaidInput}
-                      onChange={setAmountPaidInput}
+                      onChange={(e) => setAmountPaidInput(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2.5 py-1.5 text-xs text-slate-900 dark:text-white font-mono outline-none focus:border-blue-500"
                     />
-                    <div className="flex justify-between text-xs font-semibold text-slate-700 pt-1">
-                      <span>Remaining Amount:</span>
-                      <span className="font-mono text-red-600">
+                    <div className="flex justify-between text-xs font-semibold pt-1 border-t border-slate-200 dark:border-slate-700">
+                      <span className="text-slate-600 dark:text-slate-400">Remaining:</span>
+                      <span className="font-mono text-red-600 dark:text-red-400">
                         {fmt(remainingAmount)}
                       </span>
                     </div>
@@ -727,123 +817,154 @@ export default function PurchaseScreen() {
                 )}
 
                 {/* Notes */}
-                <Input
-                  label="Notes (Optional)"
-                  placeholder="Optional payment or purchase details"
-                  value={notes}
-                  onChange={setNotes}
-                />
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Notes (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Optional notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500"
+                  />
+                </div>
 
-                {/* Save Purchase Button */}
-                <Btn
-                  variant="primary"
-                  className="w-full justify-center mt-2 py-2.5"
+                {/* Save Button */}
+                <button
+                  type="button"
                   onClick={handleSavePurchase}
                   disabled={saving}
-                  icon={
-                    saving ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Check className="w-4 h-4" />
-                    )
-                  }
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
                 >
-                  {saving ? "Saving Purchase..." : "Save Purchase"}
-                </Btn>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Save Purchase</span>
+                    </>
+                  )}
+                </button>
               </div>
-            </Card>
+            </div>
           </div>
         </div>
       ) : (
-        /* Purchase History Tab */
-        <Card>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <Input
-              value={searchHistory}
-              onChange={setSearchHistory}
-              placeholder="Search purchases by supplier, invoice no, or PO no..."
-              icon={<Search className="w-4 h-4" />}
-            />
+        /* ── Purchase History Tab ── */
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+          {/* Search bar */}
+          <div className="p-3.5 border-b border-slate-200 dark:border-slate-800">
+            <div className="relative max-w-sm">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                value={searchHistory}
+                onChange={(e) => setSearchHistory(e.target.value)}
+                placeholder="Search by supplier, invoice or PO no..."
+                className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500"
+              />
+            </div>
           </div>
 
           {filteredPurchases.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-sm">
+            <div className="py-12 text-center text-slate-500 dark:text-slate-400 text-xs">
               No purchase records found.
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
+              <table className="w-full text-xs text-left">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-500 text-xs font-semibold uppercase tracking-wide">
-                    <th className="px-5 py-3.5">Supplier</th>
-                    <th className="px-5 py-3.5">Invoice / PO No.</th>
-                    <th className="px-5 py-3.5">Date</th>
-                    <th className="px-5 py-3.5">Items</th>
-                    <th className="px-5 py-3.5">Subtotal</th>
-                    <th className="px-5 py-3.5">GST</th>
-                    <th className="px-5 py-3.5">Total</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5">Remaining</th>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-semibold">
+                    <th className="px-4 py-3">Supplier</th>
+                    <th className="px-4 py-3">Invoice / PO No.</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Items</th>
+                    <th className="px-4 py-3 text-right">Subtotal</th>
+                    <th className="px-4 py-3 text-right">GST</th>
+                    <th className="px-4 py-3 text-right">Total Amount</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-right">Remaining Due</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredPurchases.map((purchase) => {
-                    const suppName = purchase.supplierName || purchase.supplier || "Supplier";
-                    const invNo = purchase.supplierInvoiceNo || purchase.invoiceNo || purchase.id || "-";
-                    const poNo = purchase.purchaseOrderNo ? ` (${purchase.purchaseOrderNo})` : "";
+                    const suppName =
+                      purchase.supplierName || purchase.supplier || "Supplier";
+                    const invNo =
+                      purchase.supplierInvoiceNo ||
+                      purchase.invoiceNo ||
+                      purchase._id ||
+                      "-";
+                    const poNo = purchase.purchaseOrderNo
+                      ? ` (${purchase.purchaseOrderNo})`
+                      : "";
                     const dateStr = purchase.purchaseDate
-                      ? new Date(purchase.purchaseDate).toISOString().slice(0, 10)
+                      ? new Date(purchase.purchaseDate)
+                          .toISOString()
+                          .slice(0, 10)
                       : purchase.date || "-";
                     const itemCount = Array.isArray(purchase.items)
                       ? purchase.items.length
                       : purchase.items || 0;
-                    const remAmt = purchase.remainingAmount !== undefined ? purchase.remainingAmount : 0;
+                    const remAmt =
+                      purchase.remainingAmount !== undefined
+                        ? purchase.remainingAmount
+                        : 0;
 
                     return (
                       <tr
                         key={purchase._id || purchase.id}
-                        className="hover:bg-slate-50 transition-colors"
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/30"
                       >
-                        <td className="px-5 py-3.5 font-medium text-slate-900">
+                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                           {suppName}
                         </td>
-                        <td className="px-5 py-3.5 font-mono text-xs text-blue-600">
+                        <td className="px-4 py-3 font-mono text-xs text-blue-600 dark:text-blue-400">
                           {invNo}
-                          {poNo && <span className="text-slate-400">{poNo}</span>}
+                          {poNo && (
+                            <span className="text-slate-400 ml-1">{poNo}</span>
+                          )}
                         </td>
-                        <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono">
                           {dateStr}
                         </td>
-                        <td className="px-5 py-3.5 text-slate-600 font-mono">
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                           {itemCount} item{itemCount !== 1 ? "s" : ""}
                         </td>
-                        <td className="px-5 py-3.5 font-mono text-slate-700">
+                        <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 text-right">
                           {fmt(purchase.subtotal || 0)}
                         </td>
-                        <td className="px-5 py-3.5 font-mono text-slate-600">
+                        <td className="px-4 py-3 font-mono text-emerald-600 dark:text-emerald-400 text-right">
                           {fmt(purchase.gstTotal || purchase.gst || 0)}
                         </td>
-                        <td className="px-5 py-3.5 font-semibold text-slate-900 font-mono">
+                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-white font-mono text-right">
                           {fmt(purchase.totalAmount || purchase.total || 0)}
                         </td>
-                        <td className="px-5 py-3.5">
+                        <td className="px-4 py-3 text-center">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                            className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium border ${
                               purchase.paymentStatus === "Paid"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                                 : purchase.paymentStatus === "Partially Paid"
-                                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                                  : "bg-red-50 text-red-700 border-red-200"
+                                  ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                                  : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
                             }`}
                           >
                             {purchase.paymentStatus || "Unpaid"}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 font-mono text-xs font-semibold text-slate-700">
+                        <td className="px-4 py-3 font-mono text-xs font-semibold text-right">
                           {remAmt > 0 ? (
-                            <span className="text-red-600">{fmt(remAmt)}</span>
+                            <span className="text-red-600 dark:text-red-400">
+                              {fmt(remAmt)}
+                            </span>
                           ) : (
-                            <span className="text-emerald-600">Cleared</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">
+                              Cleared
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -853,7 +974,7 @@ export default function PurchaseScreen() {
               </table>
             </div>
           )}
-        </Card>
+        </div>
       )}
     </div>
   );

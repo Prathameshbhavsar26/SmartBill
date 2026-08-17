@@ -17,9 +17,12 @@ import SalesReport from "./SalesReport";
 import { Btn } from "../../components/common/ui";
 import { hasPlanFeature } from "../../utils/planPermissions";
 import PlanFeatureLock from "../../components/common/PlanFeatureLock";
+import { exportReportToExcel, printReportPDF } from "../../utils/reportExporter";
+import { useReportData } from "./useReportData";
 
 export default function ReportsScreen({ user }) {
   const [activeReport, setActiveReport] = useState("sales");
+  const reportData = useReportData(); // live report data for export & print
 
   // Read user from localStorage if not passed via props
   const currentUser = user || (() => {
@@ -41,12 +44,12 @@ export default function ReportsScreen({ user }) {
     { key: "inventory", label: "Inventory Report", icon: Package, locked: false },
   ];
 
-  const handleExport = () => {
-    if (!canAccessPL) {
-      alert("Excel export requires a Pro or Enterprise plan.");
-      return;
-    }
-    window.print();
+  const handleExportExcel = () => {
+    exportReportToExcel(activeReport, reportData);
+  };
+
+  const handlePrintPDF = () => {
+    printReportPDF(activeReport, reportData);
   };
 
   const renderActiveReport = () => {
@@ -86,41 +89,46 @@ export default function ReportsScreen({ user }) {
 
   return (
     <div className="space-y-5 print:p-0">
-      <div className="flex gap-2 flex-wrap print:hidden">
-        {reportTypes.map((r) => (
-          <button
-            key={r.key}
-            onClick={() => setActiveReport(r.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              activeReport === r.key
-                ? "bg-blue-600 text-white shadow-sm"
-                : "bg-white border border-slate-200 text-slate-600 hover:border-blue-300"
-            }`}
-          >
-            <r.icon className="w-4 h-4" />
-            <span>{r.label}</span>
-            {r.locked && (
-              <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                <Lock className="w-2.5 h-2.5" />
-                PRO
-              </span>
-            )}
-          </button>
-        ))}
-        <div className="ml-auto flex gap-2">
+      <div className="flex gap-2 flex-wrap items-center justify-between print:hidden">
+        <div className="flex gap-2 flex-wrap">
+          {reportTypes.map((r) => (
+            <button
+              key={r.key}
+              onClick={() => setActiveReport(r.key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                activeReport === r.key
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-blue-300"
+              }`}
+            >
+              <r.icon className="w-4 h-4" />
+              <span>{r.label}</span>
+              {r.locked && (
+                <span className="bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                  <Lock className="w-2.5 h-2.5" />
+                  PRO
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-2">
           <Btn
             variant="outline"
             size="md"
-            icon={<Download className="w-4 h-4" />}
-            onClick={handleExport}
+            icon={<Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+            onClick={handleExportExcel}
+            className="cursor-pointer font-medium"
           >
             Export Excel
           </Btn>
           <Btn
             variant="outline"
             size="md"
-            icon={<Printer className="w-4 h-4" />}
-            onClick={() => window.print()}
+            icon={<Printer className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+            onClick={handlePrintPDF}
+            className="cursor-pointer font-medium"
           >
             Print PDF
           </Btn>
