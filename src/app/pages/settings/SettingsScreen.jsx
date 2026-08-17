@@ -662,9 +662,33 @@ export default function SettingsScreen() {
   };
 
   const PLAN_INFO = {
-    starter: { name: "Starter", price: 999, color: "from-slate-600 to-slate-700", badge: "bg-slate-100 text-slate-700", border: "border-slate-300", ring: "ring-slate-400" },
-    pro: { name: "Pro", price: 2499, color: "from-violet-600 to-indigo-700", badge: "bg-violet-100 text-violet-700", border: "border-violet-400", ring: "ring-violet-500" },
-    enterprise: { name: "Enterprise", price: 6999, color: "from-amber-500 to-orange-600", badge: "bg-amber-100 text-amber-700", border: "border-amber-400", ring: "ring-amber-500" },
+    starter: {
+      name: "Starter",
+      price: 999,
+      color: "from-slate-600 to-slate-700",
+      badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
+      border: "border-slate-300 dark:border-slate-700",
+      ring: "ring-slate-400",
+      activeBg: "bg-slate-50/50 dark:bg-slate-900 border-slate-400 dark:border-slate-600",
+    },
+    pro: {
+      name: "Pro",
+      price: 2499,
+      color: "from-violet-600 to-indigo-700",
+      badge: "bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300",
+      border: "border-violet-400 dark:border-violet-600",
+      ring: "ring-violet-500",
+      activeBg: "bg-violet-50/30 dark:bg-slate-900 border-violet-500 dark:border-violet-500",
+    },
+    enterprise: {
+      name: "Enterprise",
+      price: 6999,
+      color: "from-amber-500 to-orange-600",
+      badge: "bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300",
+      border: "border-amber-400 dark:border-amber-600",
+      ring: "ring-amber-500",
+      activeBg: "bg-amber-50/30 dark:bg-slate-900 border-amber-500 dark:border-amber-500",
+    },
   };
 
   const PLAN_FEATURES = {
@@ -681,7 +705,7 @@ export default function SettingsScreen() {
     <>
       <div className="flex gap-6">
       {/* SIDEBAR NAVIGATION */}
-      <div className="w-56 p-3 h-fit flex-shrink-0 bg-white border rounded-xl shadow-sm">
+      <div className="w-56 p-3 h-fit flex-shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
         <nav className="space-y-0.5">
           {tabs.map((t) => {
             const IconComponent = t.icon; // Dynamic parsing handle
@@ -691,8 +715,8 @@ export default function SettingsScreen() {
                 onClick={() => setActiveTab(t.key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   activeTab === t.key
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
                 }`}
               >
                 <IconComponent className="w-4 h-4 flex-shrink-0" />
@@ -2340,17 +2364,17 @@ export default function SettingsScreen() {
                 </div>
 
                 {/* ── Usage Metrics ──────────────────────────── */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                  <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                  <h3 className="font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
                     <Package className="w-4 h-4 text-violet-500" /> Usage This Month
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="flex justify-between text-xs text-slate-500 mb-1">
+                      <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
                         <span>Invoices</span>
-                        <span>{subData.usage.invoicesThisMonth} / {subData.usage.maxInvoicesPerMonth === null || subData.usage.maxInvoicesPerMonth > 10000 ? "∞" : subData.usage.maxInvoicesPerMonth}</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-200">{subData.usage.invoicesThisMonth} / {subData.usage.maxInvoicesPerMonth === null || subData.usage.maxInvoicesPerMonth > 10000 ? "∞" : subData.usage.maxInvoicesPerMonth}</span>
                       </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-violet-500 rounded-full transition-all"
                           style={{ width: subData.usage.maxInvoicesPerMonth > 10000 ? "10%" : `${Math.min(100, (subData.usage.invoicesThisMonth / subData.usage.maxInvoicesPerMonth) * 100)}%` }}
@@ -2358,13 +2382,13 @@ export default function SettingsScreen() {
                       </div>
                     </div>
                     <div>
-                      <div className="flex justify-between text-xs text-slate-500 mb-1">
-                        <span>Plan</span>
-                        <span className={`font-bold ${PLAN_INFO[subData.subscription?.plan || "starter"].badge.split(" ")[1]}`}>
+                      <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                        <span>Plan Status</span>
+                        <span className={`font-bold ${PLAN_INFO[subData.subscription?.plan || "starter"].badge}`}>
                           {PLAN_INFO[subData.subscription?.plan || "starter"].name}
                         </span>
                       </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                         <div className="h-full bg-emerald-400 rounded-full" style={{ width: "100%" }} />
                       </div>
                     </div>
@@ -2373,7 +2397,7 @@ export default function SettingsScreen() {
 
                 {/* ── Plan Cards: Upgrade / Downgrade ─────────── */}
                 <div>
-                  <h3 className="font-semibold text-slate-800 mb-3">Change Plan</h3>
+                  <h3 className="font-semibold text-slate-800 dark:text-white mb-3">Change Plan</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {Object.entries(PLAN_INFO).map(([planKey, info]) => {
                       const isCurrent = planKey === (subData.subscription?.plan || "starter");
@@ -2386,33 +2410,34 @@ export default function SettingsScreen() {
                       return (
                         <div
                           key={planKey}
-                          className={`relative border-2 rounded-2xl p-5 flex flex-col ${
+                          className={`relative border-2 rounded-2xl p-5 flex flex-col transition-all ${
                             isCurrent
-                              ? `${info.border} bg-gradient-to-br from-white to-slate-50 shadow-md`
-                              : "border-slate-200 bg-white hover:border-violet-300 hover:shadow-md"
-                          } transition-all`}
+                              ? `${info.activeBg} shadow-lg ring-2 ${info.ring}`
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 hover:border-violet-300 dark:hover:border-violet-500/50 hover:shadow-md"
+                          }`}
                         >
                           {isCurrent && (
-                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow tracking-wide">
                               CURRENT PLAN
                             </span>
                           )}
-                          <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${info.color} flex items-center justify-center mb-3`}>
+                          <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${info.color} flex items-center justify-center mb-3 shadow-sm`}>
                             <CreditCard className="w-4 h-4 text-white" />
                           </div>
-                          <h4 className="font-bold text-slate-900 text-base">{info.name}</h4>
-                          <p className="text-2xl font-extrabold text-slate-900 mt-1 mb-3">
-                            {formatINRLocal(info.price)}<span className="text-xs font-normal text-slate-500">/mo</span>
+                          <h4 className="font-bold text-slate-900 dark:text-white text-base">{info.name}</h4>
+                          <p className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1 mb-3">
+                            {formatINRLocal(info.price)}<span className="text-xs font-normal text-slate-500 dark:text-slate-400">/mo</span>
                           </p>
-                          <ul className="space-y-1.5 mb-5 flex-1">
+                          <ul className="space-y-2 mb-5 flex-1">
                             {PLAN_FEATURES[planKey].map((f) => (
-                              <li key={f} className="flex items-start gap-2 text-xs text-slate-600">
-                                <Check className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />{f}
+                              <li key={f} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                                <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                                <span>{f}</span>
                               </li>
                             ))}
                           </ul>
                           {isCurrent ? (
-                            <div className="text-center text-xs font-semibold text-slate-500 py-2 border border-slate-200 rounded-xl bg-slate-50">
+                            <div className="text-center text-xs font-bold text-slate-700 dark:text-slate-200 py-2.5 border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-100/90 dark:bg-slate-800">
                               Your active plan
                             </div>
                           ) : (
@@ -2421,8 +2446,8 @@ export default function SettingsScreen() {
                               disabled={!!previewLoading}
                               className={`w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 ${
                                 isUpgrade
-                                  ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-md shadow-violet-200"
-                                  : "border border-slate-300 text-slate-700 hover:bg-slate-50"
+                                  ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-md shadow-violet-500/20"
+                                  : "border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
                               }`}
                             >
                               {isLoading ? (
@@ -2442,8 +2467,8 @@ export default function SettingsScreen() {
 
                 {/* ── Plan History Timeline ─────────────────── */}
                 {subData.subscription?.planHistory?.length > 0 && (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                    <h3 className="font-semibold text-slate-800 mb-4">Plan Change History</h3>
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                    <h3 className="font-semibold text-slate-800 dark:text-white mb-4">Plan Change History</h3>
                     <div className="space-y-3">
                       {[...subData.subscription.planHistory].reverse().map((h, idx) => (
                         <div key={idx} className="flex items-start gap-3">
@@ -2455,10 +2480,10 @@ export default function SettingsScreen() {
                             {h.reason === "upgrade" ? "↑" : h.reason === "downgrade" ? "↓" : "★"}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 capitalize">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white capitalize">
                               {h.reason === "upgrade" ? "Upgraded to" : h.reason === "downgrade" ? "Downgraded to" : "Started"} {PLAN_INFO[h.plan]?.name || h.plan}
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
                               {h.activatedAt ? new Date(h.activatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—"}
                               {h.price ? ` · ${formatINRLocal(h.price)}/mo` : ""}
                             </p>
@@ -2470,10 +2495,10 @@ export default function SettingsScreen() {
                 )}
               </>
             ) : (
-              <div className="text-center py-16 text-slate-500">
-                <CreditCard className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+              <div className="text-center py-16 text-slate-500 dark:text-slate-400">
+                <CreditCard className="w-10 h-10 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
                 <p className="font-medium">Could not load subscription data.</p>
-                <button onClick={fetchSubStatus} className="mt-3 text-violet-600 text-sm font-semibold hover:underline cursor-pointer">Retry</button>
+                <button onClick={fetchSubStatus} className="mt-3 text-violet-600 dark:text-violet-400 text-sm font-semibold hover:underline cursor-pointer">Retry</button>
               </div>
             )}
           </div>
