@@ -62,6 +62,7 @@ const buildAuthPayload = (user, ownerUser = null) => {
       invoiceFooter: user.invoiceFooter || "",
       logoUrl: user.logoUrl || "",
       signatureUrl: user.signatureUrl || "",
+      twoFactorEnabled: Boolean(user.twoFactorEnabled),
       // ✅ CRITICAL: Always include subscription so plan-based features work after upgrade
       subscription: user.subscription
         ? {
@@ -302,6 +303,29 @@ export const login = async (req, res) => {
       });
     }
 
+    // Check if Two-Factor Authentication is enabled
+    if (user.twoFactorEnabled) {
+      const targetPhone = user.phone ? normalizePhone(user.phone) : (identifier.type === "phone" ? identifier.value : "9876543210");
+      const otp = generateOtp();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+      await Verification.findOneAndDelete({ phone: targetPhone });
+      await Verification.create({
+        phone: targetPhone,
+        otp,
+        expiresAt,
+      });
+
+      console.log(`[2FA OTP REQUIRED] Sent code ${otp} to +91 ${targetPhone} for user ${user.email}`);
+
+      return res.status(200).json({
+        requireOtp: true,
+        phone: targetPhone,
+        userId: user._id,
+        message: `Two-Factor OTP sent to +91 ${targetPhone.slice(-4).padStart(10, "*")}`,
+      });
+    }
+
     let ownerUser = null;
     if (user.ownerId) {
       ownerUser = await User.findById(user.ownerId);
@@ -468,6 +492,7 @@ export const updateProfile = async (req, res) => {
       "invoiceFooter",
       "logoUrl",
       "signatureUrl",
+      "twoFactorEnabled",
     ];
 
     extraFields.forEach((field) => {
@@ -759,6 +784,68 @@ export const changePassword = async (req, res) => {
     console.error("CHANGE PASSWORD ERROR:", error);
     return res.status(500).json({
       message: "Something went wrong while updating password. Please try again.",
+    });
+  }
+};
+
+// ======================================================
+// VERIFY 2FA LOGIN OTP
+// ======================================================
+
+export const verifyLoginOtp = async (req, res) => {
+  try {
+    const { userId, phone, otp } = req.body;
+
+    if (!userId || !otp) {
+      return res.status(400).json({
+        message: "User ID and OTP are required.",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User account not found.",
+      });
+    }
+
+    const targetPhone = phone || normalizePhone(user.phone);
+    const record = await Verification.findOne({
+      phone: targetPhone,
+    });
+
+    if (!record) {
+      return res.status(400).json({
+        message: "No OTP was requested. Please sign in again.",
+      });
+    }
+
+    if (record.expiresAt < new Date()) {
+      await Verification.deleteOne({ _id: record._id });
+      return res.status(400).json({
+        message: "OTP has expired. Please sign in again to request a new code.",
+      });
+    }
+
+    if (record.otp !== String(otp).trim()) {
+      return res.status(400).json({
+        message: "Invalid OTP code. Please enter the 6-digit code sent to your phone.",
+      });
+    }
+
+    // Clean up used OTP
+    await Verification.deleteOne({ _id: record._id });
+
+    let ownerUser = null;
+    if (user.ownerId) {
+      ownerUser = await User.findById(user.ownerId);
+    }
+
+    return res.status(200).json(buildAuthPayload(user, ownerUser));
+  } catch (err) {
+    console.error("VERIFY LOGIN OTP ERROR:", err);
+    return res.status(500).json({
+      message: "Failed to verify 2FA OTP. Please try again.",
     });
   }
 };

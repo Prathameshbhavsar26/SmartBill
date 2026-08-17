@@ -45,3 +45,8 @@ export const updateProfile = (payload) =>
 export const changePassword = (payload) =>
   axiosClient.put("/auth/change-password", payload).then((res) => res.data);
 
+// Verify 2FA OTP on login
+export const verifyLoginOtp = (payload) =>
+  axiosClient.post("/auth/verify-login-otp", payload).then((res) => res.data);
+
+

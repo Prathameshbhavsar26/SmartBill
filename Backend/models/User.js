@@ -67,6 +67,11 @@ const userSchema = new mongoose.Schema(
       default: "Active",
     },
 
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
     // Business Profile & Invoice Customization Fields
     tagline: { type: String, default: "" },
     address: { type: String, default: "" },

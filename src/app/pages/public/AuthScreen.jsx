@@ -20,7 +20,7 @@ import {
   Select,
   Toast,
 } from "../../components/common/ui";
-import { registerUser, loginUser, sendOtp, verifyOtp } from "../../api/authAPI";
+import { registerUser, loginUser, sendOtp, verifyOtp, verifyLoginOtp } from "../../api/authAPI";
 import { setUserToStorage } from "../../utils/userUtils";
 
 const PHONE_PREFIX = "+91 ";
@@ -53,6 +53,14 @@ export default function AuthScreen({ view, onNav, onLogin }) {
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [otpError, setOtpError] = useState("");
+
+  // ---- 2FA Login State ----
+  const [loginRequireOtp, setLoginRequireOtp] = useState(false);
+  const [loginOtp, setLoginOtp] = useState("");
+  const [login2faUserId, setLogin2faUserId] = useState(null);
+  const [login2faPhone, setLogin2faPhone] = useState("");
+  const [loginOtpVerifying, setLoginOtpVerifying] = useState(false);
+  const [loginOtpError, setLoginOtpError] = useState("");
 
   // ---- Error state ----
   const [loginEmailError, setLoginEmailError] = useState("");
@@ -150,21 +158,53 @@ export default function AuthScreen({ view, onNav, onLogin }) {
           };
       const data = await loginUser(payload);
 
-      // Force the panel based on the "Login As" toggle the user selected:
-      // selecting "Super Admin" always opens the admin panel, and selecting
-      // "Business Owner" always opens the business owner panel.
+      // If user has Two-Factor Authentication enabled:
+      if (data.requireOtp) {
+        setLoginRequireOtp(true);
+        setLogin2faUserId(data.userId);
+        setLogin2faPhone(data.phone);
+        setLoginOtp("");
+        setLoginOtpError("");
+        showToast(data.message || "OTP code sent to your registered phone", "info");
+        return;
+      }
+
       const loggedInUser = data.user;
-
-localStorage.setItem("smartbill_token", data.token);
-setUserToStorage(loggedInUser);
-
-showToast("Login successful", "success");
-
-onLogin(loggedInUser.role, loggedInUser);
+      localStorage.setItem("smartbill_token", data.token);
+      setUserToStorage(loggedInUser);
+      showToast("Login successful", "success");
+      onLogin(loggedInUser.role, loggedInUser);
     } catch (err) {
       setFormError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerify2FaLogin = async () => {
+    if (!loginOtp || loginOtp.trim().length !== 6) {
+      setLoginOtpError("Please enter a valid 6-digit OTP code.");
+      return;
+    }
+
+    setLoginOtpVerifying(true);
+    setLoginOtpError("");
+    try {
+      const data = await verifyLoginOtp({
+        userId: login2faUserId,
+        phone: login2faPhone,
+        otp: loginOtp.trim(),
+      });
+
+      const loggedInUser = data.user;
+      localStorage.setItem("smartbill_token", data.token);
+      setUserToStorage(loggedInUser);
+      showToast("Two-Factor verification successful!", "success");
+      onLogin(loggedInUser.role, loggedInUser);
+    } catch (err) {
+      setLoginOtpError(err.response?.data?.message || err.message || "Invalid or expired OTP code.");
+    } finally {
+      setLoginOtpVerifying(false);
     }
   };
 
@@ -357,7 +397,69 @@ onLogin(loggedInUser.role, loggedInUser);
             <ArrowRight className="w-3 h-3 rotate-180" /> Back to home
           </button>
 
-          {view === "login" && (
+          {view === "login" && loginRequireOtp ? (
+            <div className="space-y-4">
+              <div className="text-center mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+                  Two-Factor Verification
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Enter the 6-digit OTP code sent to your registered phone number ending in <span className="font-bold text-slate-700 dark:text-slate-200">+{login2faPhone ? login2faPhone.slice(-4) : "••••"}</span>
+                </p>
+              </div>
+
+              {loginOtpError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {loginOtpError}
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                  6-Digit Security OTP
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  autoFocus
+                  placeholder="Enter 6-digit OTP"
+                  value={loginOtp}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setLoginOtp(val);
+                    if (loginOtpError) setLoginOtpError("");
+                  }}
+                  className="w-full text-center tracking-[0.35em] font-mono text-lg font-bold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl py-3 text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <Btn
+                variant="primary"
+                size="lg"
+                onClick={handleVerify2FaLogin}
+                className="w-full justify-center mt-2"
+                disabled={loginOtpVerifying || loginOtp.length !== 6}
+              >
+                {loginOtpVerifying ? "Verifying OTP..." : "Verify & Sign In"}
+              </Btn>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginRequireOtp(false);
+                  setLoginOtp("");
+                  setLoginOtpError("");
+                }}
+                className="w-full text-center text-xs text-slate-500 hover:text-slate-700 py-1 cursor-pointer"
+              >
+                Cancel & Return to Login
+              </button>
+            </div>
+          ) : view === "login" ? (
             <>
               <h2 className="text-2xl font-bold text-slate-900 mb-1">
                 Welcome back

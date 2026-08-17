@@ -8,6 +8,7 @@ import {
   getProfile,
   updateProfile,
   changePassword,
+  verifyLoginOtp,
 } from "../controller/authcontroller.js";
 
 import { authMiddleware } from "../middleware/auth.js";
@@ -20,6 +21,9 @@ const router = express.Router();
 router.post("/register", register);
 
 router.post("/login", login);
+
+// Verify 2FA OTP on login
+router.post("/verify-login-otp", verifyLoginOtp);
 
 
 // ================= OTP =================
