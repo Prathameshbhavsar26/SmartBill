@@ -31,6 +31,11 @@ import { setUserToStorage } from "../../utils/userUtils";
 import UserPermissionsSettings from "./components/UserPermissionsSettings";
 import SecuritySettings from "./components/SecuritySettings";
 
+import {
+  fetchTransactionSettings,
+  saveTransactionSettings,
+} from "../../api/transactionSettingsAPI";
+
 const INDIAN_STATES = [
   "Andhra Pradesh",
   "Arunachal Pradesh",
@@ -69,6 +74,37 @@ const INDIAN_STATES = [
   "Lakshadweep",
   "Puducherry",
 ];
+
+
+const ToggleRow = ({ title, description, checked, onChange }) => {
+  return (
+    <div className="flex items-start justify-between py-3 border-b border-slate-100 last:border-b-0">
+      <div className="pr-4">
+        <p className="text-sm font-medium text-slate-900">
+          {title}
+        </p>
+
+        <p className="text-xs text-slate-500 mt-1">
+          {description}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onChange}
+        className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${
+          checked ? "bg-blue-600" : "bg-slate-200"
+        }`}
+      >
+        <span
+          className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${
+            checked ? "right-1" : "left-1"
+          }`}
+        />
+      </button>
+    </div>
+  );
+};
 
 export default function SettingsScreen() {
   const [activeTab, setActiveTab] = useState("business");
@@ -250,10 +286,10 @@ export default function SettingsScreen() {
   const [enableCess, setEnableCess] = useState(false);
   const [enableRcm, setEnableRcm] = useState(false);
 
-  // Transaction Settings states
-  const [passcodeRequired, setPasscodeRequired] = useState(false);
-  const [enableCashDiscount, setEnableCashDiscount] = useState(true);
-  const [linkOrders, setLinkOrders] = useState(true);
+  // Transaction Settings States
+const [transactionLoading, setTransactionLoading] = useState(false);
+const [transactionSaving, setTransactionSaving] = useState(false);
+const [transactionSaved, setTransactionSaved] = useState(false);
 
   // Invoice Settings states
   const [showHsn, setShowHsn] = useState(true);
@@ -358,18 +394,73 @@ export default function SettingsScreen() {
     alert("✓ GST settings saved successfully!");
   };
 
-  // Handle transaction settings save
-  const handleSaveTransactionSettings = () => {
-    localStorage.setItem(
-      "transactionSettings",
-      JSON.stringify({
-        passcodeRequired,
-        enableCashDiscount,
-        linkOrders,
-      }),
+
+  // Transaction Settings load
+  const loadTransactionSettings = async () => {
+  try {
+    setTransactionLoading(true);
+
+    const response = await fetchTransactionSettings();
+
+    if (response?.transactionSettings) {
+      setTransactionSettings(response.transactionSettings);
+      setTransactionSaved(true);
+    }
+  } catch (error) {
+    console.error("Failed to load transaction settings:", error);
+
+    alert(
+      error?.response?.data?.message ||
+        "Failed to load transaction settings."
     );
-    alert("✓ Transaction settings saved successfully!");
-  };
+  } finally {
+    setTransactionLoading(false);
+  }
+};
+
+
+// Handle Transaction settings save
+const handleSaveTransactionSettings = async () => {
+  try {
+    setTransactionSaving(true);
+    setTransactionSaved(false);
+
+    const response = await saveTransactionSettings(
+      transactionSettings
+    );
+
+    if (response?.transactionSettings) {
+      setTransactionSettings(response.transactionSettings);
+    }
+
+    setTransactionSaved(true);
+
+    console.log(
+      "Transaction settings saved successfully:",
+      response
+    );
+  } catch (error) {
+    console.error(
+      "Failed to save transaction settings:",
+      error
+    );
+
+    alert(
+      error?.response?.data?.message ||
+        "Failed to save transaction settings."
+    );
+  } finally {
+    setTransactionSaving(false);
+  }
+};
+
+
+useEffect(() => {
+  if (activeTab === "transaction") {
+    loadTransactionSettings();
+  }
+}, [activeTab]);
+
 
   // Handle invoice settings save
   const handleSaveInvoiceSettings = () => {
@@ -547,16 +638,48 @@ export default function SettingsScreen() {
   };
 
   const [transactionSettings, setTransactionSettings] = useState({
-    salePrice: "Retail Price",
-    discountType: "Percentage",
-  });
+  // Sales & Pricing
+  salePrice: "Retail Price",
+  discountType: "Percentage",
+  allowDiscount: true,
+  allowPriceEditing: false,
+  allowNegativeStock: false,
+
+  // Discount Rules
+  discountAppliedOn: "Item-wise",
+  maximumDiscount: "20",
+  restrictDiscountLimit: true,
+
+  // Sales Returns
+  requireReturnPasscode: false,
+  allowPartialReturn: true,
+  restoreStockAfterReturn: true,
+  allowReturnWithoutInvoice: false,
+
+  // Cash Discount
+  enableCashDiscount: true,
+  cashDiscountType: "Percentage",
+  defaultCashDiscount: "0",
+
+  // Invoice Behavior
+  autoSaveInvoice: true,
+  printAfterSaving: false,
+  showPrintPreview: true,
+
+  // Order Management
+  linkOrdersToInvoices: true,
+  autoConvertOrders: false,
+  allowPartialOrderConversion: true,
+});
 
   const handleTransactionChange = (field, value) => {
-    setTransactionSettings((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+  setTransactionSettings((prev) => ({
+    ...prev,
+    [field]: value,
+  }));
+
+  setTransactionSaved(false);
+};
 
   const [invoiceSettings, setInvoiceSettings] = useState({
     invoicePrefix: "INV-",
@@ -1234,98 +1357,498 @@ export default function SettingsScreen() {
 
         {/* TAB 3: TRANSACTION SETTINGS */}
         {activeTab === "transaction" && (
-          <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              Transaction Settings
-            </h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <Select
-                label="Default Sale Price"
-                value={transactionSettings.salePrice}
-                onChange={(value) =>
-                  handleTransactionChange("salePrice", value)
-                }
-                options={[
-                  "Retail Price",
-                  "Wholesale Price",
-                  "Minimum Sale Price",
-                ]}
-              />
-              <Select
-                label="Discount Type"
-                value={transactionSettings.discountType}
-                onChange={(value) =>
-                  handleTransactionChange("discountType", value)
-                }
-                options={["Percentage", "Flat Amount", "None"]}
-              />
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Passcode for Sales Return
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Ask verification lock passcode on every credit note entry
-                  </p>
-                </div>
-                <button
-                  onClick={() => setPasscodeRequired(!passcodeRequired)}
-                  className={`w-10 h-6 rounded-full relative ${passcodeRequired ? "bg-blue-600" : "bg-slate-200"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${passcodeRequired ? "right-1" : "left-1"}`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Enable Cash Discount Field
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Show custom cash discount row inside ledger transactions
-                  </p>
-                </div>
-                <button
-                  onClick={() => setEnableCashDiscount(!enableCashDiscount)}
-                  className={`w-10 h-6 rounded-full relative ${enableCashDiscount ? "bg-blue-600" : "bg-slate-200"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableCashDiscount ? "right-1" : "left-1"}`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Link Orders to Invoices
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Auto-convert approved purchase orders into open bills
-                  </p>
-                </div>
-                <button
-                  onClick={() => setLinkOrders(!linkOrders)}
-                  className={`w-10 h-6 rounded-full relative ${linkOrders ? "bg-blue-600" : "bg-slate-200"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${linkOrders ? "right-1" : "left-1"}`}
-                  />
-                </button>
-              </div>
-            </div>
-            <Btn
-              variant="primary"
-              className="mt-5"
-              onClick={handleSaveTransactionSettings}
-              icon={<Check className="w-4 h-4" />}
-            >
-              Save Transaction Rules
-            </Btn>
-          </div>
-        )}
+  <div className="space-y-5">
+
+    {/* HEADER */}
+    <div className="bg-white border rounded-xl p-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-slate-900 text-lg">
+            Transaction Settings
+          </h3>
+
+          <p className="text-sm text-slate-500 mt-1">
+            Manage sales, discounts, returns, invoices and order behavior.
+          </p>
+        </div>
+
+       <div className="flex items-center gap-2 text-xs font-medium">
+  {transactionLoading ? (
+    <>
+      <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+      Loading...
+    </>
+  ) : transactionSaving ? (
+    <>
+      <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+      Saving...
+    </>
+  ) : transactionSaved ? (
+    <>
+      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+      Saved
+    </>
+  ) : (
+    <>
+      <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+      Unsaved changes
+    </>
+  )}
+</div>
+      </div>
+    </div>
+
+
+    {/* =====================================================
+        SALES & PRICING
+    ===================================================== */}
+    <div className="bg-white border rounded-xl p-6 shadow-sm">
+
+      <div className="mb-5">
+        <h4 className="font-semibold text-slate-900">
+          Sales & Pricing
+        </h4>
+
+        <p className="text-xs text-slate-500 mt-1">
+          Configure default pricing and sales behavior.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        <Select
+          label="Default Sale Price"
+          value={transactionSettings.salePrice}
+          onChange={(value) =>
+            handleTransactionChange("salePrice", value)
+          }
+          options={[
+            "Retail Price",
+            "Wholesale Price",
+            "Minimum Sale Price",
+          ]}
+        />
+
+        <Select
+          label="Discount Type"
+          value={transactionSettings.discountType}
+          onChange={(value) =>
+            handleTransactionChange("discountType", value)
+          }
+          options={[
+            "Percentage",
+            "Flat Amount",
+            "None",
+          ]}
+        />
+
+      </div>
+
+      <div className="mt-5 space-y-1">
+
+        <ToggleRow
+          title="Allow Discount"
+          description="Allow users to apply discounts while creating sales."
+          checked={transactionSettings.allowDiscount}
+          onChange={() =>
+            handleTransactionChange(
+              "allowDiscount",
+              !transactionSettings.allowDiscount
+            )
+          }
+        />
+
+        <ToggleRow
+          title="Allow Price Editing"
+          description="Allow the selling price to be changed during billing."
+          checked={transactionSettings.allowPriceEditing}
+          onChange={() =>
+            handleTransactionChange(
+              "allowPriceEditing",
+              !transactionSettings.allowPriceEditing
+            )
+          }
+        />
+
+        <ToggleRow
+          title="Allow Negative Stock"
+          description="Allow sales even when available stock is insufficient."
+          checked={transactionSettings.allowNegativeStock}
+          onChange={() =>
+            handleTransactionChange(
+              "allowNegativeStock",
+              !transactionSettings.allowNegativeStock
+            )
+          }
+        />
+
+      </div>
+    </div>
+
+
+    {/* =====================================================
+        DISCOUNT RULES
+    ===================================================== */}
+    <div className="bg-white border rounded-xl p-6 shadow-sm">
+
+      <div className="mb-5">
+        <h4 className="font-semibold text-slate-900">
+          Discount Rules
+        </h4>
+
+        <p className="text-xs text-slate-500 mt-1">
+          Control how discounts are applied to transactions.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        <Select
+          label="Discount Applied On"
+          value={transactionSettings.discountAppliedOn}
+          onChange={(value) =>
+            handleTransactionChange(
+              "discountAppliedOn",
+              value
+            )
+          }
+          options={[
+            "Item-wise",
+            "Entire Invoice",
+          ]}
+        />
+
+        <Input
+          label="Maximum Discount (%)"
+          type="number"
+          value={transactionSettings.maximumDiscount}
+          onChange={(value) =>
+            handleTransactionChange(
+              "maximumDiscount",
+              value
+            )
+          }
+          placeholder="Enter maximum discount"
+        />
+
+      </div>
+
+      <div className="mt-5">
+
+        <ToggleRow
+          title="Restrict Discount Above Limit"
+          description="Prevent users from applying discounts above the configured maximum."
+          checked={transactionSettings.restrictDiscountLimit}
+          onChange={() =>
+            handleTransactionChange(
+              "restrictDiscountLimit",
+              !transactionSettings.restrictDiscountLimit
+            )
+          }
+        />
+
+      </div>
+    </div>
+
+
+    {/* =====================================================
+        SALES RETURNS
+    ===================================================== */}
+    <div className="bg-white border rounded-xl p-6 shadow-sm">
+
+      <div className="mb-5">
+        <h4 className="font-semibold text-slate-900">
+          Sales Returns
+        </h4>
+
+        <p className="text-xs text-slate-500 mt-1">
+          Configure rules for returning sold products.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+
+        <ToggleRow
+          title="Require Passcode for Sales Return"
+          description="Require verification before processing a sales return."
+          checked={transactionSettings.requireReturnPasscode}
+          onChange={() =>
+            handleTransactionChange(
+              "requireReturnPasscode",
+              !transactionSettings.requireReturnPasscode
+            )
+          }
+        />
+
+        <ToggleRow
+          title="Allow Partial Sales Return"
+          description="Allow customers to return only selected items or quantities."
+          checked={transactionSettings.allowPartialReturn}
+          onChange={() =>
+            handleTransactionChange(
+              "allowPartialReturn",
+              !transactionSettings.allowPartialReturn
+            )
+          }
+        />
+
+        <ToggleRow
+          title="Restore Stock Automatically"
+          description="Automatically add returned products back to inventory."
+          checked={transactionSettings.restoreStockAfterReturn}
+          onChange={() =>
+            handleTransactionChange(
+              "restoreStockAfterReturn",
+              !transactionSettings.restoreStockAfterReturn
+            )
+          }
+        />
+
+        <ToggleRow
+          title="Allow Return Without Original Invoice"
+          description="Allow users to process returns without selecting the original invoice."
+          checked={transactionSettings.allowReturnWithoutInvoice}
+          onChange={() =>
+            handleTransactionChange(
+              "allowReturnWithoutInvoice",
+              !transactionSettings.allowReturnWithoutInvoice
+            )
+          }
+        />
+
+      </div>
+    </div>
+
+
+    {/* =====================================================
+        CASH DISCOUNT
+    ===================================================== */}
+    <div className="bg-white border rounded-xl p-6 shadow-sm">
+
+      <div className="mb-5">
+        <h4 className="font-semibold text-slate-900">
+          Cash Discount
+        </h4>
+
+        <p className="text-xs text-slate-500 mt-1">
+          Configure discounts offered for cash payments.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+
+        <ToggleRow
+          title="Enable Cash Discount"
+          description="Show the cash discount option during transactions."
+          checked={transactionSettings.enableCashDiscount}
+          onChange={() =>
+            handleTransactionChange(
+              "enableCashDiscount",
+              !transactionSettings.enableCashDiscount
+            )
+          }
+        />
+
+      </div>
+
+      {transactionSettings.enableCashDiscount && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+
+          <Select
+            label="Cash Discount Type"
+            value={transactionSettings.cashDiscountType}
+            onChange={(value) =>
+              handleTransactionChange(
+                "cashDiscountType",
+                value
+              )
+            }
+            options={[
+              "Percentage",
+              "Flat Amount",
+            ]}
+          />
+
+          <Input
+            label="Default Cash Discount"
+            type="number"
+            value={transactionSettings.defaultCashDiscount}
+            onChange={(value) =>
+              handleTransactionChange(
+                "defaultCashDiscount",
+                value
+              )
+            }
+            placeholder="Enter default discount"
+          />
+
+        </div>
+      )}
+
+    </div>
+
+
+    {/* =====================================================
+        INVOICE BEHAVIOR
+    ===================================================== */}
+    <div className="bg-white border rounded-xl p-6 shadow-sm">
+
+      <div className="mb-5">
+        <h4 className="font-semibold text-slate-900">
+          Invoice Behavior
+        </h4>
+
+        <p className="text-xs text-slate-500 mt-1">
+          Control what happens after creating an invoice.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+
+        <ToggleRow
+          title="Auto-save Invoice"
+          description="Automatically save the invoice after completing billing."
+          checked={transactionSettings.autoSaveInvoice}
+          onChange={() =>
+            handleTransactionChange(
+              "autoSaveInvoice",
+              !transactionSettings.autoSaveInvoice
+            )
+          }
+        />
+
+        <ToggleRow
+          title="Print After Saving"
+          description="Automatically start printing after an invoice is saved."
+          checked={transactionSettings.printAfterSaving}
+          onChange={() =>
+            handleTransactionChange(
+              "printAfterSaving",
+              !transactionSettings.printAfterSaving
+            )
+          }
+        />
+
+        <ToggleRow
+          title="Show Print Preview"
+          description="Show the invoice preview before printing."
+          checked={transactionSettings.showPrintPreview}
+          onChange={() =>
+            handleTransactionChange(
+              "showPrintPreview",
+              !transactionSettings.showPrintPreview
+            )
+          }
+        />
+
+      </div>
+    </div>
+
+
+    {/* =====================================================
+        ORDER MANAGEMENT
+    ===================================================== */}
+    <div className="bg-white border rounded-xl p-6 shadow-sm">
+
+      <div className="mb-5">
+        <h4 className="font-semibold text-slate-900">
+          Order Management
+        </h4>
+
+        <p className="text-xs text-slate-500 mt-1">
+          Configure how orders are converted into invoices.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+
+        <ToggleRow
+          title="Link Orders to Invoices"
+          description="Connect sales orders with their generated invoices."
+          checked={transactionSettings.linkOrdersToInvoices}
+          onChange={() =>
+            handleTransactionChange(
+              "linkOrdersToInvoices",
+              !transactionSettings.linkOrdersToInvoices
+            )
+          }
+        />
+
+        <ToggleRow
+          title="Automatically Convert Orders"
+          description="Automatically create an invoice when an order is approved."
+          checked={transactionSettings.autoConvertOrders}
+          onChange={() =>
+            handleTransactionChange(
+              "autoConvertOrders",
+              !transactionSettings.autoConvertOrders
+            )
+          }
+        />
+
+        <ToggleRow
+          title="Allow Partial Order Conversion"
+          description="Allow only selected products or quantities from an order to be invoiced."
+          checked={transactionSettings.allowPartialOrderConversion}
+          onChange={() =>
+            handleTransactionChange(
+              "allowPartialOrderConversion",
+              !transactionSettings.allowPartialOrderConversion
+            )
+          }
+        />
+
+      </div>
+    </div>
+
+
+    {/* AUTO SAVE NOTE */}
+   {/* SAVE TRANSACTION SETTINGS */}
+<div className="flex items-center justify-between px-4 py-4 bg-white border rounded-xl shadow-sm">
+
+  <div>
+    <p className="text-sm font-medium text-slate-700">
+      Transaction Settings
+    </p>
+
+    <p className="text-xs text-slate-500 mt-0.5">
+      Save your transaction settings to your account.
+    </p>
+  </div>
+
+  <div className="flex items-center gap-3">
+
+    {/* Status */}
+    {transactionSaving ? (
+      <span className="text-xs font-medium text-yellow-600">
+        Saving...
+      </span>
+    ) : transactionSaved ? (
+      <span className="text-xs font-medium text-emerald-600">
+        ✓ Saved
+      </span>
+    ) : (
+      <span className="text-xs font-medium text-orange-600">
+        Unsaved changes
+      </span>
+    )}
+
+    {/* Save Button */}
+    <button
+      type="button"
+      onClick={handleSaveTransactionSettings}
+      disabled={transactionSaving || transactionLoading}
+      className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+    >
+      {transactionSaving ? "Saving..." : "Save Changes"}
+    </button>
+
+  </div>
+
+</div>
+
+  </div>
+)}
 
         {/* TAB 4: INVOICE SETTINGS */}
         {activeTab === "invoice" && (
