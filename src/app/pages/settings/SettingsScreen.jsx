@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { Input, Btn, Select } from "../../components/common/ui";
 import { setUserToStorage } from "../../utils/userUtils";
+import UserPermissionsSettings from "./components/UserPermissionsSettings";
+import SecuritySettings from "./components/SecuritySettings";
 
 const INDIAN_STATES = [
   "Andhra Pradesh",
@@ -2031,90 +2033,7 @@ export default function SettingsScreen() {
         )}
 
         {/* TAB 10: USERS PERMISSIONS */}
-        {activeTab === "permissions" && (
-          <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-5">
-                Users Permissions Management
-              </h3>
-              <p className="text-sm text-slate-600 mb-6">
-                Manage staff and employee access to different modules. Control
-                which features each employee can access.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {employees.map((emp) => (
-                <div
-                  key={emp.id}
-                  className="border border-slate-200 rounded-xl p-4 bg-slate-50"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h4 className="font-semibold text-slate-900">
-                        {emp.name}
-                      </h4>
-                      <p className="text-xs text-slate-500">
-                        {emp.department} Department
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-5 gap-2">
-                    {Object.keys(emp.permissions).map((module) => (
-                      <div
-                        key={module}
-                        className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={emp.permissions[module]}
-                          onChange={() =>
-                            handlePermissionToggle(emp.id, module)
-                          }
-                          className="w-4 h-4 rounded cursor-pointer"
-                        />
-                        <label className="text-xs font-medium text-slate-700 capitalize cursor-pointer">
-                          {module}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="border-t pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-4">
-                Available Modules
-              </h4>
-              <div className="grid grid-cols-5 gap-3">
-                {[
-                  "Sales",
-                  "Purchase",
-                  "Inventory",
-                  "Accounting",
-                  "Settings",
-                ].map((mod) => (
-                  <div
-                    key={mod}
-                    className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-center"
-                  >
-                    <p className="text-xs font-medium text-slate-700">{mod}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <Btn
-              variant="primary"
-              onClick={handleSavePermissions}
-              icon={<Check className="w-4 h-4" />}
-            >
-              Save Permissions
-            </Btn>
-          </div>
-        )}
+        {activeTab === "permissions" && <UserPermissionsSettings />}
 
         {/* TAB 11: PAYMENT METHODS */}
         {activeTab === "payment" && (
@@ -2223,92 +2142,7 @@ export default function SettingsScreen() {
         )}
 
         {/* TAB 12: SECURITY SETTINGS */}
-        {activeTab === "users" && (
-          <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              Security Settings
-            </h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <Input
-                  label="Current Password"
-                  type="password"
-                  placeholder="••••••••"
-                  icon={<Lock className="w-4 h-4" />}
-                  value={passwordData.currentPassword}
-                  onChange={(value) =>
-                    handlePasswordChange("currentPassword", value)
-                  }
-                />
-                <Input
-                  label="New Password"
-                  type="password"
-                  placeholder="Min. 8 characters"
-                  value={passwordData.newPassword}
-                  onChange={(value) =>
-                    handlePasswordChange("newPassword", value)
-                  }
-                  error={passwordErrors.newPassword}
-                />
-                <Input
-                  label="Confirm New Password"
-                  type="password"
-                  placeholder="Re-enter new password"
-                  value={passwordData.confirmPassword}
-                  onChange={(value) =>
-                    handlePasswordChange("confirmPassword", value)
-                  }
-                  error={passwordErrors.confirmPassword}
-                />
-              </div>
-              <div className="space-y-3 pt-2">
-                <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      Two-Factor Authentication
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Require OTP on login
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setTwoFactorAuth(!twoFactorAuth)}
-                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${twoFactorAuth ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${twoFactorAuth ? "right-1" : "left-1"}`}
-                    />
-                  </button>
-                </div>
-                <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      Session Timeout
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Auto-logout after 30 minutes of inactivity
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setSessionTimeout(!sessionTimeout)}
-                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${sessionTimeout ? "bg-blue-600" : "bg-slate-200"}`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${sessionTimeout ? "right-1" : "left-1"}`}
-                    />
-                  </button>
-                </div>
-              </div>
-              <Btn
-                variant="primary"
-                onClick={handleUpdatePassword}
-                icon={<Lock className="w-4 h-4" />}
-              >
-                Update Password
-              </Btn>
-            </div>
-          </div>
-        )}
+        {activeTab === "users" && <SecuritySettings />}
 
         {/* TAB 13: SUBSCRIPTION & BILLING */}
         {activeTab === "subscription" && (

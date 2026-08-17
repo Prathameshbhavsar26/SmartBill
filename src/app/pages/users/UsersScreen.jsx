@@ -29,6 +29,7 @@ import {
   MODULE_PERMISSIONS,
   ROLE_DEFAULT_PERMISSIONS,
 } from "../../utils/permissions";
+import { PERMISSION_CATEGORIES } from "../settings/components/UserPermissionsSettings";
 import { getUserPlan } from "../../utils/planPermissions";
 import {
   fetchEmployees,
@@ -329,29 +330,71 @@ export default function UsersScreen({ user }) {
               )}
             </div>
 
-            <div className="space-y-2">
+            {/* Module Permissions Categorized */}
+            <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Module Permissions
-                </p>
-                <span className="text-[10px] text-slate-400">
-                  Select allowed modules
-                </span>
+                <div>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white">
+                    Module Permissions ({Object.values(permissions || {}).filter(Boolean).length} / {MODULE_PERMISSIONS.length})
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Grant or restrict access to specific business features
+                  </p>
+                </div>
+                {/* Presets */}
+                <div className="flex items-center gap-1">
+                  {["Cashier", "Manager", "Accountant"].map((pRole) => (
+                    <button
+                      key={pRole}
+                      type="button"
+                      onClick={() => handleRoleChange(pRole)}
+                      className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                        role === pRole
+                          ? "bg-blue-50 border-blue-400 text-blue-700 font-bold dark:bg-blue-950/60 dark:text-blue-300"
+                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50"
+                      }`}
+                    >
+                      {pRole}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                {MODULE_PERMISSIONS.map((mod) => (
-                  <label
-                    key={mod.key}
-                    className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer select-none"
+
+              <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
+                {PERMISSION_CATEGORIES.map((cat) => (
+                  <div
+                    key={cat.category}
+                    className="border border-slate-200 dark:border-slate-700/80 rounded-lg overflow-hidden bg-slate-50/50 dark:bg-slate-800/40"
                   >
-                    <input
-                      type="checkbox"
-                      checked={Boolean(permissions[mod.key])}
-                      onChange={() => togglePermission(mod.key)}
-                      className="accent-blue-600 rounded w-3.5 h-3.5 cursor-pointer"
-                    />
-                    {mod.label}
-                  </label>
+                    <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
+                        {cat.category}
+                      </span>
+                    </div>
+                    <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2 bg-white dark:bg-slate-900">
+                      {cat.modules.map((mod) => (
+                        <label
+                          key={mod.key}
+                          className="flex items-start gap-2 p-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer select-none"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={Boolean(permissions[mod.key])}
+                            onChange={() => togglePermission(mod.key)}
+                            className="accent-blue-600 rounded w-4 h-4 mt-0.5 cursor-pointer flex-shrink-0"
+                          />
+                          <div>
+                            <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-none mb-0.5">
+                              {mod.label}
+                            </p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                              {mod.desc}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

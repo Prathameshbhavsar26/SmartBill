@@ -40,3 +40,8 @@ export const getProfile = () =>
 // Update the currently logged-in user's profile
 export const updateProfile = (payload) =>
   axiosClient.put("/auth/profile", payload).then((res) => res.data);
+
+// Change password for currently logged-in user
+export const changePassword = (payload) =>
+  axiosClient.put("/auth/change-password", payload).then((res) => res.data);
+

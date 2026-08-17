@@ -7,6 +7,7 @@ import {
   verifyOtp,
   getProfile,
   updateProfile,
+  changePassword,
 } from "../controller/authcontroller.js";
 
 import { authMiddleware } from "../middleware/auth.js";
@@ -28,13 +29,16 @@ router.post("/send-otp", sendOtp);
 router.post("/verify-otp", verifyOtp);
 
 
-// ================= PROFILE =================
+// ================= PROFILE & SECURITY =================
 
 // Get currently logged-in user's profile
 router.get("/profile", authMiddleware, getProfile);
 
 // Update currently logged-in user's profile
 router.put("/profile", authMiddleware, updateProfile);
+
+// Change password
+router.put("/change-password", authMiddleware, changePassword);
 
 
 export default router;
