@@ -16,7 +16,6 @@ import {
 import { FEATURES, PLANS, TESTIMONIALS } from "../../constants/landing";
 import { Btn, Card } from "../../components/common/ui";
 import subscriptionAPI from "../../api/subscriptionAPI";
-import ChatBot from "../../components/common/ChatBot";
 
 export default function LandingPage({ onNav }) {
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -97,8 +96,7 @@ export default function LandingPage({ onNav }) {
   };
 
   return (
-    <>
-      <div
+    <div
       className="min-h-screen bg-white"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
@@ -414,8 +412,5 @@ export default function LandingPage({ onNav }) {
         <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2"></div>
       </footer>
     </div>
-
-    {/* SmartBot floating chatbot */}
-    <ChatBot />
-  </>);
+  );
 }

@@ -24,7 +24,6 @@ import { useCustomization } from "./hooks/useCustomization";
 import { useLowStock } from "./hooks/useLowStock";
 import { AlertTriangle, X, ShoppingCart, TrendingDown, ShieldAlert } from "lucide-react";
 import { hasPermission } from "./utils/permissions";
-import ChatBot from "./components/common/ChatBot";
 
 function LowStockAlert({ lowStockItems, outOfStockItems, onClose, onNav }) {
   const total = lowStockItems.length + outOfStockItems.length;
@@ -212,9 +211,6 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
           onNav={onNav}
         />
       )}
-
-      {/* SmartBot floating chatbot */}
-      <ChatBot user={user} />
 
       <style>{`
         @keyframes slideUp {
