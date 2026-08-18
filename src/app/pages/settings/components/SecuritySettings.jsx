@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Lock,
   Eye,
@@ -9,7 +9,7 @@ import {
   Shield,
   Laptop,
 } from "lucide-react";
-import { changePassword, updateProfile } from "../../../api/authAPI";
+import { changePassword, updateProfile, getProfile } from "../../../api/authAPI";
 import { setUserToStorage } from "../../../utils/userUtils";
 
 export default function SecuritySettings() {
@@ -36,6 +36,19 @@ export default function SecuritySettings() {
   });
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [prefStatus, setPrefStatus] = useState(null);
+
+  // Sync latest user profile on mount
+  useEffect(() => {
+    getProfile()
+      .then((data) => {
+        if (data?.user) {
+          setUserToStorage(data.user);
+          setTwoFactorAuth(Boolean(data.user.twoFactorEnabled));
+          localStorage.setItem("smartbill_2fa_enabled", String(Boolean(data.user.twoFactorEnabled)));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Handle password submit
   const handlePasswordSubmit = async (e) => {
@@ -75,6 +88,35 @@ export default function SecuritySettings() {
     }
   };
 
+  // Instant 2FA toggle handler
+  const handleToggle2Fa = async (newVal) => {
+    setTwoFactorAuth(newVal);
+    setSavingPrefs(true);
+    setPrefStatus(null);
+    try {
+      const res = await updateProfile({ twoFactorEnabled: newVal });
+      if (res.user) {
+        setUserToStorage(res.user);
+      }
+      localStorage.setItem("smartbill_2fa_enabled", String(newVal));
+      setPrefStatus({
+        type: "success",
+        text: newVal
+          ? "✓ Two-Factor Authentication ENABLED! You will be prompted for OTP code on your next login."
+          : "✓ Two-Factor Authentication disabled.",
+      });
+      setTimeout(() => setPrefStatus(null), 4000);
+    } catch (err) {
+      setTwoFactorAuth(!newVal); // revert on failure
+      setPrefStatus({
+        type: "error",
+        text: err.response?.data?.message || err.message || "Failed to update 2FA setting.",
+      });
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
   // Handle saving session preferences
   const handleSavePreferences = async (e) => {
     e.preventDefault();
@@ -91,8 +133,8 @@ export default function SecuritySettings() {
       localStorage.setItem("smartbill_session_timeout", sessionTimeout);
       setPrefStatus({
         type: "success",
-        text: `✓ Security preferences saved! Two-Factor Authentication is now ${
-          twoFactorAuth ? "Enabled (OTP required on login)" : "Disabled"
+        text: `✓ Security preferences saved! Two-Factor Authentication is ${
+          twoFactorAuth ? "ENABLED (OTP required on login)" : "Disabled"
         }.`,
       });
       setTimeout(() => setPrefStatus(null), 3500);
@@ -251,28 +293,43 @@ export default function SecuritySettings() {
 
         {prefStatus && (
           <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-medium mb-4 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             <span>{prefStatus.text}</span>
           </div>
         )}
 
         <form onSubmit={handleSavePreferences} className="space-y-4">
           {/* Two Factor Authentication */}
-          <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800">
             <div>
-              <p className="text-xs font-medium text-slate-900 dark:text-slate-200">
-                Two-Factor Authentication (OTP on Login)
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-slate-900 dark:text-slate-200">
+                  Two-Factor Authentication (OTP on Login)
+                </p>
+                {twoFactorAuth && (
+                  <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+                    Active
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                 Require OTP code sent to your phone when logging in
               </p>
             </div>
-            <input
-              type="checkbox"
-              checked={twoFactorAuth}
-              onChange={(e) => setTwoFactorAuth(e.target.checked)}
-              className="w-4 h-4 rounded text-blue-600 cursor-pointer accent-blue-600"
-            />
+            <button
+              type="button"
+              onClick={() => handleToggle2Fa(!twoFactorAuth)}
+              disabled={savingPrefs}
+              className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer flex-shrink-0 ${
+                twoFactorAuth ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"
+              }`}
+            >
+              <span
+                className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${
+                  twoFactorAuth ? "right-1" : "left-1"
+                }`}
+              />
+            </button>
           </div>
 
           {/* Session Inactivity Timeout */}
