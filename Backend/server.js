@@ -15,6 +15,7 @@ import customizationRoutes from "./routes/customizationRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
 import businessSettingsRoutes from "./routes/businessSettingsRoutes.js";
+import transactionSettingsRoutes from "./routes/transactionSettingsRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import invoiceSettingsRoutes from "./routes/invoiceSettingsRoutes.js";
 
@@ -87,6 +88,7 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/settings/business", businessSettingsRoutes);
 app.use("/api/settings/invoice", invoiceSettingsRoutes);
+app.use("/api/settings/transaction", transactionSettingsRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 
 app.get("/", (req, res) => {
