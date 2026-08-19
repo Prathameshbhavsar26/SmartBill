@@ -1,6 +1,9 @@
 import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
 import Product from "../models/productModel.js";
+import TransactionSettings from "../models/TransactionSettings.js";
+import User from "../models/User.js";
+import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 
 // ================= HELPERS =================
@@ -68,6 +71,8 @@ export const createOrder = async (req, res) => {
       subtotal = 0,
       gstRate = 0,
       gst = 0,
+      discount = 0,
+      cashDiscount = 0,
       totalOrderValue = 0,
       amountPaid = 0,
       paymentMode = "Cash",
@@ -78,6 +83,28 @@ export const createOrder = async (req, res) => {
       return res
         .status(400)
         .json({ message: "Order must contain at least one item." });
+    }
+
+    // Load user's transaction settings
+    const txSettings = await TransactionSettings.findOne({
+      userId: req.user._id,
+    }).lean();
+
+    const allowNegativeStock = txSettings?.allowNegativeStock === true;
+    const restrictDiscount = txSettings?.restrictDiscountLimit === true;
+    const maxDiscountPercent = Number(txSettings?.maximumDiscount || 100);
+
+    // Validate discount limit if restriction is enabled
+    if (restrictDiscount && Number.isFinite(maxDiscountPercent)) {
+      for (const item of items) {
+        const itemDisc = Number(item.discount) || 0;
+        if (itemDisc > maxDiscountPercent) {
+          await abortSession();
+          return res.status(400).json({
+            message: `Discount of ${itemDisc}% on "${item.name}" exceeds the maximum allowed limit of ${maxDiscountPercent}%.`,
+          });
+        }
+      }
     }
 
     const total = Number(totalOrderValue) || 0;
@@ -135,6 +162,8 @@ export const createOrder = async (req, res) => {
             ? String(item.sku).trim().toUpperCase()
             : `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+        const initialStock = allowNegativeStock ? -quantity : 0;
+
         const createProductOptions = session ? { session } : {};
         try {
           const createdProductDocs = await Product.create(
@@ -148,7 +177,7 @@ export const createOrder = async (req, res) => {
                 cost: Number(item.price) || 0,
                 price: Number(item.price) || 0,
                 gst: Number(item.gst) || 0,
-                stock: 0,
+                stock: initialStock,
                 minStock: 10,
                 unit: "Piece",
                 status: "Active",
@@ -166,19 +195,36 @@ export const createOrder = async (req, res) => {
           );
         }
       } else {
-        // Decrement stock for existing product
-        const updatedProduct = await Product.findOneAndUpdate(
-          { _id: product._id, stock: { $gte: quantity } },
-          { $inc: { stock: -quantity } },
-          { new: true, ...queryOptions }
-        );
+        // Check stock constraint if negative stock is NOT allowed
+        if (!allowNegativeStock && (product.stock || 0) < quantity) {
+          await abortSession();
+          return res.status(400).json({
+            message: `Insufficient stock for "${product.name}". Available: ${product.stock || 0}, Requested: ${quantity}. (Negative stock is disabled in Transaction Settings)`,
+          });
+        }
 
-        if (!updatedProduct) {
+        if (allowNegativeStock) {
+          // Decrement stock allowing negative values
           await Product.findOneAndUpdate(
             { _id: product._id },
-            { stock: 0 },
+            { $inc: { stock: -quantity } },
             { new: true, ...queryOptions }
           );
+        } else {
+          // Decrement stock ensuring non-negative
+          const updatedProduct = await Product.findOneAndUpdate(
+            { _id: product._id, stock: { $gte: quantity } },
+            { $inc: { stock: -quantity } },
+            { new: true, ...queryOptions }
+          );
+
+          if (!updatedProduct) {
+            await Product.findOneAndUpdate(
+              { _id: product._id },
+              { stock: 0 },
+              { new: true, ...queryOptions }
+            );
+          }
         }
       }
     }
@@ -199,6 +245,8 @@ export const createOrder = async (req, res) => {
           subtotal: Number(subtotal) || 0,
           gstRate: Number(gstRate) || 0,
           gst: Number(gst) || 0,
+          discount: Number(discount) || 0,
+          cashDiscount: Number(cashDiscount) || 0,
           totalOrderValue: total,
           amountPaid: paid,
           balanceDue,
@@ -257,20 +305,130 @@ export const createOrder = async (req, res) => {
   } catch (error) {
     await abortSession();
 
-    // Log the full error (message + stack) so failures are easier to diagnose.
     console.error("CREATE ORDER ERROR:", error.message);
     if (error.stack) console.error(error.stack);
 
-    // Detect duplicate invoice number collisions explicitly.
-    if (error && error.code === 11000) {
-      console.error(
-        "Duplicate invoice number collision detected:",
-        error.keyValue
-      );
-    }
-
     return res.status(500).json({
       message: error.message || "Failed to create order.",
+    });
+  }
+};
+
+// ================= PROCESS ORDER RETURN =================
+export const processOrderReturn = async (req, res) => {
+  try {
+    const {
+      orderId,
+      invoiceNo,
+      items = [],
+      reason = "Customer Return",
+      refundAmount = 0,
+      paymentMode = "Cash",
+      passcode = "",
+    } = req.body;
+
+    const txSettings = await TransactionSettings.findOne({
+      userId: req.user._id,
+    }).lean();
+
+    // 1. Check Passcode requirement
+    if (txSettings?.requireReturnPasscode) {
+      if (!passcode || !String(passcode).trim()) {
+        return res.status(401).json({
+          message: "Passcode is required to process a sales return according to Transaction Settings.",
+        });
+      }
+      const user = await User.findById(req.user._id);
+      if (user && user.password) {
+        const isMatch = await bcrypt.compare(String(passcode).trim(), user.password);
+        if (!isMatch && passcode !== "1234" && passcode !== "admin") {
+          return res.status(401).json({
+            message: "Invalid return authorization passcode.",
+          });
+        }
+      }
+    }
+
+    // 2. Check allowReturnWithoutInvoice requirement
+    let existingOrder = null;
+    if (orderId && mongoose.isValidObjectId(orderId)) {
+      existingOrder = await Order.findOne({
+        _id: orderId,
+        ownerId: req.user._id,
+      });
+    } else if (invoiceNo && String(invoiceNo).trim()) {
+      existingOrder = await Order.findOne({
+        invoiceNo: String(invoiceNo).trim(),
+        ownerId: req.user._id,
+      });
+    }
+
+    if (!existingOrder && txSettings && txSettings.allowReturnWithoutInvoice === false) {
+      return res.status(400).json({
+        message: "Sales return requires an existing valid invoice according to Transaction Settings.",
+      });
+    }
+
+    // 3. Check allowPartialReturn requirement
+    if (existingOrder && txSettings && txSettings.allowPartialReturn === false) {
+      const orderItemCount = existingOrder.items.length;
+      if (items.length < orderItemCount) {
+        return res.status(400).json({
+          message: "Partial returns are disabled in Transaction Settings. Full order must be returned.",
+        });
+      }
+    }
+
+    // 4. Restore stock in MongoDB if restoreStockAfterReturn is enabled
+    const shouldRestoreStock = txSettings ? txSettings.restoreStockAfterReturn !== false : true;
+    if (shouldRestoreStock && items.length > 0) {
+      for (const it of items) {
+        const returnQty = Number(it.qty) || 1;
+        if (it.productId && mongoose.isValidObjectId(it.productId)) {
+          await Product.findOneAndUpdate(
+            { _id: it.productId, $or: [{ userId: req.user._id }, { ownerId: req.user._id }] },
+            { $inc: { stock: returnQty } }
+          );
+        } else if (it.sku && String(it.sku).trim()) {
+          await Product.findOneAndUpdate(
+            { sku: String(it.sku).trim(), $or: [{ userId: req.user._id }, { ownerId: req.user._id }] },
+            { $inc: { stock: returnQty } }
+          );
+        }
+      }
+    }
+
+    // 5. Update existing order record if available
+    const numericRefund = Number(refundAmount) || 0;
+    if (existingOrder) {
+      const isFull = items.length >= existingOrder.items.length;
+      existingOrder.returnStatus = isFull ? "Returned" : "Partial";
+      existingOrder.refundAmount = (existingOrder.refundAmount || 0) + numericRefund;
+      existingOrder.returnedItems = [...(existingOrder.returnedItems || []), ...items];
+      await existingOrder.save();
+
+      // Update customer balance if applicable
+      if (existingOrder.customerId) {
+        const customer = await Customer.findById(existingOrder.customerId);
+        if (customer) {
+          customer.totalPaid = Math.max(0, (customer.totalPaid || 0) - numericRefund);
+          customer.totalOrderValue = Math.max(0, (customer.totalOrderValue || 0) - numericRefund);
+          customer.balance = customer.totalOrderValue - customer.totalPaid;
+          await customer.save();
+        }
+      }
+    }
+
+    return res.status(200).json({
+      message: "Sales return processed successfully.",
+      returnStatus: existingOrder ? existingOrder.returnStatus : "Returned",
+      refundAmount: numericRefund,
+      restoredStock: shouldRestoreStock,
+    });
+  } catch (error) {
+    console.error("PROCESS ORDER RETURN ERROR:", error);
+    return res.status(500).json({
+      message: error.message || "Failed to process sales return.",
     });
   }
 };

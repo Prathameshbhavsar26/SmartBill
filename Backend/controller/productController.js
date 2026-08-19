@@ -81,6 +81,8 @@ export const updateProduct = async (req, res) => {
       supplier,
       cost,
       price,
+      wholesalePrice,
+      minPrice,
       gst,
       stock,
       minStock,
@@ -94,6 +96,8 @@ export const updateProduct = async (req, res) => {
     if (supplier !== undefined) product.supplier = supplier || product.supplier;
     if (cost !== undefined) product.cost = Number(cost) || 0;
     if (price !== undefined) product.price = Number(price) || 0;
+    if (wholesalePrice !== undefined) product.wholesalePrice = Number(wholesalePrice) || 0;
+    if (minPrice !== undefined) product.minPrice = Number(minPrice) || 0;
     if (gst !== undefined) product.gst = Number(gst) || 0;
     if (stock !== undefined) product.stock = Number(stock) || 0;
     if (minStock !== undefined) product.minStock = Number(minStock) || 0;

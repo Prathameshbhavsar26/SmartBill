@@ -32,6 +32,16 @@ const productSchema = new mongoose.Schema(
       required: true,
     },
 
+    wholesalePrice: {
+      type: Number,
+      default: 0,
+    },
+
+    minPrice: {
+      type: Number,
+      default: 0,
+    },
+
     gst: {
       type: Number,
       default: 0,
