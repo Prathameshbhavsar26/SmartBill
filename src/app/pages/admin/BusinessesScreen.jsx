@@ -1,16 +1,26 @@
-import { useState } from "react";
-import { Building2, Download, Eye, Filter, Plus, Search } from "lucide-react";
-import { businesses } from "../../data/mockData";
+import { useState, useEffect } from "react";
+import { Building2, Download, Eye, Filter, Plus, Search, Loader2 } from "lucide-react";
 import { fmt, fmtK } from "../../utils/format";
-import { Btn, Card, statusBadge } from "../../components/common/ui";
+import { Btn, Card, statusBadge, Input, Badge } from "../../components/common/ui";
+import adminAPI from "../../api/adminAPI";
 
 export default function BusinessesScreen({ onOpenBusiness }) {
   // Business-owner should never land here on refresh.
   // Kept only for legacy compatibility routes.
 
   const [search, setSearch] = useState("");
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = businesses.filter((b) => {
+  useEffect(() => {
+    adminAPI
+      .getAllBusinesses()
+      .then((res) => setRows(res.data || []))
+      .catch((err) => console.error("Error loading businesses:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = rows.filter((b) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -18,6 +28,9 @@ export default function BusinessesScreen({ onOpenBusiness }) {
         .toLowerCase()
         .includes(q) ||
       String(b.owner ?? "")
+        .toLowerCase()
+        .includes(q) ||
+      String(b.ownerEmail ?? "")
         .toLowerCase()
         .includes(q) ||
       String(b.plan ?? "")
@@ -76,14 +89,23 @@ export default function BusinessesScreen({ onOpenBusiness }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtered.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={11} className="py-10"></td>
+                  <td colSpan={11} className="py-10 text-center text-slate-500">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto text-blue-600 mb-2" />
+                    Loading database records...
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-10 text-center text-slate-500">
+                    No business records found.
+                  </td>
                 </tr>
               ) : (
                 filtered.map((b) => (
                   <tr
-                    key={b.id}
+                    key={b.id || b._id}
                     className="hover:bg-slate-50 transition-colors"
                   >
                     <td className="px-5 py-4">
@@ -121,7 +143,7 @@ export default function BusinessesScreen({ onOpenBusiness }) {
         </div>
         <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
           <p className="text-xs text-slate-500">
-            Showing {filtered.length} of {businesses.length} businesses
+            Showing {filtered.length} of {rows.length} businesses
           </p>
         </div>
       </Card>

@@ -1,81 +1,15 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Building,
   Search,
   Filter,
-  Download,
-  Plus,
+  RefreshCw,
   CheckCircle,
   XCircle,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-
-const INITIAL_BUSINESSES = [
-  {
-    id: 1,
-    name: "Sharma Electronics",
-    owner: "Vikram Sharma",
-    ownerEmail: "vikram.sharma@sharmaelectronics.in",
-    ownerPhone: "+91 8830164600",
-    ownerCity: "Nashik",
-    plan: "Pro",
-    users: 8,
-    revenue: 245000,
-    status: "Active",
-    joined: "2024-03-15",
-  },
-  {
-    id: 2,
-    name: "Mumbai Textiles",
-    owner: "Nirmala Patel",
-    ownerEmail: "nirmala.patel@mumbaitextiles.in",
-    ownerPhone: "+91 9765969840",
-    ownerCity: "Mumbai",
-    plan: "Enterprise",
-    users: 24,
-    revenue: 1280000,
-    status: "Active",
-    joined: "2024-01-22",
-  },
-  {
-    id: 3,
-    name: "Delhi Grocers",
-    owner: "Amar Singh",
-    ownerEmail: "amar.singh@delhigrocers.in",
-    ownerPhone: "+91 9922334455",
-    ownerCity: "Delhi",
-    plan: "Starter",
-    users: 3,
-    revenue: 89000,
-    status: "Active",
-    joined: "2024-06-08",
-  },
-  {
-    id: 4,
-    name: "Pune Hardware Hub",
-    owner: "Sanjay More",
-    ownerEmail: "sanjay.more@punehardware.in",
-    ownerPhone: "+91 9988776655",
-    ownerCity: "Pune",
-    plan: "Pro",
-    users: 6,
-    revenue: 412000,
-    status: "Suspended",
-    joined: "2024-02-14",
-  },
-  {
-    id: 5,
-    name: "Chennai Pharma",
-    owner: "Lakshmi Rajan",
-    ownerEmail: "lakshmi.rajan@chennai-pharma.in",
-    ownerPhone: "+91 8899001122",
-    ownerCity: "Chennai",
-    plan: "Enterprise",
-    users: 31,
-    revenue: 2100000,
-    status: "Active",
-    joined: "2023-11-30",
-  },
-];
+import adminAPI from "../../api/adminAPI";
 
 const fmt = (n) => `₹${Number(n).toLocaleString("en-IN")}`;
 
@@ -145,12 +79,32 @@ function Modal({ title, onClose, children }) {
 
 export default function BusinessesNew() {
   const [search, setSearch] = useState("");
-  const [rows, setRows] = useState(INITIAL_BUSINESSES);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [suspendModalOpen, setSuspendModalOpen] = useState(false);
   const [suspendBusinessId, setSuspendBusinessId] = useState(null);
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendReasonError, setSuspendReasonError] = useState("");
+
+  const loadBusinesses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await adminAPI.getAllBusinesses();
+      setRows(res.data || []);
+    } catch (err) {
+      console.error("Error loading businesses:", err);
+      setError(err.message || "Failed to fetch registered business owners.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBusinesses();
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -161,6 +115,12 @@ export default function BusinessesNew() {
           .toLowerCase()
           .includes(q) ||
         String(b.owner ?? "")
+          .toLowerCase()
+          .includes(q) ||
+        String(b.ownerEmail ?? "")
+          .toLowerCase()
+          .includes(q) ||
+        String(b.ownerPhone ?? "")
           .toLowerCase()
           .includes(q) ||
         String(b.plan ?? "")
@@ -183,7 +143,7 @@ export default function BusinessesNew() {
     setSuspendModalOpen(true);
   };
 
-  const confirmSuspend = () => {
+  const confirmSuspend = async () => {
     const reason = suspendReason.trim();
     if (!reason) {
       setSuspendReasonError("Reason is required.");
@@ -194,26 +154,35 @@ export default function BusinessesNew() {
       return;
     }
 
-    setRows((prev) =>
-      prev.map((b) =>
-        b.id === suspendBusinessId
-          ? { ...b, status: "Suspended", suspensionReason: reason }
-          : b,
-      ),
-    );
-
-    setSuspendModalOpen(false);
-    setSuspendBusinessId(null);
+    try {
+      await adminAPI.updateBusinessStatus(suspendBusinessId, "Suspended", reason);
+      setRows((prev) =>
+        prev.map((b) =>
+          b.id === suspendBusinessId || b._id === suspendBusinessId
+            ? { ...b, status: "Suspended", suspensionReason: reason }
+            : b
+        )
+      );
+      setSuspendModalOpen(false);
+      setSuspendBusinessId(null);
+    } catch (err) {
+      setSuspendReasonError(err.message || "Failed to update business status.");
+    }
   };
 
-  const resumeBusiness = (businessId) => {
-    setRows((prev) =>
-      prev.map((b) =>
-        b.id === businessId
-          ? { ...b, status: "Active", suspensionReason: "" }
-          : b,
-      ),
-    );
+  const resumeBusiness = async (businessId) => {
+    try {
+      await adminAPI.updateBusinessStatus(businessId, "Active", "");
+      setRows((prev) =>
+        prev.map((b) =>
+          b.id === businessId || b._id === businessId
+            ? { ...b, status: "Active", suspensionReason: "" }
+            : b
+        )
+      );
+    } catch (err) {
+      alert(err.message || "Failed to reactivate business.");
+    }
   };
 
   return (
@@ -221,11 +190,14 @@ export default function BusinessesNew() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Businesses
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <span>Businesses</span>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
+              Live Database
+            </span>
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Manage business profiles, subscriptions, status and revenue.
+            Manage all registered business owner profiles, subscriptions, and database status.
           </p>
         </div>
 
@@ -240,12 +212,33 @@ export default function BusinessesNew() {
             />
           </div>
 
-          <button className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium bg-white border border-slate-200 text-slate-700 rounded-lg shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors">
-            <Filter className="h-4 w-4 text-slate-500" />
-            <span>Filter</span>
+          <button
+            onClick={loadBusinesses}
+            disabled={loading}
+            className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium bg-white border border-slate-200 text-slate-700 rounded-lg shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
+            title="Refresh database records"
+          >
+            <RefreshCw className={`h-4 w-4 text-slate-500 ${loading ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
+
+      {/* Error alert if any */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={loadBusinesses}
+            className="px-3 py-1 bg-red-600 text-white text-xs font-semibold rounded-md hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -308,7 +301,7 @@ export default function BusinessesNew() {
           <p className="text-2xl font-bold text-slate-900 mt-1">
             {fmt(rows.reduce((s, r) => s + Number(r.revenue || 0), 0))}
           </p>
-          <p className="text-xs text-slate-500 mt-1">sum of demo data</p>
+          <p className="text-xs text-slate-500 mt-1">total sales revenue</p>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between col-span-1 sm:col-span-1 lg:col-span-1 xl:col-span-1">
@@ -318,7 +311,7 @@ export default function BusinessesNew() {
           <p className="text-2xl font-bold text-slate-900 mt-1">
             {rows.reduce((s, r) => s + Number(r.users || 0), 0)}
           </p>
-          <p className="text-xs text-slate-500 mt-1">subscribed seats</p>
+          <p className="text-xs text-slate-500 mt-1">registered seats</p>
         </div>
       </div>
 
@@ -337,7 +330,7 @@ export default function BusinessesNew() {
                 Reason required
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Enter the reason for suspending this business owner.
+                Enter the reason for suspending this business owner account.
               </p>
             </div>
 
@@ -400,7 +393,7 @@ export default function BusinessesNew() {
                   "Plan",
                   "Joined",
                   "Revenue",
-                  "Employees",
+                  "Users",
                   "Status",
                   "Actions",
                 ].map((h) => (
@@ -414,16 +407,25 @@ export default function BusinessesNew() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={11} className="py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                      <span className="text-sm font-medium">Fetching registered business owners...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-10 text-center text-slate-500">
-                    No businesses found.
+                    No business records found in database.
                   </td>
                 </tr>
               ) : (
                 filtered.map((b) => (
                   <tr
-                    key={b.id}
+                    key={b.id || b._id}
                     className="hover:bg-slate-50 transition-colors"
                   >
                     <td className="px-5 py-4 font-semibold text-slate-900">
@@ -453,7 +455,7 @@ export default function BusinessesNew() {
                         />
                         {b.status === "Suspended" && (
                           <p
-                            className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1"
+                            className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1 max-w-[150px] truncate"
                             title={
                               b.suspensionReason ||
                               "Suspension reason not provided"
@@ -472,19 +474,19 @@ export default function BusinessesNew() {
                           <button
                             className="p-1.5 rounded-md hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
                             title="Resume"
-                            onClick={() => resumeBusiness(b.id)}
+                            onClick={() => resumeBusiness(b.id || b._id)}
                             type="button"
                           >
-                            <CheckCircle className="h-4 w-4" />
+                            <CheckCircle className="h-4 w-4 text-emerald-600" />
                           </button>
                         ) : (
                           <button
                             className="p-1.5 rounded-md hover:bg-rose-50 hover:text-rose-600 transition-colors"
                             title="Suspend (enter reason)"
-                            onClick={() => openSuspendModal(b.id)}
+                            onClick={() => openSuspendModal(b.id || b._id)}
                             type="button"
                           >
-                            <XCircle className="h-4 w-4" />
+                            <XCircle className="h-4 w-4 text-rose-500" />
                           </button>
                         )}
                       </div>

@@ -17,6 +17,7 @@ import purchaseRoutes from "./routes/purchaseRoutes.js";
 import businessSettingsRoutes from "./routes/businessSettingsRoutes.js";
 import transactionSettingsRoutes from "./routes/transactionSettingsRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -88,6 +89,7 @@ app.use("/api/purchases", purchaseRoutes);
 app.use("/api/settings/business", businessSettingsRoutes);
 app.use("/api/settings/transaction", transactionSettingsRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/admin/businesses", adminRoutes);
 
 app.get("/", (req, res) => {
   res.send("API working");
