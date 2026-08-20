@@ -122,6 +122,13 @@ export default function POSScreen() {
     }).catch(console.warn);
   }, []);
 
+  // Sync default payment mode from transaction settings
+  useEffect(() => {
+    if (txSettings?.defaultPaymentMode) {
+      setPaymentMode(txSettings.defaultPaymentMode);
+    }
+  }, [txSettings?.defaultPaymentMode]);
+
   // Global Invoice Discount state (for Entire Invoice mode)
   const [globalDiscount, setGlobalDiscount] = useState(0);
 
@@ -247,7 +254,6 @@ export default function POSScreen() {
   const discountAppliedOn = txSettings?.discountAppliedOn || "Item-wise";
   const discountType = txSettings?.discountType || "Percentage";
   const maxDiscountLimit = Number(txSettings?.maximumDiscount || 100);
-  const restrictDiscountLimit = txSettings?.restrictDiscountLimit === true;
 
   const addToCart = (p) => {
     const targetId = getProductId(p);
@@ -315,7 +321,7 @@ export default function POSScreen() {
 
   const updateItemDiscount = (id, val) => {
     const numericVal = Math.max(0, Number(val) || 0);
-    if (restrictDiscountLimit && discountType === "Percentage" && numericVal > maxDiscountLimit) {
+    if (discountType === "Percentage" && maxDiscountLimit < 100 && numericVal > maxDiscountLimit) {
       setError(`Discount cannot exceed ${maxDiscountLimit}% as per Transaction Settings.`);
     } else {
       setError("");
@@ -391,18 +397,9 @@ export default function POSScreen() {
 
   // Cash Discount calculation
   let cashDiscountAmount = 0;
-  if (paymentMode === "Cash" && txSettings?.enableCashDiscount) {
-    const defaultCash = Number(txSettings?.defaultCashDiscount || 0);
-    if (defaultCash > 0) {
-      if (txSettings?.cashDiscountType === "Percentage") {
-        cashDiscountAmount = ((grossSubtotal - invoiceDiscountAmount) * defaultCash) / 100;
-      } else {
-        cashDiscountAmount = Math.min(
-          grossSubtotal - invoiceDiscountAmount,
-          defaultCash
-        );
-      }
-    }
+  const cashDiscountPct = Number(txSettings?.cashDiscountPercent || 0);
+  if (paymentMode === "Cash" && cashDiscountPct > 0) {
+    cashDiscountAmount = ((grossSubtotal - invoiceDiscountAmount) * cashDiscountPct) / 100;
   }
 
   const subtotal = Math.max(
@@ -414,7 +411,11 @@ export default function POSScreen() {
     calculatedItems.reduce((sum, i) => sum + i.itemGst, 0)
   );
 
-  const total = Math.round(subtotal + gst);
+  const enableRoundOff = txSettings?.enableRoundOff === true;
+  const unroundedTotal = subtotal + gst;
+  const total = enableRoundOff ? Math.round(unroundedTotal) : Number(unroundedTotal.toFixed(2));
+  const roundOffAmount = enableRoundOff ? Number((total - unroundedTotal).toFixed(2)) : 0;
+
   const effectiveGstRate =
     subtotal > 0 ? Math.round((gst / subtotal) * 100) : 0;
 
@@ -767,7 +768,7 @@ export default function POSScreen() {
     }
 
     // Validate discount restrictions
-    if (restrictDiscountLimit && discountType === "Percentage") {
+    if (discountType === "Percentage" && maxDiscountLimit < 100) {
       if (discountAppliedOn === "Item-wise") {
         for (const item of cart) {
           if (Number(item.discount || 0) > maxDiscountLimit) {
@@ -1661,8 +1662,8 @@ export default function POSScreen() {
                     onChange={(e) => {
                       const val = Math.max(0, Number(e.target.value) || 0);
                       if (
-                        restrictDiscountLimit &&
                         discountType === "Percentage" &&
+                        maxDiscountLimit < 100 &&
                         val > maxDiscountLimit
                       ) {
                         setError(`Invoice discount cannot exceed ${maxDiscountLimit}%.`);
@@ -1681,14 +1682,10 @@ export default function POSScreen() {
             )}
 
             {/* Cash Discount Display */}
-            {paymentMode === "Cash" && txSettings?.enableCashDiscount && (
+            {paymentMode === "Cash" && cashDiscountPct > 0 && cashDiscountAmount > 0 && (
               <div className="flex justify-between text-emerald-600 text-xs">
                 <span>
-                  Cash Discount (
-                  {txSettings?.cashDiscountType === "Percentage"
-                    ? `${txSettings.defaultCashDiscount || 0}%`
-                    : `₹${txSettings.defaultCashDiscount || 0}`}
-                  )
+                  Cash Discount ({cashDiscountPct}%)
                 </span>
                 <span className="font-mono font-medium">
                   -{fmt(cashDiscountAmount)}
@@ -1702,6 +1699,15 @@ export default function POSScreen() {
                 +{fmt(gst)}
               </span>
             </div>
+
+            {enableRoundOff && roundOffAmount !== 0 && (
+              <div className="flex justify-between text-slate-500 dark:text-slate-400 text-xs">
+                <span>Round-off</span>
+                <span className="font-mono font-medium">
+                  {roundOffAmount > 0 ? `+${fmt(roundOffAmount)}` : `-${fmt(Math.abs(roundOffAmount))}`}
+                </span>
+              </div>
+            )}
             {isCash && isCashRounding && cashRoundOff !== 0 && (
               <div className="flex justify-between text-xs text-amber-600 dark:text-amber-400 font-medium">
                 <span>Cash Rounding</span>

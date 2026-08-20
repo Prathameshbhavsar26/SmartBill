@@ -5,38 +5,29 @@ import {
 } from "../api/transactionSettingsAPI";
 
 export const DEFAULT_TRANSACTION_SETTINGS = {
-  // Sales & Pricing
+  // 1. Pricing & Billing Rules
   salePrice: "Retail Price",
-  discountType: "Percentage",
-  allowDiscount: true,
   allowPriceEditing: false,
   allowNegativeStock: false,
 
-  // Discount Rules
+  // 2. Discount Management
+  allowDiscount: true,
+  discountType: "Percentage",
   discountAppliedOn: "Item-wise",
   maximumDiscount: "20",
-  restrictDiscountLimit: true,
 
-  // Sales Returns
-  requireReturnPasscode: false,
-  allowPartialReturn: true,
-  restoreStockAfterReturn: true,
-  allowReturnWithoutInvoice: false,
-
-  // Cash Discount
-  enableCashDiscount: true,
-  cashDiscountType: "Percentage",
-  defaultCashDiscount: "0",
-
-  // Invoice Behavior
-  autoSaveInvoice: true,
-  printAfterSaving: false,
+  // 3. Payment & Checkout
+  defaultPaymentMode: "Cash",
+  enableRoundOff: false,
+  cashDiscountPercent: "0",
   showPrintPreview: true,
+  printAfterSaving: false,
 
-  // Order Management
-  linkOrdersToInvoices: true,
-  autoConvertOrders: false,
-  allowPartialOrderConversion: true,
+  // 4. Sales Returns & Refunds
+  restoreStockAfterReturn: true,
+  allowPartialReturn: true,
+  requireReturnPasscode: false,
+  allowReturnWithoutInvoice: false,
 };
 
 function getStorageKey() {
