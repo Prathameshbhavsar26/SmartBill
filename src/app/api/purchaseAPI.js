@@ -23,3 +23,11 @@ export const fetchPurchases = () =>
  */
 export const fetchPurchaseById = (id) =>
   axiosClient.get(`/purchases/${id}`).then((res) => res.data);
+
+/**
+ * Mark a purchase as fully paid.
+ * @param {string} id
+ * @returns {{ message: string, purchase: object }}
+ */
+export const markPurchaseAsPaid = (id) =>
+  axiosClient.put(`/purchases/${id}/mark-paid`).then((res) => res.data);
