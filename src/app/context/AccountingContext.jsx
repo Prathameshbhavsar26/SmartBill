@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { getAccountingSettings } from "../api/accountingSettingsAPI";
-import { useAuth } from "./AuthContext"; // Assuming there is an AuthContext or similar
 
 const AccountingContext = createContext();
 

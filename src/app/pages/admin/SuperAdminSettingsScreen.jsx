@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings,
   Package,
@@ -8,8 +8,10 @@ import {
   MessageSquare,
   Plus,
   Lock,
+  Loader2,
 } from "lucide-react";
-import { Btn, Badge, Card } from "../../components/common/ui";
+import { Btn, Badge, Card, Toast } from "../../components/common/ui";
+import adminAPI from "../../api/adminAPI";
 
 export default function SuperAdminSettingsScreen() {
   const [activeTab, setActiveTab] = useState("system");
@@ -17,11 +19,41 @@ export default function SuperAdminSettingsScreen() {
   // System Settings states
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [autoBackup, setAutoBackup] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
   const [debugMode, setDebugMode] = useState(false);
   const [backupFrequency, setBackupFrequency] = useState("daily");
   const [maxLoginAttempts, setMaxLoginAttempts] = useState("5");
-  const [sessionTimeout, setSessionTimeout] = useState("30");
+
+  const [systemLoading, setSystemLoading] = useState(true);
+  const [systemSaving, setSystemSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  useEffect(() => {
+    const loadSystemSettings = async () => {
+      try {
+        setSystemLoading(true);
+        const res = await adminAPI.getSystemSettings();
+        if (res?.systemSettings) {
+          setMaintenanceMode(Boolean(res.systemSettings.maintenanceMode));
+          setAutoBackup(Boolean(res.systemSettings.autoBackup));
+          setDebugMode(Boolean(res.systemSettings.debugMode));
+          setBackupFrequency(res.systemSettings.backupFrequency || "daily");
+          setMaxLoginAttempts(String(res.systemSettings.maxLoginAttempts ?? 5));
+        }
+      } catch (err) {
+        console.error("Failed to load system settings from MongoDB:", err);
+      } finally {
+        setSystemLoading(false);
+      }
+    };
+
+    loadSystemSettings();
+  }, []);
+
 
   // Email Template states
   const [emailTemplates, setEmailTemplates] = useState([
@@ -142,20 +174,34 @@ export default function SuperAdminSettingsScreen() {
   const [knowledgeBase, setKnowledgeBase] = useState(true);
 
   // Save handlers
-  const handleSaveSystemSettings = () => {
-    localStorage.setItem(
-      "superAdminSystemSettings",
-      JSON.stringify({
-        maintenanceMode,
-        autoBackup,
-        emailNotifications,
-        debugMode,
-        backupFrequency,
-        maxLoginAttempts,
-        sessionTimeout,
-      }),
-    );
-    alert("✓ System settings saved successfully!");
+  const handleSaveSystemSettings = async (overrides = {}) => {
+    try {
+      setSystemSaving(true);
+      const payload = {
+        maintenanceMode: overrides.maintenanceMode !== undefined ? overrides.maintenanceMode : maintenanceMode,
+        autoBackup: overrides.autoBackup !== undefined ? overrides.autoBackup : autoBackup,
+        debugMode: overrides.debugMode !== undefined ? overrides.debugMode : debugMode,
+        backupFrequency: overrides.backupFrequency !== undefined ? overrides.backupFrequency : backupFrequency,
+        maxLoginAttempts: overrides.maxLoginAttempts !== undefined ? overrides.maxLoginAttempts : parseInt(maxLoginAttempts, 10) || 5,
+      };
+
+      const res = await adminAPI.updateSystemSettings(payload);
+
+      if (res?.systemSettings) {
+        setMaintenanceMode(Boolean(res.systemSettings.maintenanceMode));
+        setAutoBackup(Boolean(res.systemSettings.autoBackup));
+        setDebugMode(Boolean(res.systemSettings.debugMode));
+        setBackupFrequency(res.systemSettings.backupFrequency || "daily");
+        setMaxLoginAttempts(String(res.systemSettings.maxLoginAttempts ?? 5));
+      }
+
+      showToast("✓ System settings saved to MongoDB successfully!", "success");
+    } catch (err) {
+      console.error("Failed to save system settings:", err);
+      showToast(err.message || "Failed to save system settings to MongoDB.", "error");
+    } finally {
+      setSystemSaving(false);
+    }
   };
 
   const handleSaveEmailSettings = () => {
@@ -248,11 +294,10 @@ export default function SuperAdminSettingsScreen() {
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
-              activeTab === key
+            className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${activeTab === key
                 ? "bg-blue-600 text-white shadow-md"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
+              }`}
           >
             {label}
           </button>
@@ -262,139 +307,144 @@ export default function SuperAdminSettingsScreen() {
       {/* TAB 1: SYSTEM SETTINGS */}
       {activeTab === "system" && (
         <Card className="p-6">
-          <h3 className="font-semibold text-slate-900 mb-5">System Settings</h3>
-          <div className="space-y-4">
-            {/* Maintenance Mode */}
-            <div className="flex items-start justify-between py-3 border-b border-slate-100">
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                  Maintenance Mode
-                </p>
-                <p className="text-xs text-slate-500">
-                  Temporarily disable user access for maintenance
-                </p>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-semibold text-slate-900">System Settings</h3>
+            {systemSaving && (
+              <div className="flex items-center gap-2 text-xs font-medium text-blue-600">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Syncing to MongoDB...</span>
               </div>
-              <button
-                onClick={() => setMaintenanceMode(!maintenanceMode)}
-                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${maintenanceMode ? "bg-blue-600" : "bg-slate-200"}`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${maintenanceMode ? "right-1" : "left-1"}`}
-                />
-              </button>
-            </div>
-
-            {/* Auto Backup */}
-            <div className="flex items-start justify-between py-3 border-b border-slate-100">
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                  Auto Backup
-                </p>
-                <p className="text-xs text-slate-500">
-                  Automatically backup database
-                </p>
-              </div>
-              <button
-                onClick={() => setAutoBackup(!autoBackup)}
-                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${autoBackup ? "bg-blue-600" : "bg-slate-200"}`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${autoBackup ? "right-1" : "left-1"}`}
-                />
-              </button>
-            </div>
-
-            {/* Email Notifications */}
-            <div className="flex items-start justify-between py-3 border-b border-slate-100">
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                  Email Notifications
-                </p>
-                <p className="text-xs text-slate-500">
-                  Send system notifications via email
-                </p>
-              </div>
-              <button
-                onClick={() => setEmailNotifications(!emailNotifications)}
-                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${emailNotifications ? "bg-blue-600" : "bg-slate-200"}`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${emailNotifications ? "right-1" : "left-1"}`}
-                />
-              </button>
-            </div>
-
-            {/* Debug Mode */}
-            <div className="flex items-start justify-between py-3 border-b border-slate-100">
-              <div>
-                <p className="text-sm font-medium text-slate-900">Debug Mode</p>
-                <p className="text-xs text-slate-500">
-                  Enable detailed error logging
-                </p>
-              </div>
-              <button
-                onClick={() => setDebugMode(!debugMode)}
-                className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 ${debugMode ? "bg-blue-600" : "bg-slate-200"}`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${debugMode ? "right-1" : "left-1"}`}
-                />
-              </button>
-            </div>
-
-            {/* Backup Frequency */}
-            <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">
-                Backup Frequency
-              </p>
-              <select
-                value={backupFrequency}
-                onChange={(e) => setBackupFrequency(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              >
-                <option value="hourly">Hourly</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </div>
-
-            {/* Max Login Attempts */}
-            <div className="py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-900 mb-2">
-                Max Login Attempts
-              </p>
-              <input
-                type="number"
-                value={maxLoginAttempts}
-                onChange={(e) => setMaxLoginAttempts(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="5"
-              />
-            </div>
-
-            {/* Session Timeout */}
-            <div className="py-3">
-              <p className="text-sm font-medium text-slate-900 mb-2">
-                Session Timeout (minutes)
-              </p>
-              <input
-                type="number"
-                value={sessionTimeout}
-                onChange={(e) => setSessionTimeout(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="30"
-              />
-            </div>
-
-            <Btn
-              variant="primary"
-              onClick={handleSaveSystemSettings}
-              icon={<Lock className="w-4 h-4" />}
-            >
-              Save System Settings
-            </Btn>
+            )}
           </div>
+
+          {systemLoading ? (
+            <div className="py-12 text-center text-slate-500">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-600 mb-2" />
+              <p className="text-sm font-medium">Loading System Settings from MongoDB...</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Backup Frequency */}
+              <div className="py-3 border-b border-slate-100">
+                <p className="text-sm font-medium text-slate-900 mb-2">
+                  Backup Frequency
+                </p>
+                <select
+                  value={backupFrequency}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setBackupFrequency(val);
+                    handleSaveSystemSettings({ backupFrequency: val });
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="hourly">Hourly</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="manual">Manual / On-Demand Only</option>
+                  <option value="disabled">Disabled / Never</option>
+                </select>
+              </div>
+
+              {/* Max Login Attempts */}
+              <div className="py-3 border-b border-slate-100">
+                <p className="text-sm font-medium text-slate-900 mb-2">
+                  Max Login Attempts
+                </p>
+                <input
+                  type="number"
+                  value={maxLoginAttempts}
+                  onChange={(e) => setMaxLoginAttempts(e.target.value)}
+                  onBlur={() => {
+                    const parsed = parseInt(maxLoginAttempts, 10) || 5;
+                    handleSaveSystemSettings({ maxLoginAttempts: parsed });
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  placeholder="5"
+                />
+              </div>
+
+              {/* Maintenance Mode */}
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    Maintenance Mode
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Temporarily disable user access for maintenance
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const nextVal = !maintenanceMode;
+                    setMaintenanceMode(nextVal);
+                    handleSaveSystemSettings({ maintenanceMode: nextVal });
+                  }}
+                  className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${maintenanceMode ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${maintenanceMode ? "right-1" : "left-1"}`}
+                  />
+                </button>
+              </div>
+
+              {/* Auto Backup */}
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    Auto Backup
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Automatically backup database
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const nextVal = !autoBackup;
+                    setAutoBackup(nextVal);
+                    handleSaveSystemSettings({ autoBackup: nextVal });
+                  }}
+                  className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${autoBackup ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${autoBackup ? "right-1" : "left-1"}`}
+                  />
+                </button>
+              </div>
+
+              {/* Debug Mode */}
+              <div className="flex items-start justify-between py-3 border-b border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Debug Mode</p>
+                  <p className="text-xs text-slate-500">
+                    Enable detailed error logging
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const nextVal = !debugMode;
+                    setDebugMode(nextVal);
+                    handleSaveSystemSettings({ debugMode: nextVal });
+                  }}
+                  className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${debugMode ? "bg-blue-600" : "bg-slate-200"}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${debugMode ? "right-1" : "left-1"}`}
+                  />
+                </button>
+              </div>
+
+              <Btn
+                variant="primary"
+                onClick={() => handleSaveSystemSettings()}
+                disabled={systemSaving}
+                icon={systemSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+              >
+                {systemSaving ? "Saving..." : "Save System Settings"}
+              </Btn>
+            </div>
+          )}
         </Card>
       )}
 
@@ -689,6 +739,14 @@ export default function SuperAdminSettingsScreen() {
             </Btn>
           </div>
         </Card>
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

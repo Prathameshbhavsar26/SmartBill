@@ -4,6 +4,7 @@ import crypto from "crypto";
 import User from "../models/User.js";
 import Verification from "../models/verifiy.js";
 import BusinessSettings from "../models/BusinessSettings.js";
+import SystemSettings from "../models/SystemSettings.js";
 
 // ======================================================
 // HELPER: BUILD AUTH RESPONSE
@@ -270,23 +271,47 @@ export const login = async (req, res) => {
       });
     }
 
-    let user = null;
+    const systemSettings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
+    const maxAttempts = systemSettings?.maxLoginAttempts || 5;
 
+    let candidates = [];
     if (identifier.type === "email") {
       const candidate = await User.findOne({ email: identifier.value });
-      if (candidate) {
-        const match = await bcrypt.compare(password, candidate.password);
-        if (match) user = candidate;
-      }
+      if (candidate) candidates.push(candidate);
     } else {
-      const candidates = await User.find({ phone: identifier.value });
-      for (const candidate of candidates) {
-        const match = await bcrypt.compare(password, candidate.password);
-        if (match) {
-          user = candidate;
-          break;
-        }
+      candidates = await User.find({ phone: identifier.value });
+    }
+
+    let user = null;
+    let lockoutMsg = null;
+
+    for (const candidate of candidates) {
+      if (candidate.lockoutUntil && candidate.lockoutUntil > new Date()) {
+        const remainingMins = Math.ceil((candidate.lockoutUntil.getTime() - Date.now()) / 60000);
+        lockoutMsg = `Account locked due to too many failed login attempts. Please try again in ${remainingMins} minute(s).`;
+        continue;
       }
+
+      const match = await bcrypt.compare(password, candidate.password);
+      if (match) {
+        user = candidate;
+        if (user.failedLoginAttempts > 0 || user.lockoutUntil) {
+          user.failedLoginAttempts = 0;
+          user.lockoutUntil = null;
+          await user.save();
+        }
+        break;
+      } else {
+        candidate.failedLoginAttempts = (candidate.failedLoginAttempts || 0) + 1;
+        if (candidate.failedLoginAttempts >= maxAttempts) {
+          candidate.lockoutUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 min lock
+        }
+        await candidate.save();
+      }
+    }
+
+    if (lockoutMsg && !user) {
+      return res.status(403).json({ message: lockoutMsg });
     }
 
     if (!user) {
@@ -307,6 +332,12 @@ export const login = async (req, res) => {
     const ownerStatus = ownerUser ? (ownerUser.status || "Active") : "Active";
 
     if (user.role !== "superadmin") {
+      if (systemSettings?.maintenanceMode) {
+        return res.status(403).json({
+          message: "The system is currently undergoing scheduled maintenance. Please try again later.",
+        });
+      }
+
       if (userStatus === "Suspended" || ownerStatus === "Suspended") {
         const reason = user.suspensionReason || ownerUser?.suspensionReason;
         return res.status(403).json({

@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import Order from "../models/Order.js";
+import SystemSettings from "../models/SystemSettings.js";
 
 /**
  * GET /api/admin/businesses
@@ -143,6 +144,88 @@ export const updateBusinessStatus = async (req, res) => {
     console.error("UPDATE BUSINESS STATUS ERROR:", error);
     return res.status(500).json({
       message: error.message || "Failed to update business status.",
+    });
+  }
+};
+
+/**
+ * GET /api/admin/settings/system
+ * Retrieve system settings for SuperAdmin.
+ */
+export const getSystemSettings = async (req, res) => {
+  try {
+    if (req.user?.role !== "superadmin") {
+      return res.status(403).json({
+        message: "Forbidden: SuperAdmin access required.",
+      });
+    }
+
+    let settings = await SystemSettings.findOne({ key: "global_system_settings" });
+    if (!settings) {
+      settings = await SystemSettings.create({ key: "global_system_settings" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      systemSettings: settings,
+    });
+  } catch (error) {
+    console.error("GET SYSTEM SETTINGS ERROR:", error);
+    return res.status(500).json({
+      message: error.message || "Failed to retrieve system settings.",
+    });
+  }
+};
+
+/**
+ * PUT /api/admin/settings/system
+ * Update system settings for SuperAdmin.
+ */
+export const updateSystemSettings = async (req, res) => {
+  try {
+    if (req.user?.role !== "superadmin") {
+      return res.status(403).json({
+        message: "Forbidden: SuperAdmin access required.",
+      });
+    }
+
+    const {
+      maintenanceMode,
+      autoBackup,
+      debugMode,
+      backupFrequency,
+      maxLoginAttempts,
+    } = req.body;
+
+    const payload = {};
+    if (typeof maintenanceMode === "boolean") payload.maintenanceMode = maintenanceMode;
+    if (typeof autoBackup === "boolean") payload.autoBackup = autoBackup;
+    if (typeof debugMode === "boolean") payload.debugMode = debugMode;
+    if (backupFrequency && ["hourly", "daily", "weekly", "monthly", "manual", "disabled"].includes(backupFrequency)) {
+      payload.backupFrequency = backupFrequency;
+    }
+    if (maxLoginAttempts !== undefined) {
+      const parsedAttempts = parseInt(maxLoginAttempts, 10);
+      if (!isNaN(parsedAttempts) && parsedAttempts >= 1) {
+        payload.maxLoginAttempts = parsedAttempts;
+      }
+    }
+
+    const settings = await SystemSettings.findOneAndUpdate(
+      { key: "global_system_settings" },
+      { $set: payload },
+      { new: true, upsert: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "System settings updated successfully.",
+      systemSettings: settings,
+    });
+  } catch (error) {
+    console.error("UPDATE SYSTEM SETTINGS ERROR:", error);
+    return res.status(500).json({
+      message: error.message || "Failed to update system settings.",
     });
   }
 };

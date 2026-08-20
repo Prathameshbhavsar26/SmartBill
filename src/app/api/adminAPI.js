@@ -19,6 +19,25 @@ export const adminAPI = {
     });
     return res.data;
   },
+
+  /**
+   * Fetch SuperAdmin System Settings from MongoDB
+   */
+  getSystemSettings: async () => {
+    const res = await axiosClient.get("/admin/businesses/settings/system");
+    return res.data;
+  },
+
+  /**
+   * Update SuperAdmin System Settings in MongoDB
+   */
+  updateSystemSettings: async (settingsData) => {
+    const res = await axiosClient.put(
+      "/admin/businesses/settings/system",
+      settingsData
+    );
+    return res.data;
+  },
 };
 
 export default adminAPI;

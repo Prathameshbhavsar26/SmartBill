@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import SystemSettings from "../models/SystemSettings.js";
 
 export const authMiddleware = async (req, res, next) => {
   try {
@@ -35,6 +36,12 @@ export const authMiddleware = async (req, res, next) => {
     }
 
     if (dbUser.role !== "superadmin") {
+      const systemSettings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
+      if (systemSettings?.maintenanceMode) {
+        return res.status(403).json({
+          message: "The system is currently undergoing scheduled maintenance. Please try again later.",
+        });
+      }
       let ownerUser = null;
       if (dbUser.ownerId) {
         ownerUser = await User.findById(dbUser.ownerId);

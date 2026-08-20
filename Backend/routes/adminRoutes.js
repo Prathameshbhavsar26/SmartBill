@@ -3,6 +3,8 @@ import { protect } from "../middleware/mid.js";
 import {
   getAllBusinesses,
   updateBusinessStatus,
+  getSystemSettings,
+  updateSystemSettings,
 } from "../controller/adminController.js";
 
 const router = express.Router();
@@ -12,5 +14,11 @@ router.get("/", protect, getAllBusinesses);
 
 // PUT /api/admin/businesses/:id/status - Update business status (SuperAdmin only)
 router.put("/:id/status", protect, updateBusinessStatus);
+
+// GET /api/admin/businesses/settings/system - Fetch system settings (SuperAdmin only)
+router.get("/settings/system", protect, getSystemSettings);
+
+// PUT /api/admin/businesses/settings/system - Update system settings (SuperAdmin only)
+router.put("/settings/system", protect, updateSystemSettings);
 
 export default router;
