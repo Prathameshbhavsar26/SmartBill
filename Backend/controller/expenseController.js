@@ -1,4 +1,5 @@
 import Expense from "../models/Expense.js";
+import { createNotification } from "../services/notificationService.js";
 
 // ================= CREATE EXPENSE =================
 
@@ -71,6 +72,26 @@ export const createExpense = async (req, res) => {
       createdAt: created.createdAt,
       updatedAt: created.updatedAt,
     };
+
+    try {
+      const ownerId = req.user._id || req.user.id || req.user.ownerId;
+      await createNotification({
+        ownerId,
+        userId: req.user.actualUserId || req.user._id || req.user.id,
+        title: "Expense Logged",
+        message: `Expense of ₹${amountNumber.toLocaleString("en-IN")} logged under '${created.category}'.`,
+        type: "info",
+        category: "expense",
+        link: "expenses",
+        metadata: {
+          expenseId: created._id,
+          amount: amountNumber,
+          category: created.category,
+        },
+      });
+    } catch (notifErr) {
+      console.error("Expense notification error:", notifErr.message);
+    }
 
     return res.status(201).json({
       message: "Expense created successfully.",

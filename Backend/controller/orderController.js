@@ -2,6 +2,7 @@ import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
 import Product from "../models/productModel.js";
 import mongoose from "mongoose";
+import { createNotification } from "../services/notificationService.js";
 
 // ================= HELPERS =================
 // Generate a collision-safe invoice number for the given owner.
@@ -249,6 +250,61 @@ export const createOrder = async (req, res) => {
     }
 
     await commitSession();
+
+    // Trigger Real-Time Notification for New Sale
+    try {
+      await createNotification({
+        ownerId: req.user._id,
+        userId: req.user.actualUserId || req.user._id,
+        title: `New Sale: ${newOrder.invoiceNo}`,
+        message: `Sale invoice ${newOrder.invoiceNo} for ₹${total.toLocaleString("en-IN")} generated for ${customerName} (${paymentMode}).`,
+        type: "success",
+        category: "sale",
+        link: "pos",
+        metadata: {
+          orderId: newOrder._id,
+          invoiceNo: newOrder.invoiceNo,
+          total,
+          amountPaid: paid,
+          customerName,
+          status,
+        },
+      });
+
+      // Check remaining stock for products in order and emit instant alerts if low
+      for (const item of items) {
+        if (item.productId && mongoose.isValidObjectId(item.productId)) {
+          const updatedProd = await Product.findById(item.productId).lean();
+          if (updatedProd) {
+            const stock = Number(updatedProd.stock || 0);
+            const minStock = Number(updatedProd.minStock ?? 10);
+            if (stock <= 0) {
+              await createNotification({
+                ownerId: req.user._id,
+                title: `Out of Stock: ${updatedProd.name}`,
+                message: `${updatedProd.name} is now out of stock following invoice ${newOrder.invoiceNo}.`,
+                type: "error",
+                category: "stock",
+                link: "inventory",
+                metadata: { productId: updatedProd._id, stock: 0 },
+              });
+            } else if (stock <= minStock) {
+              await createNotification({
+                ownerId: req.user._id,
+                title: `Low Stock: ${updatedProd.name}`,
+                message: `${updatedProd.name} is down to ${stock} ${updatedProd.unit || "units"} (Minimum: ${minStock}).`,
+                type: "warning",
+                category: "stock",
+                link: "inventory",
+                metadata: { productId: updatedProd._id, stock },
+              });
+            }
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.error("Order notification creation error:", notifErr.message);
+    }
 
     return res.status(201).json({
       message: "Order created successfully.",

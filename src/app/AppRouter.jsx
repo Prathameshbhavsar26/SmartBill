@@ -13,6 +13,7 @@ import {
   CustomizationProvider,
   applyDOMCustomization,
 } from "./context/CustomizationContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import { useCustomization } from "./hooks/useCustomization";
 import { setUserToStorage } from "./utils/userUtils";
 
@@ -155,6 +156,7 @@ function AppRoutes() {
 
   const navApp = useCallback(
     (p) => {
+      setPage(p);
       if (p === "dashboard" || p === "super-dashboard") navigate("/app");
       else navigate(`/app/${p}`);
     },
@@ -162,7 +164,7 @@ function AppRoutes() {
   );
 
   return (
-    <>
+    <NotificationProvider onNav={navApp}>
       <ThemeRouteManager />
       <Routes>
         <Route path="/" element={<LandingPage onNav={navAuth} />} />
@@ -208,7 +210,7 @@ function AppRoutes() {
         />
         <Route path="*" element={<LandingPage onNav={navAuth} />} />
       </Routes>
-    </>
+    </NotificationProvider>
   );
 }
 

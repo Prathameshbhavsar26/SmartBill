@@ -384,49 +384,70 @@ export function StatCard({ label, value, sub, trend, icon, color }) {
   );
 }
 
-export function Modal({ title, onClose, children }) {
+export function Modal({ title, onClose, children, className = "max-w-lg" }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-md shadow-lg">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900">{title}</h3>
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) onClose();
+      }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
+    >
+      <div
+        className={`w-full ${className} max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl animate-in zoom-in-95 duration-150`}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
+          <h3 className="font-bold text-slate-900 dark:text-white text-base">{title}</h3>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="p-5">{children}</div>
-      </Card>
+      </div>
     </div>
   );
 }
 
 export function ConfirmDialog({ message, onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <Card className="w-full max-w-sm rounded-md shadow-lg">
-        <div className="p-6 text-center">
-          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="w-6 h-6 text-red-500" />
-          </div>
-          <h3 className="font-semibold text-slate-900 mb-2">Are you sure?</h3>
-          <p className="text-sm text-slate-500 mb-5">{message}</p>
-          <div className="flex gap-3">
-            <Btn variant="outline" onClick={onCancel} className="flex-1">
-              Cancel
-            </Btn>
-            <Btn
-              variant="danger"
-              onClick={onConfirm}
-              className="flex-1 bg-red-600 text-white hover:bg-red-700 border-0"
-            >
-              Delete
-            </Btn>
-          </div>
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onCancel) onCancel();
+      }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
+    >
+      <div className="w-full max-w-sm rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 text-center animate-in zoom-in-95 duration-150">
+        <div className="w-12 h-12 bg-red-100 dark:bg-red-950/50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200 dark:border-red-800/60">
+          <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
         </div>
-      </Card>
+        <h3 className="font-bold text-slate-900 dark:text-white mb-2 text-base">Are you sure?</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">{message}</p>
+        <div className="flex gap-3">
+          <Btn variant="outline" onClick={onCancel} className="flex-1">
+            Cancel
+          </Btn>
+          <Btn
+            variant="danger"
+            onClick={onConfirm}
+            className="flex-1 bg-red-600 text-white hover:bg-red-700 border-0 shadow-sm"
+          >
+            Delete
+          </Btn>
+        </div>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import Purchase from "../models/Purchase.js";
 import Product from "../models/productModel.js";
 import Supplier from "../models/Supplier.js";
 import mongoose from "mongoose";
+import { createNotification } from "../services/notificationService.js";
 
 // ================= LIST PURCHASES =================
 export const getPurchases = async (req, res) => {
@@ -211,6 +212,26 @@ export const createPurchase = async (req, res) => {
     if (supplierDoc) {
       supplierDoc.balance = (Number(supplierDoc.balance) || 0) + finalRemaining;
       await supplierDoc.save();
+    }
+
+    try {
+      await createNotification({
+        ownerId: req.user._id,
+        userId: req.user.actualUserId || req.user._id,
+        title: `Purchase Recorded: #${newPurchase.supplierInvoiceNo || newPurchase.purchaseOrderNo || "Bill"}`,
+        message: `Purchase of ₹${numTotal.toLocaleString("en-IN")} from ${supplierName} recorded (${paymentStatus}).`,
+        type: "info",
+        category: "purchase",
+        link: "purchase",
+        metadata: {
+          purchaseId: newPurchase._id,
+          totalAmount: numTotal,
+          supplierName,
+          paymentStatus,
+        },
+      });
+    } catch (notifErr) {
+      console.error("Purchase notification error:", notifErr.message);
     }
 
     return res.status(201).json({

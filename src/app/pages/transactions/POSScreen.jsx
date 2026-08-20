@@ -12,10 +12,18 @@ import {
   Trash2,
   X,
   RefreshCw,
+  QrCode,
+  CreditCard,
+  Landmark,
+  ShieldCheck,
+  Smartphone,
+  CheckCircle2,
+  Wallet,
+  Clock,
 } from "lucide-react";
 import { posProducts } from "../../data/mockData";
 import { fmt } from "../../utils/format";
-import { Badge, Btn, Card, Input, Select } from "../../components/common/ui";
+import { Badge, Btn, Card, Input, Select, Modal } from "../../components/common/ui";
 import { fetchCustomers, createCustomer } from "../../api/customerAPI";
 import { createOrder } from "../../api/orderAPI";
 import { getProducts } from "../../api/productAPI";
@@ -29,9 +37,69 @@ export default function POSScreen() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerCity, setCustomerCity] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
-  const [paymentMode, setPaymentMode] = useState("Cash");
+  const [paymentSettings, setPaymentSettings] = useState(() => {
+    try {
+      const stored = localStorage.getItem("smartbill_payment_settings");
+      if (stored) return JSON.parse(stored);
+    } catch (_) {}
+    return null;
+  });
+
+  const [salesPaymentModes, setSalesPaymentModes] = useState(() => {
+    try {
+      const stored = localStorage.getItem("smartbill_payment_settings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed.sales) && parsed.sales.length > 0) {
+          return parsed.sales;
+        }
+      }
+    } catch (_) {}
+    return ["Cash", "UPI & QR Code", "Credit / Debit Card", "Bank Transfer", "Store Credit / Khata"];
+  });
+
+  const [paymentMode, setPaymentMode] = useState(() => {
+    try {
+      const stored = localStorage.getItem("smartbill_payment_settings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.defaultSalesMethod) return parsed.defaultSalesMethod;
+      }
+    } catch (_) {}
+    return "Cash";
+  });
+
+  const [transactionRef, setTransactionRef] = useState("");
+  const [isSplitMode, setIsSplitMode] = useState(false);
+  const [splitCash, setSplitCash] = useState("");
+  const [splitDigital, setSplitDigital] = useState("");
+  const [splitDigitalMode, setSplitDigitalMode] = useState("UPI & QR Code");
+
+  // Listen to paymentSettingsUpdated events
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const stored = localStorage.getItem("smartbill_payment_settings");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setPaymentSettings(parsed);
+          if (Array.isArray(parsed.sales) && parsed.sales.length > 0) {
+            setSalesPaymentModes(parsed.sales);
+            if (!parsed.sales.includes(paymentMode)) {
+              setPaymentMode(parsed.defaultSalesMethod || parsed.sales[0]);
+            }
+          }
+        }
+      } catch (_) {}
+    };
+
+    window.addEventListener("paymentSettingsUpdated", handleUpdate);
+    return () => window.removeEventListener("paymentSettingsUpdated", handleUpdate);
+  }, [paymentMode]);
+
   const [search, setSearch] = useState("");
   const [showInvoice, setShowInvoice] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -153,10 +221,19 @@ export default function POSScreen() {
   const total = subtotal + gst;
   const effectiveGstRate = subtotal > 0 ? Math.round((gst / subtotal) * 100) : 0;
 
+  const isCash = paymentMode === "Cash" || paymentMode === "cash";
+  const isCashRounding = Boolean(paymentSettings?.transactionRules?.cashRounding ?? true);
+  const roundedTotal = isCash && isCashRounding ? Math.round(total) : total;
+  const cashRoundOff = isCash && isCashRounding ? (roundedTotal - total) : 0;
+
   const paidValue = Number(amountPaid);
   const balanceDue = Number.isFinite(paidValue)
-    ? Math.max(0, total - paidValue)
-    : total;
+    ? Math.max(0, roundedTotal - paidValue)
+    : roundedTotal;
+
+  const isDigitalMode = ["UPI", "UPI & QR Code", "Credit / Debit Card", "Card", "Bank Transfer", "Digital Wallet", "Wallet"].includes(paymentMode);
+  const requireRef = Boolean(paymentSettings?.transactionRules?.requireReferenceNumber && isDigitalMode);
+  const allowSplit = Boolean(paymentSettings?.transactionRules?.allowSplitPayment ?? true);
 
   const activeBiz = (() => {
     try {
@@ -172,15 +249,17 @@ export default function POSScreen() {
     }
   })();
 
-  const bName = activeBiz.businessName || "Smart Bill Business";
+  const bName = paymentSettings?.bankSettings?.accountHolderName || activeBiz.businessName || "Smart Bill Business";
   const bTagline = activeBiz.tagline || "";
   const bAddress = [activeBiz.address, activeBiz.city, activeBiz.state, activeBiz.pincode].filter(Boolean).join(", ");
   const bGstin = activeBiz.gstin ? `GSTIN: ${activeBiz.gstin}` : "";
   const bPhone = activeBiz.phone ? `Ph: ${activeBiz.phone}` : "";
-  const bBankName = activeBiz.bankName || "";
-  const bAccNo = activeBiz.accountNumber || "";
-  const bIfsc = activeBiz.ifscCode || "";
-  const bUpiId = activeBiz.upiId || "";
+  const bBankName = paymentSettings?.bankSettings?.bankName || activeBiz.bankName || "";
+  const bAccNo = paymentSettings?.bankSettings?.accountNumber || activeBiz.accountNumber || "";
+  const bIfsc = paymentSettings?.bankSettings?.ifscCode || activeBiz.ifscCode || "";
+  const bAccType = paymentSettings?.bankSettings?.accountType || "Current";
+  const bBranch = paymentSettings?.bankSettings?.branchName || activeBiz.branchName || "";
+  const bUpiId = paymentSettings?.upiSettings?.upiId || activeBiz.upiId || "";
   const bTerms = activeBiz.invoiceTerms || "";
   const bFooter = activeBiz.invoiceFooter || activeBiz.invoiceFooterNote || "Thank you for your business! Visit Again 🙏";
 
@@ -188,7 +267,25 @@ export default function POSScreen() {
     if (cart.length === 0) return;
     setError("");
 
-    const effectivePaid = paidValue > 0 ? paidValue : total;
+    // Validate reference number if required by business rule
+    if (!isSplitMode && requireRef && !transactionRef.trim()) {
+      setError(`Please enter the UTR / Transaction Reference Number for ${paymentMode}.`);
+      return;
+    }
+
+    let finalPaymentMode = paymentMode;
+    let effectivePaid = paidValue > 0 ? paidValue : roundedTotal;
+
+    if (isSplitMode) {
+      const cashAmt = Number(splitCash) || 0;
+      const digAmt = Number(splitDigital) || 0;
+      if (cashAmt + digAmt <= 0) {
+        setError("Please enter split payment amounts.");
+        return;
+      }
+      effectivePaid = cashAmt + digAmt;
+      finalPaymentMode = `Split (Cash: ₹${cashAmt} + ${splitDigitalMode}: ₹${digAmt})`;
+    }
 
     const items = cart.map((i) => ({
       productId: getProductId(i.product),
@@ -214,7 +311,6 @@ export default function POSScreen() {
         });
         currentCustomerId = newCust.customer?._id || newCust.customer?.id || newCust._id || null;
         currentCustomerName = newCust.customer?.name || newCust.name || customer.trim();
-        // Refresh customer list in background
         fetchCustomers().then(res => {
           if (res && Array.isArray(res.customers)) setCustomers(res.customers);
         }).catch(() => { });
@@ -231,20 +327,44 @@ export default function POSScreen() {
       subtotal: Math.round(subtotal),
       gstRate: effectiveGstRate,
       gst,
-      totalOrderValue: Math.round(total),
+      totalOrderValue: Math.round(roundedTotal),
       amountPaid: Math.round(effectivePaid),
-      paymentMode,
+      paymentMode: finalPaymentMode,
+      transactionRef: transactionRef.trim() || undefined,
     };
 
     setSaving(true);
     try {
       const res = await createOrder(payload);
       setLastOrder(res.order);
+      setPaymentModalOpen(false);
       setShowInvoice(true);
     } catch (err) {
       setError(err?.message || "Failed to save order. Please try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleInitiatePayment = () => {
+    if (cart.length === 0) {
+      setError("Please add at least one product to the cart before generating an invoice.");
+      return;
+    }
+    setError("");
+
+    const isDigital =
+      paymentMode.toLowerCase().includes("upi") ||
+      paymentMode.toLowerCase().includes("qr") ||
+      paymentMode.toLowerCase().includes("card") ||
+      paymentMode.toLowerCase().includes("bank") ||
+      paymentMode.toLowerCase().includes("wallet") ||
+      isSplitMode;
+
+    if (isDigital) {
+      setPaymentModalOpen(true);
+    } else {
+      handleGenerateInvoice();
     }
   };
 
@@ -262,8 +382,8 @@ export default function POSScreen() {
 
     const invoiceSubtotal = order?.subtotal ?? subtotal;
     const invoiceGst = order?.gst ?? gst;
-    const invoiceTotal = order?.totalOrderValue ?? total;
-    const invoicePaid = order?.amountPaid ?? (paidValue > 0 ? paidValue : total);
+    const invoiceTotal = order?.totalOrderValue ?? roundedTotal;
+    const invoicePaid = order?.amountPaid ?? (paidValue > 0 ? paidValue : roundedTotal);
     const invoiceDue = order?.balanceDue ?? Math.max(0, invoiceTotal - invoicePaid);
     const invoiceNo = order?.invoiceNo || "INV-001";
     const dateStr = order?.createdAt
@@ -277,6 +397,21 @@ export default function POSScreen() {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
+
+    // Dynamic UPI QR generation
+    const upiCfg = paymentSettings?.upiSettings || {};
+    const showUpiQr = (upiCfg.enabled ?? true) && (upiCfg.showDynamicQrOnInvoice ?? true) && (upiCfg.upiId || bUpiId);
+    const resolvedUpiId = upiCfg.upiId || bUpiId;
+    const resolvedPayee = upiCfg.payeeName || bName;
+    const dynamicQrUrl = showUpiQr
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+          `upi://pay?pa=${resolvedUpiId}&pn=${resolvedPayee}&am=${invoiceTotal}&cu=INR`
+        )}&margin=4`
+      : "";
+
+    // Bank details
+    const bankCfg = paymentSettings?.bankSettings || {};
+    const showBank = (bankCfg.enabled ?? true) && (bankCfg.showOnInvoice ?? true) && (bankCfg.bankName || bBankName);
 
     const itemRows = invoiceItems
       .map(
@@ -404,11 +539,32 @@ export default function POSScreen() {
               </div>
             </div>
 
-            ${bBankName || bUpiId ? `
-              <div class="bank-info">
-                <strong>Payment & Bank Details:</strong>
-                ${bBankName ? `<div>Bank: ${bBankName} ${bAccNo ? `| A/C: ${bAccNo}` : ""} ${bIfsc ? `| IFSC: ${bIfsc}` : ""}</div>` : ""}
-                ${bUpiId ? `<div>UPI ID: ${bUpiId}</div>` : ""}
+            ${(showBank || showUpiQr) ? `
+              <div class="bank-info" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11px;">
+                <div>
+                  <strong style="color: #0f172a; font-size: 12px; display: block; margin-bottom: 4px;">Payment Remittance Info:</strong>
+                  ${showBank ? `
+                    <div><strong>Bank:</strong> ${bBankName} (${bAccType || "Current"})</div>
+                    <div><strong>Account No:</strong> ${bAccNo} | <strong>IFSC:</strong> ${bIfsc}</div>
+                    ${bBranch ? `<div><strong>Branch:</strong> ${bBranch}</div>` : ""}
+                  ` : ""}
+                  ${showUpiQr ? `
+                    <div style="margin-top: 4px;"><strong>UPI VPA:</strong> <span style="color: #2563eb; font-weight: 600;">${resolvedUpiId}</span> (${resolvedPayee})</div>
+                  ` : ""}
+                  ${order?.transactionRef ? `
+                    <div style="margin-top: 2px;"><strong>Transaction / UTR Ref:</strong> ${order.transactionRef}</div>
+                  ` : ""}
+                  ${order?.paymentMode ? `
+                    <div style="margin-top: 2px;"><strong>Payment Mode:</strong> ${order.paymentMode}</div>
+                  ` : ""}
+                </div>
+
+                ${showUpiQr ? `
+                  <div style="text-align: center; margin-left: 16px;">
+                    <img src="${dynamicQrUrl}" alt="Scan to Pay" style="width: 100px; height: 100px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px; background: #fff;" />
+                    <div style="font-size: 9px; font-weight: 700; color: #16a34a; margin-top: 2px;">Scan & Pay ₹${invoiceTotal}</div>
+                  </div>
+                ` : ""}
               </div>
             ` : ""}
 
@@ -422,7 +578,11 @@ export default function POSScreen() {
       </html>
     `;
 
-    const printWin = window.open("", "_blank", "width=800,height=900");
+    let printWin = null;
+    try {
+      printWin = window.open("", "_blank", "width=800,height=900");
+    } catch (_) {}
+
     if (printWin) {
       printWin.document.open();
       printWin.document.write(printHtml);
@@ -430,7 +590,32 @@ export default function POSScreen() {
       printWin.focus();
       setTimeout(() => {
         printWin.print();
-      }, 250);
+      }, 300);
+    } else {
+      // Fallback using invisible iframe so it NEVER gets blocked by popup blockers
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+      const frameDoc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (frameDoc) {
+        frameDoc.open();
+        frameDoc.write(printHtml);
+        frameDoc.close();
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            try {
+              document.body.removeChild(iframe);
+            } catch (_) {}
+          }, 1500);
+        }, 300);
+      }
     }
   };
 
@@ -942,81 +1127,173 @@ export default function POSScreen() {
               <span>GST</span>
               <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">+{fmt(gst)}</span>
             </div>
+            {isCash && isCashRounding && cashRoundOff !== 0 && (
+              <div className="flex justify-between text-xs text-amber-600 dark:text-amber-400 font-medium">
+                <span>Cash Rounding</span>
+                <span className="font-mono">{cashRoundOff > 0 ? `+${fmt(cashRoundOff)}` : `-${fmt(Math.abs(cashRoundOff))}`}</span>
+              </div>
+            )}
             <div className="flex justify-between font-extrabold text-slate-900 dark:text-white text-sm pt-2 border-t border-slate-100 dark:border-slate-700/60">
               <span>Order Total</span>
               <span className="font-mono text-blue-600 dark:text-blue-400 font-extrabold text-base">
-                {fmt(total)}
+                {fmt(roundedTotal)}
               </span>
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">
-                Amount Paid
-              </label>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => setAmountPaid(String(total))}
-                  className="text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 px-2 py-0.5 rounded-md hover:bg-blue-100 transition-all cursor-pointer"
-                >
-                  Exact
-                </button>
-                {[500, 1000, 2000].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setAmountPaid(String(amt))}
-                    className="text-[10px] font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-md hover:bg-slate-100 transition-all font-mono cursor-pointer"
-                  >
-                    ₹{amt}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-extrabold text-slate-400">
-                ₹
+          {/* Split Payment Toggle */}
+          {allowSplit && (
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                Split Multi-Payment
               </span>
-              <input
-                type="number"
-                min={0}
-                value={amountPaid}
-                onChange={(e) => setAmountPaid(e.target.value)}
-                className="w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-xs font-mono font-bold text-slate-900 dark:text-white pl-7 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [appearance:textfield]"
-              />
-            </div>
-          </div>
-
-          {paidValue > total ? (
-            <div className="flex justify-between items-center text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl px-3 py-2 text-emerald-700 dark:text-emerald-400 shadow-2xs">
-              <span>Change Return</span>
-              <span className="font-mono text-sm">{fmt(paidValue - total)}</span>
-            </div>
-          ) : (
-            <div className="flex justify-between items-center text-xs font-bold bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl px-3 py-2 text-rose-700 dark:text-rose-400 shadow-2xs">
-              <span>Balance Due</span>
-              <span className="font-mono text-sm">{fmt(balanceDue)}</span>
+              <button
+                type="button"
+                onClick={() => setIsSplitMode(!isSplitMode)}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
+                  isSplitMode ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:bg-slate-300"
+                }`}
+              >
+                {isSplitMode ? "Active" : "Enable"}
+              </button>
             </div>
           )}
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
-              Payment Mode
-            </label>
-            <select
-              value={paymentMode}
-              onChange={(e) => setPaymentMode(e.target.value)}
-              className="w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
-            >
-              {["Cash", "UPI", "Card", "Bank Transfer", "Credit"].map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
+          {isSplitMode ? (
+            <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
+                  Cash Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={splitCash}
+                  onChange={(e) => {
+                    const c = e.target.value;
+                    setSplitCash(c);
+                    const remaining = Math.max(0, roundedTotal - (Number(c) || 0));
+                    setSplitDigital(remaining > 0 ? String(remaining) : "");
+                  }}
+                  placeholder="e.g. 500"
+                  className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <select
+                  value={splitDigitalMode}
+                  onChange={(e) => setSplitDigitalMode(e.target.value)}
+                  className="text-[10px] font-bold bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-1.5 py-1 text-slate-800 dark:text-slate-200 outline-none"
+                >
+                  <option value="UPI & QR Code">UPI</option>
+                  <option value="Credit / Debit Card">Card</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                </select>
+                <input
+                  type="number"
+                  min={0}
+                  value={splitDigital}
+                  onChange={(e) => setSplitDigital(e.target.value)}
+                  placeholder="e.g. 500"
+                  className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
+                />
+              </div>
+              <div className="flex justify-between text-[11px] font-semibold text-blue-900 dark:text-blue-200 pt-1 border-t border-blue-200/60">
+                <span>Split Total:</span>
+                <span className="font-mono">₹{((Number(splitCash) || 0) + (Number(splitDigital) || 0)).toLocaleString("en-IN")} / ₹{roundedTotal}</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">
+                    Amount Paid
+                  </label>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setAmountPaid(String(roundedTotal))}
+                      className="text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 px-2 py-0.5 rounded-md hover:bg-blue-100 transition-all cursor-pointer"
+                    >
+                      Exact
+                    </button>
+                    {[500, 1000, 2000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setAmountPaid(String(amt))}
+                        className="text-[10px] font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-md hover:bg-slate-100 transition-all font-mono cursor-pointer"
+                      >
+                        ₹{amt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-extrabold text-slate-400">
+                    ₹
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={amountPaid}
+                    onChange={(e) => setAmountPaid(e.target.value)}
+                    className="w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-xs font-mono font-bold text-slate-900 dark:text-white pl-7 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [appearance:textfield]"
+                  />
+                </div>
+              </div>
+
+              {paidValue > roundedTotal ? (
+                <div className="flex justify-between items-center text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl px-3 py-2 text-emerald-700 dark:text-emerald-400 shadow-2xs">
+                  <span>Change Return</span>
+                  <span className="font-mono text-sm">{fmt(paidValue - roundedTotal)}</span>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center text-xs font-bold bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl px-3 py-2 text-rose-700 dark:text-rose-400 shadow-2xs">
+                  <span>Balance Due</span>
+                  <span className="font-mono text-sm">{fmt(balanceDue)}</span>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                  Payment Mode
+                </label>
+                <select
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value)}
+                  className="w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
+                >
+                  {(salesPaymentModes.length > 0
+                    ? salesPaymentModes
+                    : ["Cash", "UPI & QR Code", "Credit / Debit Card", "Bank Transfer"]
+                  ).map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* UTR / Reference Input when required */}
+              {requireRef && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>UTR / Ref No</span>
+                    <span className="text-red-500 font-bold">*Required</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={transactionRef}
+                    onChange={(e) => setTransactionRef(e.target.value)}
+                    placeholder="Enter UPI / Card Transaction Ref"
+                    className="w-full border border-amber-300 dark:border-amber-700 rounded-xl bg-amber-50/40 dark:bg-amber-950/20 text-xs font-mono text-slate-900 dark:text-white px-3 py-1.5 outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+              )}
+            </>
+          )}
 
           {error && (
             <div className="flex items-center justify-between gap-1 text-[11px] text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl px-3 py-1.5 shadow-2xs">
@@ -1034,15 +1311,177 @@ export default function POSScreen() {
 
           <button
             type="button"
-            onClick={handleGenerateInvoice}
+            onClick={handleInitiatePayment}
             disabled={cart.length === 0 || saving}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
           >
-            <Receipt className="w-4 h-4 text-white" />
-            <span>{saving ? "Saving..." : "Generate Invoice"}</span>
+            {isDigitalMode || isSplitMode ? (
+              <>
+                <QrCode className="w-4 h-4 text-white" />
+                <span>{saving ? "Processing..." : `Scan QR & Pay ₹${roundedTotal.toLocaleString("en-IN")}`}</span>
+              </>
+            ) : (
+              <>
+                <Receipt className="w-4 h-4 text-white" />
+                <span>{saving ? "Saving..." : `Collect Cash & Generate Invoice (₹${roundedTotal.toLocaleString("en-IN")})`}</span>
+              </>
+            )}
           </button>
         </div>
       </Card>
+
+      {/* ── PAYMENT COLLECTION MODAL ── */}
+      {paymentModalOpen && (
+        <Modal
+          title={`Collect Payment: ${isSplitMode ? "Split Multi-Mode" : paymentMode}`}
+          onClose={() => setPaymentModalOpen(false)}
+          className="max-w-md"
+        >
+          <div className="space-y-4">
+            {/* Header Amount Box */}
+            <div className="bg-slate-50 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
+                Total Payable Amount
+              </span>
+              <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-mono">
+                ₹{roundedTotal.toLocaleString("en-IN")}
+              </span>
+              <div className="mt-2 flex items-center justify-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  Ready for Customer Scan & Payment
+                </span>
+              </div>
+            </div>
+
+            {/* UPI & QR Code View */}
+            {(paymentMode.toLowerCase().includes("upi") ||
+              paymentMode.toLowerCase().includes("qr") ||
+              (isSplitMode && splitDigitalMode.toLowerCase().includes("upi"))) && (
+              <div className="space-y-3">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center shadow-xs">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs inline-block mx-auto mb-2">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                        `upi://pay?pa=${bUpiId || "smartbill@upi"}&pn=${encodeURIComponent(
+                          bName || "SmartBill Store"
+                        )}&am=${isSplitMode ? Number(splitDigital) || roundedTotal : roundedTotal}&cu=INR`
+                      )}&margin=4`}
+                      alt="UPI QR Code"
+                      className="w-44 h-44 mx-auto rounded-lg"
+                    />
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white">
+                      {bName || "SmartBill Enterprise Store"}
+                    </p>
+                    <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
+                      {bUpiId || "merchant@upi"}
+                    </p>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                    Scan with <strong>GPay, PhonePe, Paytm, BHIM, Amazon Pay</strong>, or any UPI banking app.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Card / POS Terminal View */}
+            {(paymentMode.toLowerCase().includes("card") ||
+              (isSplitMode && splitDigitalMode.toLowerCase().includes("card"))) && (
+              <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl p-4 text-center space-y-2">
+                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 flex items-center justify-center mx-auto">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-bold text-purple-900 dark:text-purple-200">
+                  Swipe / Tap Card on POS EDC Machine
+                </p>
+                <p className="text-[11px] text-purple-700 dark:text-purple-300">
+                  Enter <strong>₹{isSplitMode ? splitDigital : roundedTotal}</strong> on terminal and swipe customer's Visa, Mastercard, or RuPay card.
+                </p>
+              </div>
+            )}
+
+            {/* Bank Transfer View */}
+            {paymentMode.toLowerCase().includes("bank") && (
+              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 space-y-1 text-xs">
+                <p className="font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-1.5">
+                  <Landmark className="w-4 h-4 text-purple-600" />
+                  <span>Business Bank Details</span>
+                </p>
+                <p className="text-slate-600 dark:text-slate-300">
+                  <strong>Bank:</strong> {bBankName || "HDFC Bank"} ({bAccType || "Current"})
+                </p>
+                <p className="text-slate-600 dark:text-slate-300">
+                  <strong>Account No:</strong> {bAccNo || "50200012345678"}
+                </p>
+                <p className="text-slate-600 dark:text-slate-300">
+                  <strong>IFSC:</strong> {bIfsc || "HDFC0001234"}
+                </p>
+              </div>
+            )}
+
+            {/* Split Breakdown View */}
+            {isSplitMode && (
+              <div className="bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl p-3 space-y-1 text-xs">
+                <p className="font-bold text-blue-900 dark:text-blue-200 mb-1">Split Payment Summary</p>
+                <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                  <span>Cash Portion:</span>
+                  <span className="font-mono font-bold">₹{splitCash || 0}</span>
+                </div>
+                <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                  <span>{splitDigitalMode} Portion:</span>
+                  <span className="font-mono font-bold">₹{splitDigital || 0}</span>
+                </div>
+              </div>
+            )}
+
+            {/* UTR / Transaction Reference Input */}
+            <div className="space-y-1 pt-1">
+              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block flex items-center justify-between">
+                <span>UTR / Transaction Reference No</span>
+                {requireRef ? (
+                  <span className="text-red-500 font-bold">*Required</span>
+                ) : (
+                  <span className="text-slate-400 font-normal text-[10px]">Optional</span>
+                )}
+              </label>
+              <input
+                type="text"
+                value={transactionRef}
+                onChange={(e) => setTransactionRef(e.target.value)}
+                placeholder="e.g. UPI Ref / Approval Code / UTR"
+                className="w-full border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900 outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+              <Btn
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPaymentModalOpen(false)}
+                className="flex-1 text-xs"
+              >
+                Change Mode / Back
+              </Btn>
+
+              <button
+                type="button"
+                onClick={handleGenerateInvoice}
+                disabled={saving}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 px-3 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4 text-white" />
+                <span>{saving ? "Generating..." : "Payment Received → Generate Invoice"}</span>
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

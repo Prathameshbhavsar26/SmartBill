@@ -73,12 +73,26 @@ export const ROLE_DEFAULT_PERMISSIONS = {
 export function isOwnerOrSuperAdmin(user) {
   if (!user) return true;
   const roleStr = String(user.role || "").toLowerCase().replace(/[-_\s]/g, "");
-  return (
+  const userId = String(user._id || user.id || "");
+  const ownerId = String(user.ownerId || "");
+
+  // If user is owner, superadmin, admin, user, retail, or has no ownerId, or ownerId matches own user ID
+  if (
     roleStr === "owner" ||
     roleStr === "businessowner" ||
     roleStr === "superadmin" ||
-    !user.ownerId
-  );
+    roleStr === "admin" ||
+    roleStr === "user" ||
+    !ownerId ||
+    ownerId === "null" ||
+    ownerId === "undefined" ||
+    (userId && ownerId === userId)
+  ) {
+    return true;
+  }
+
+  // Only restrict secondary employee sub-accounts created under an owner
+  return false;
 }
 
 /**
@@ -96,7 +110,7 @@ export function getUserPermissions(user) {
     : "Cashier";
 
   const defaultPerms =
-    ROLE_DEFAULT_PERMISSIONS[roleName] || ROLE_DEFAULT_PERMISSIONS.Cashier;
+    ROLE_DEFAULT_PERMISSIONS[roleName] || ROLE_DEFAULT_PERMISSIONS.Owner;
 
   if (
     user.permissions &&
@@ -117,7 +131,14 @@ export function getUserPermissions(user) {
  */
 export function hasPermission(user, pageKey) {
   if (isOwnerOrSuperAdmin(user)) return true;
-  if (!pageKey || pageKey === "profile" || pageKey === "notifications" || pageKey === "dashboard") return true;
+  if (
+    !pageKey ||
+    pageKey === "profile" ||
+    pageKey === "notifications" ||
+    pageKey === "dashboard"
+  ) {
+    return true;
+  }
 
   const permissions = getUserPermissions(user);
   return Boolean(permissions[pageKey]);

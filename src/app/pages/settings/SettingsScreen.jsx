@@ -30,6 +30,7 @@ import { Input, Btn, Select } from "../../components/common/ui";
 import { setUserToStorage } from "../../utils/userUtils";
 import UserPermissionsSettings from "./components/UserPermissionsSettings";
 import SecuritySettings from "./components/SecuritySettings";
+import PaymentMethodSettings from "./components/PaymentMethodSettings";
 
 import {
   fetchTransactionSettings,
@@ -106,8 +107,18 @@ const ToggleRow = ({ title, description, checked, onChange }) => {
   );
 };
 
-export default function SettingsScreen() {
-  const [activeTab, setActiveTab] = useState("business");
+export default function SettingsScreen({ user, initialTab, onNav } = {}) {
+  const [activeTab, setActiveTab] = useState(() => {
+    if (initialTab) return initialTab;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get("tab");
+      if (tabParam) return tabParam;
+      return localStorage.getItem("smartbill_settings_active_tab") || "business";
+    } catch (_) {
+      return "business";
+    }
+  });
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [businessSuccess, setBusinessSuccess] = useState(null);
   const [businessError, setBusinessError] = useState(null);
@@ -360,22 +371,6 @@ const [transactionSaved, setTransactionSaved] = useState(false);
     },
   ]);
 
-  // Payment Methods states
-  const [paymentMethods, setPaymentMethods] = useState({
-    sales: ["Cash", "Card", "UPI"],
-    purchase: ["Cash", "Cheque", "Bank Transfer"],
-    expenses: ["Cash", "Card"],
-  });
-  const [availablePaymentMethods] = useState([
-    "Cash",
-    "Card",
-    "UPI",
-    "Cheque",
-    "Bank Transfer",
-    "Online",
-    "Wallet",
-  ]);
-
   // Security states
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
   const [sessionTimeout, setSessionTimeout] = useState(true);
@@ -549,22 +544,6 @@ useEffect(() => {
   const handleSavePermissions = () => {
     localStorage.setItem("employeePermissions", JSON.stringify(employees));
     alert("✓ Users permissions saved successfully!");
-  };
-
-  // Handle payment method toggle
-  const handlePaymentMethodToggle = (type, method) => {
-    setPaymentMethods((prev) => ({
-      ...prev,
-      [type]: prev[type].includes(method)
-        ? prev[type].filter((m) => m !== method)
-        : [...prev[type], method],
-    }));
-  };
-
-  // Handle payment methods save
-  const handleSavePaymentMethods = () => {
-    localStorage.setItem("paymentMethods", JSON.stringify(paymentMethods));
-    alert("✓ Payment methods saved successfully!");
   };
 
   // Handle security settings save
@@ -837,10 +816,15 @@ useEffect(() => {
             return (
               <button
                 key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                onClick={() => {
+                  setActiveTab(t.key);
+                  try {
+                    localStorage.setItem("smartbill_settings_active_tab", t.key);
+                  } catch (_) {}
+                }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                   activeTab === t.key
-                    ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400"
+                    ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-semibold"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
                 }`}
               >
@@ -2559,110 +2543,7 @@ useEffect(() => {
         {activeTab === "permissions" && <UserPermissionsSettings />}
 
         {/* TAB 11: PAYMENT METHODS */}
-        {activeTab === "payment" && (
-          <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-5">
-                Payment Methods Configuration
-              </h3>
-              <p className="text-sm text-slate-600 mb-6">
-                Select which payment methods are available for each transaction
-                type (Sales, Purchase, Expenses).
-              </p>
-            </div>
-
-            <div className="space-y-6">
-              {/* Sales Payment Methods */}
-              <div className="border border-slate-200 rounded-xl p-4">
-                <h4 className="font-semibold text-slate-900 mb-3">
-                  Sales Transactions
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  {availablePaymentMethods.map((method) => (
-                    <label
-                      key={method}
-                      className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={paymentMethods.sales.includes(method)}
-                        onChange={() =>
-                          handlePaymentMethodToggle("sales", method)
-                        }
-                        className="w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="text-sm font-medium text-slate-700">
-                        {method}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Purchase Payment Methods */}
-              <div className="border border-slate-200 rounded-xl p-4">
-                <h4 className="font-semibold text-slate-900 mb-3">
-                  Purchase Transactions
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  {availablePaymentMethods.map((method) => (
-                    <label
-                      key={method}
-                      className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={paymentMethods.purchase.includes(method)}
-                        onChange={() =>
-                          handlePaymentMethodToggle("purchase", method)
-                        }
-                        className="w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="text-sm font-medium text-slate-700">
-                        {method}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Expenses Payment Methods */}
-              <div className="border border-slate-200 rounded-xl p-4">
-                <h4 className="font-semibold text-slate-900 mb-3">
-                  Expenses (e.g., Light Bill, Internet, etc.)
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  {availablePaymentMethods.map((method) => (
-                    <label
-                      key={method}
-                      className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-blue-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={paymentMethods.expenses.includes(method)}
-                        onChange={() =>
-                          handlePaymentMethodToggle("expenses", method)
-                        }
-                        className="w-4 h-4 rounded cursor-pointer"
-                      />
-                      <span className="text-sm font-medium text-slate-700">
-                        {method}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <Btn
-              variant="primary"
-              onClick={handleSavePaymentMethods}
-              icon={<Check className="w-4 h-4" />}
-            >
-              Save Payment Methods
-            </Btn>
-          </div>
-        )}
+        {activeTab === "payment" && <PaymentMethodSettings />}
 
         {/* TAB 12: SECURITY SETTINGS */}
         {activeTab === "users" && <SecuritySettings />}

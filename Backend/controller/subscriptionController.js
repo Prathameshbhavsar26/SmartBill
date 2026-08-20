@@ -4,6 +4,7 @@ import { PLAN_LIMITS } from "../config/plans.js";
 import { getOrUpdateSubscriptionState } from "../middleware/checkPlanLimits.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
+import { createNotification } from "../services/notificationService.js";
 
 /* ─────────────────────────────────────────────────────────────
    Helper: days remaining in current period
@@ -265,6 +266,24 @@ export const verifySubscriptionPayment = async (req, res) => {
         };
 
         await user.save();
+
+        try {
+          await createNotification({
+            ownerId: user._id,
+            userId: req.user ? req.user.actualUserId || user._id : user._id,
+            title: isUpgrade ? "Plan Upgraded Successfully" : "Subscription Activated",
+            message: `Your account is now active on the ${planConfig.name} plan.`,
+            type: "success",
+            category: "subscription",
+            link: "settings",
+            metadata: {
+              plan: planKey,
+              isUpgrade: !!isUpgrade,
+            },
+          });
+        } catch (notifErr) {
+          console.error("Subscription notification error:", notifErr.message);
+        }
 
         res.json({
           success: true,

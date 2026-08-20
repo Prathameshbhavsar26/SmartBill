@@ -37,11 +37,40 @@ export default function PurchaseScreen() {
   const [purchaseDate, setPurchaseDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
+  const [purchasePaymentMethods, setPurchasePaymentMethods] = useState(() => {
+    try {
+      const stored = localStorage.getItem("smartbill_payment_settings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed.purchase) && parsed.purchase.length > 0) {
+          return parsed.purchase;
+        }
+      }
+    } catch (_) {}
+    return ["Cash", "Bank Transfer", "Cheque / DD", "Credit / Debit Card", "UPI & QR Code"];
+  });
+
   const [dueDate, setDueDate] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("Unpaid");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [amountPaidInput, setAmountPaidInput] = useState("");
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const stored = localStorage.getItem("smartbill_payment_settings");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed.purchase) && parsed.purchase.length > 0) {
+            setPurchasePaymentMethods(parsed.purchase);
+          }
+        }
+      } catch (_) {}
+    };
+    window.addEventListener("paymentSettingsUpdated", handleUpdate);
+    return () => window.removeEventListener("paymentSettingsUpdated", handleUpdate);
+  }, []);
 
   const [items, setItems] = useState([
     {
@@ -785,7 +814,10 @@ export default function PurchaseScreen() {
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
                     >
-                      {PAYMENT_METHODS.map((m) => (
+                      {(purchasePaymentMethods.length > 0
+                        ? purchasePaymentMethods
+                        : ["Cash", "Bank Transfer", "Cheque / DD", "Credit / Debit Card"]
+                      ).map((m) => (
                         <option key={m} value={m}>
                           {m}
                         </option>
