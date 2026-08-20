@@ -1,6 +1,8 @@
 import Purchase from "../models/Purchase.js";
 import Product from "../models/productModel.js";
 import Supplier from "../models/Supplier.js";
+import AccountingSettings from "../models/AccountingSettings.js";
+import { getCashBalance } from "../utils/accountingUtils.js";
 import mongoose from "mongoose";
 import { createNotification } from "../services/notificationService.js";
 
@@ -133,6 +135,21 @@ export const createPurchase = async (req, res) => {
       finalRemaining = numTotal;
     }
 
+    const finalPaymentMethod = ["Paid", "Partially Paid"].includes(paymentStatus) ? paymentMethod : "Cash";
+
+    // Enforce Strict Negative Cash Rule
+    if (finalPaid > 0 && finalPaymentMethod === "Cash") {
+      const settings = await AccountingSettings.findOne({ userId: req.user._id }).lean();
+      if (settings?.strictNegativeCash) {
+        const cashBalance = await getCashBalance(req.user._id);
+        if (cashBalance - finalPaid < 0) {
+          return res.status(400).json({ 
+            message: `Strict Negative Cash Rule is enabled. Your cash balance is ${cashBalance}, which is insufficient for this ${finalPaid} payment.`
+          });
+        }
+      }
+    }
+
     // 2. Create Purchase Record
     const newPurchase = await Purchase.create({
       ownerId: req.user._id,
@@ -148,7 +165,7 @@ export const createPurchase = async (req, res) => {
       discountTotal: Number(discountTotal) || 0,
       totalAmount: numTotal,
       paymentStatus,
-      paymentMethod: ["Paid", "Partially Paid"].includes(paymentStatus) ? paymentMethod : "Cash",
+      paymentMethod: finalPaymentMethod,
       amountPaid: finalPaid,
       remainingAmount: finalRemaining,
       notes: String(notes).trim(),

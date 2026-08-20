@@ -16,7 +16,6 @@ import {
   Tag,
   Percent,
   CheckCircle2,
-  Lock,
   Edit3,
   QrCode,
   CreditCard,
@@ -25,6 +24,9 @@ import {
   Smartphone,
   Wallet,
   Clock,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
 import { posProducts } from "../../data/mockData";
 import { fmt } from "../../utils/format";
@@ -155,6 +157,8 @@ export default function POSScreen() {
   const [selectedReturnOrder, setSelectedReturnOrder] = useState(null);
   const [returnItems, setReturnItems] = useState([]);
   const [returnPasscode, setReturnPasscode] = useState("");
+  const [showReturnPasscode, setShowReturnPasscode] = useState(false);
+  const [requirePasscode, setRequirePasscode] = useState(false);
   const [returnReason, setReturnReason] = useState("Customer Return");
   const [returnPaymentMode, setReturnPaymentMode] = useState("Cash");
   const [processingReturn, setProcessingReturn] = useState(false);
@@ -2185,13 +2189,27 @@ export default function POSScreen() {
                   <Lock className="w-3.5 h-3.5 text-amber-600" />
                   Authorization Passcode / Password (Required)
                 </label>
-                <input
-                  type="password"
-                  value={returnPasscode}
-                  onChange={(e) => setReturnPasscode(e.target.value)}
-                  placeholder="Enter your account password or PIN..."
-                  className="w-full border border-amber-300 bg-amber-50/40 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-amber-500 font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type={showReturnPasscode ? "text" : "password"}
+                    value={returnPasscode}
+                    onChange={(e) => setReturnPasscode(e.target.value)}
+                    placeholder="Enter your account password or PIN..."
+                    className="w-full border border-amber-300 bg-amber-50/40 rounded-lg px-3 py-2 pr-10 text-xs outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowReturnPasscode(!showReturnPasscode)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-600/70 hover:text-amber-700 focus:outline-none"
+                    tabIndex="-1"
+                  >
+                    {showReturnPasscode ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
             )}
 

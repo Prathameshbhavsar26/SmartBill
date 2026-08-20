@@ -1,6 +1,7 @@
 import Expense from "../models/Expense.js";
 import { createNotification } from "../services/notificationService.js";
-
+import AccountingSettings from "../models/AccountingSettings.js";
+import { getCashBalance } from "../utils/accountingUtils.js";
 // ================= CREATE EXPENSE =================
 
 export const createExpense = async (req, res) => {
@@ -40,6 +41,21 @@ export const createExpense = async (req, res) => {
       });
     }
 
+    const finalPaymentMode = String(paymentMode || "Cash").trim();
+    
+    // Enforce Strict Negative Cash Rule
+    if (finalPaymentMode === "Cash") {
+      const settings = await AccountingSettings.findOne({ userId: req.user.id }).lean();
+      if (settings?.strictNegativeCash) {
+        const cashBalance = await getCashBalance(req.user.id);
+        if (cashBalance - amountNumber < 0) {
+          return res.status(400).json({ 
+            message: `Strict Negative Cash Rule is enabled. Your cash balance is ${cashBalance}, which is insufficient for this ${amountNumber} expense.`
+          });
+        }
+      }
+    }
+
     // Create expense for the logged-in user
     const created = await Expense.create({
       user: req.user.id,
@@ -52,7 +68,7 @@ export const createExpense = async (req, res) => {
 
       date: date || new Date(),
 
-      paymentMode: String(paymentMode || "Cash").trim(),
+      paymentMode: finalPaymentMode,
 
       reference: String(reference ?? "").trim(),
 

@@ -20,7 +20,7 @@ import {
   Select,
   Toast,
 } from "../../components/common/ui";
-import { registerUser, loginUser, sendOtp, verifyOtp, verifyLoginOtp } from "../../api/authAPI";
+import { registerUser, loginUser, sendOtp, verifyOtp, verifyLoginOtp, forgotPassword } from "../../api/authAPI";
 import { setUserToStorage } from "../../utils/userUtils";
 
 const PHONE_PREFIX = "+91 ";
@@ -325,6 +325,24 @@ export default function AuthScreen({ view, onNav, onLogin }) {
       handleLogin();
     } else if (view === "register") {
       handleRegister();
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const errEmail = getLoginEmailError(email);
+    setFormError("");
+    if (errEmail) {
+      setFormError(errEmail);
+      return;
+    }
+    setLoading(true);
+    try {
+      await forgotPassword({ email: email.trim() });
+      setSent(true);
+    } catch (err) {
+      setFormError(err.message || "Failed to process request. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -845,21 +863,37 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {formError && (
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      {formError}
+                    </div>
+                  )}
                   <Input
                     label="Email Address"
                     value={email}
-                    onChange={setEmail}
+                    onChange={(v) => {
+                      setEmail(v);
+                      setFormError("");
+                    }}
                     placeholder=""
                     icon={<Mail className="w-4 h-4" />}
                   />
                   <Btn
                     variant="primary"
                     size="lg"
-                    onClick={() => setSent(true)}
+                    onClick={handleForgotPassword}
                     className="w-full justify-center"
-                    icon={<Send className="w-4 h-4" />}
+                    disabled={loading}
+                    icon={
+                      loading ? (
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )
+                    }
                   >
-                    Send Reset Link
+                    {loading ? "Verifying..." : "Send Reset Link"}
                   </Btn>
                 </div>
               )}

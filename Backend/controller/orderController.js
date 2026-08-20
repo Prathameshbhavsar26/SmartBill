@@ -4,6 +4,8 @@ import Product from "../models/productModel.js";
 import InvoiceSettings from "../models/InvoiceSettings.js";
 import TransactionSettings from "../models/TransactionSettings.js";
 import User from "../models/User.js";
+import AccountingSettings from "../models/AccountingSettings.js";
+import { getCashBalance } from "../utils/accountingUtils.js";
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import { createNotification } from "../services/notificationService.js";
@@ -127,6 +129,9 @@ export const createOrder = async (req, res) => {
       userId: req.user._id,
     }).lean();
 
+    const accountingSettings = await AccountingSettings.findOne({ userId: req.user._id }).lean();
+    const trackCogs = accountingSettings?.trackCogs === true;
+
     const allowNegativeStock = txSettings?.allowNegativeStock === true;
     const allowDiscount = txSettings?.allowDiscount !== false;
     const maxDiscountPercent = Number(txSettings?.maximumDiscount || 100);
@@ -158,6 +163,8 @@ export const createOrder = async (req, res) => {
     const balanceDue = Math.max(0, total - paid);
 
     const status = paid <= 0 ? "Due" : paid >= total ? "Paid" : "Partial";
+
+    let calculatedTotalCogs = 0;
 
     // Decrease inventory before creating the order. Auto-create product if not yet in database.
     for (const item of items) {
@@ -273,6 +280,10 @@ export const createOrder = async (req, res) => {
           }
         }
       }
+
+      if (trackCogs && product) {
+        calculatedTotalCogs += (Number(product.cost) || 0) * quantity;
+      }
     }
 
     // Generate a unique invoice number.
@@ -298,6 +309,7 @@ export const createOrder = async (req, res) => {
           balanceDue,
           paymentMode,
           status,
+          totalCogs: trackCogs ? calculatedTotalCogs : 0,
         },
       ],
       createOptions
@@ -499,8 +511,21 @@ export const processOrderReturn = async (req, res) => {
       }
     }
 
-    // 5. Update existing order record if available
+    // 4.5 Enforce Strict Negative Cash for Refunds
     const numericRefund = Number(refundAmount) || 0;
+    if (numericRefund > 0 && String(paymentMode).trim() === "Cash") {
+      const accSettings = await AccountingSettings.findOne({ userId: req.user._id }).lean();
+      if (accSettings?.strictNegativeCash) {
+        const cashBalance = await getCashBalance(req.user._id);
+        if (cashBalance - numericRefund < 0) {
+          return res.status(400).json({ 
+            message: `Strict Negative Cash Rule is enabled. Your cash balance is ${cashBalance}, which is insufficient for a ${numericRefund} cash refund.`
+          });
+        }
+      }
+    }
+
+    // 5. Update existing order record if available
     if (existingOrder) {
       const isFull = items.length >= existingOrder.items.length;
       existingOrder.returnStatus = isFull ? "Returned" : "Partial";

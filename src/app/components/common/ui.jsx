@@ -7,6 +7,8 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Info,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 export function Btn({
@@ -307,8 +309,12 @@ export function Input({
   inputClassName = "",
   error,
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === "password";
+  const actualType = isPassword && showPassword ? "text" : type;
+
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
           {label}
@@ -321,12 +327,26 @@ export function Input({
           </span>
         )}
         <input
-          type={type}
+          type={actualType}
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           placeholder={placeholder}
-          className={`w-full border border-gray-300 rounded-md bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors py-2 ${icon ? "pl-9 pr-3" : "px-3"} ${error ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""} ${inputClassName}`}
+          className={`w-full border border-gray-300 rounded-md bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors py-2 ${icon ? "pl-9" : "px-3"} ${isPassword ? "pr-10" : "pr-3"} ${error ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""} ${inputClassName}`}
         />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+            tabIndex="-1"
+          >
+            {showPassword ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+          </button>
+        )}
       </div>
       {error && <p className="text-xs text-red-600 mt-0.5">{error}</p>}
     </div>
@@ -406,11 +426,9 @@ export function Modal({ title, onClose, children, className = "max-w-lg" }) {
       }}
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
     >
-      <div
-        className={`w-full ${className} max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl animate-in zoom-in-95 duration-150`}
-      >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
-          <h3 className="font-bold text-slate-900 dark:text-white text-base">{title}</h3>
+      <div className={`w-full max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl animate-in zoom-in-95 duration-150 ${className}`}>
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
+          <h3 className="font-bold text-slate-900 dark:text-white text-lg">{title}</h3>
           <button
             type="button"
             onClick={onClose}

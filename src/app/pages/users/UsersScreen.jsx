@@ -43,6 +43,7 @@ export default function UsersScreen({ user }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -241,117 +242,152 @@ export default function UsersScreen({ user }) {
       )}
       {showModal && (
         <Modal
-          title={editingId ? "Update Employee" : "Add Employee"}
+          title={editingId ? "Update Employee" : "Add Employee Profile"}
+          className="max-w-3xl"
           onClose={() => {
             resetForm();
             setShowModal(false);
           }}
         >
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Full Name"
-                placeholder="Priya Sharma"
-                value={name}
-                onChange={setName}
-              />
-              <Input
-                label="Email"
-                placeholder="priya@business.in"
-                value={email}
-                onChange={(val) => {
-                  setEmail(val);
-                  if (emailError) setEmailError("");
-                }}
-                icon={<Mail className="w-4 h-4" />}
-                error={emailError}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Select
-                label="Role"
-                value={role}
-                onChange={handleRoleChange}
-                options={["Owner", "Manager", "Cashier", "Accountant"]}
-              />
-              <Input
-                label="Department"
-                placeholder="Sales"
-                value={department}
-                onChange={setDepartment}
-              />
-            </div>
-            <Input
-              label="Phone"
-              placeholder="10-digit mobile number"
-              value={phone}
-              onChange={(value) => {
-                const digits = value.replace(/\D/g, "");
-                if (digits.length <= 10) {
-                  setPhone(digits);
-                  if (phoneError) setPhoneError("");
-                }
-              }}
-              icon={<Phone className="w-4 h-4" />}
-              error={phoneError}
-            />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                {editingId ? "New Password (Optional)" : "Password"}
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder={editingId ? "Leave empty to keep current" : "Min. 4 characters"}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (passwordError) setPasswordError("");
-                  }}
-                  className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 pl-3 pr-10 ${
-                    passwordError ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
-                  title={showPassword ? "Hide Password" : "Show Password"}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4 text-slate-500" />
-                  ) : (
-                    <Eye className="w-4 h-4 text-slate-400" />
-                  )}
-                </button>
+          <div className="space-y-8">
+            
+            {/* Section: Basic Information */}
+            <div className="bg-white">
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <UserCircle className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 tracking-wide">Personal Details</h4>
+                  <p className="text-[11px] text-slate-500">Employee's core contact information</p>
+                </div>
               </div>
-              {passwordError && (
-                <p className="text-xs text-red-600 mt-0.5">{passwordError}</p>
-              )}
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Full Name"
+                  placeholder="e.g. Priya Sharma"
+                  value={name}
+                  onChange={setName}
+                />
+                <Input
+                  label="Email Address"
+                  placeholder="e.g. priya@business.in"
+                  value={email}
+                  onChange={(val) => {
+                    setEmail(val);
+                    if (emailError) setEmailError("");
+                  }}
+                  icon={<Mail className="w-4 h-4" />}
+                  error={emailError}
+                />
+                <Input
+                  label="Mobile Number"
+                  placeholder="10-digit number"
+                  value={phone}
+                  onChange={(value) => {
+                    const digits = value.replace(/\D/g, "");
+                    if (digits.length <= 10) {
+                      setPhone(digits);
+                      if (phoneError) setPhoneError("");
+                    }
+                  }}
+                  icon={<Phone className="w-4 h-4" />}
+                  error={phoneError}
+                />
+                <Input
+                  label="Department"
+                  placeholder="e.g. Sales, Accounting"
+                  value={department}
+                  onChange={setDepartment}
+                />
+              </div>
             </div>
 
-            {/* Module Permissions Categorized */}
-            <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-slate-900 dark:text-white">
-                    Module Permissions ({Object.values(permissions || {}).filter(Boolean).length} / {MODULE_PERMISSIONS.length})
-                  </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Grant or restrict access to specific business features
-                  </p>
+            {/* Section: Security */}
+            <div>
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                  <Lock className="w-4 h-4 text-amber-600" />
                 </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 tracking-wide">Security & Role</h4>
+                  <p className="text-[11px] text-slate-500">Authentication and base role assignment</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select
+                  label="Primary Role"
+                  value={role}
+                  onChange={handleRoleChange}
+                  options={["Owner", "Manager", "Cashier", "Accountant"]}
+                />
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    {editingId ? "New Password (Optional)" : "Password"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder={editingId ? "Leave empty to keep current" : "Min. 4 characters"}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (passwordError) setPasswordError("");
+                      }}
+                      className={`w-full border border-slate-200 rounded-lg bg-white text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all py-2.5 pl-3 pr-10 ${
+                        passwordError ? "border-red-500 focus:ring-red-500 focus:border-red-500" : ""
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                      title={showPassword ? "Hide Password" : "Show Password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4 text-slate-500" />
+                      ) : (
+                        <Eye className="w-4 h-4 text-slate-400" />
+                      )}
+                    </button>
+                  </div>
+                  {passwordError && (
+                    <p className="text-xs text-red-600 mt-0.5">{passwordError}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Section: Access Control */}
+            <div>
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 tracking-wide">
+                      Module Access ({Object.values(permissions || {}).filter(Boolean).length} / {MODULE_PERMISSIONS.length})
+                    </h4>
+                    <p className="text-[11px] text-slate-500">Fine-tune exactly what this employee can see and do</p>
+                  </div>
+                </div>
+                
                 {/* Presets */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
+                  <span className="text-[10px] font-semibold text-slate-500 pl-1 pr-2 uppercase">Presets:</span>
                   {["Cashier", "Manager", "Accountant"].map((pRole) => (
                     <button
                       key={pRole}
                       type="button"
                       onClick={() => handleRoleChange(pRole)}
-                      className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                      className={`text-[10px] px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
                         role === pRole
-                          ? "bg-blue-50 border-blue-400 text-blue-700 font-bold dark:bg-blue-950/60 dark:text-blue-300"
-                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50"
+                          ? "bg-white shadow-sm text-blue-700"
+                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
                       }`}
                     >
                       {pRole}
@@ -359,8 +395,7 @@ export default function UsersScreen({ user }) {
                   ))}
                 </div>
               </div>
-
-              <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
                 {PERMISSION_CATEGORIES.map((cat) => (
                   <div
                     key={cat.category}
@@ -398,7 +433,9 @@ export default function UsersScreen({ user }) {
                 ))}
               </div>
             </div>
-            <div className="flex gap-3 pt-2">
+            
+            {/* Actions */}
+            <div className="flex gap-3 pt-6 mt-4 border-t border-slate-100">
               <Btn
                 variant="outline"
                 onClick={() => {
@@ -409,8 +446,47 @@ export default function UsersScreen({ user }) {
               >
                 Cancel
               </Btn>
-              <Btn variant="primary" onClick={handleSaveEmployee} disabled={saving}>
-                {saving ? "Saving..." : editingId ? "Update Employee" : "Add Employee"}
+              <Btn variant="primary" size="lg" onClick={handleSaveEmployee} disabled={saving} className="flex-[2] justify-center text-base">
+                {saving ? "Saving Profile..." : editingId ? "Update Employee Profile" : "Create Employee Profile"}
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showLimitModal && (
+        <Modal
+          title="User Limit Reached"
+          onClose={() => setShowLimitModal(false)}
+          className="max-w-md"
+        >
+          <div className="text-center p-4">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <Shield className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">
+              Upgrade Your Plan
+            </h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              You have reached the maximum number of users allowed on your current plan ({plan?.maxUsers || 2} users max). Please upgrade to Pro or Enterprise to add more employees and unlock advanced features.
+            </p>
+            <div className="flex gap-3">
+              <Btn
+                variant="outline"
+                className="flex-1 justify-center"
+                onClick={() => setShowLimitModal(false)}
+              >
+                Cancel
+              </Btn>
+              <Btn
+                variant="primary"
+                className="flex-1 justify-center bg-blue-600 hover:bg-blue-700"
+                onClick={() => {
+                  setShowLimitModal(false);
+                  window.location.hash = "#/settings";
+                }}
+              >
+                Upgrade Plan
               </Btn>
             </div>
           </div>
@@ -423,7 +499,7 @@ export default function UsersScreen({ user }) {
           size="md"
           onClick={() => {
             if (isUserLimitReached) {
-              alert(`User limit reached (${plan.maxUsers} max). Upgrade your plan to Pro or Enterprise to add more employees.`);
+              setShowLimitModal(true);
               return;
             }
             resetForm();

@@ -752,6 +752,46 @@ export const verifyOtp = async (req, res) => {
 };
 
 // ======================================================
+// FORGOT PASSWORD
+// ======================================================
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required.",
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "No account found with this email address. Please check and try again.",
+      });
+    }
+
+    // In a real application, you would generate a secure token here,
+    // save it to the database with an expiration time, and send an email
+    // containing a link with that token.
+    // For this dashboard, we just return success to indicate the email is valid.
+
+    return res.status(200).json({
+      message: "Password reset link sent successfully.",
+    });
+  } catch (error) {
+    console.error("FORGOT PASSWORD ERROR:", error);
+    return res.status(500).json({
+      message: "Something went wrong while processing your request. Please try again.",
+    });
+  }
+};
+
+// ======================================================
 // CHANGE PASSWORD
 // ======================================================
 

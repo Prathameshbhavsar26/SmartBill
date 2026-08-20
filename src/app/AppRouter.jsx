@@ -16,6 +16,7 @@ import {
 import { NotificationProvider } from "./context/NotificationContext";
 import { useCustomization } from "./hooks/useCustomization";
 import { setUserToStorage } from "./utils/userUtils";
+import { AccountingProvider } from "./context/AccountingContext";
 
 const APP_PAGES = [
   "dashboard",
@@ -217,9 +218,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <CustomizationProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <AccountingProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AccountingProvider>
     </CustomizationProvider>
   );
 }

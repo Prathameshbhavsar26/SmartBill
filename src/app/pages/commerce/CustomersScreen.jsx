@@ -1128,7 +1128,7 @@ export default function CustomersScreen() {
       ========================= */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          [fmtK(customerList.length), "Total Customers"],
+          [customerList.length, "Total Customers"],
           [fmtK(totalReceivable), "Total Receivable"],
           [fmtK(totalPayable), "Total Payable"],
         ].map(([value, label]) => (

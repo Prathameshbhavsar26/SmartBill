@@ -9,6 +9,7 @@ import {
   updateProfile,
   changePassword,
   verifyLoginOtp,
+  forgotPassword,
 } from "../controller/authcontroller.js";
 
 import { authMiddleware } from "../middleware/auth.js";
@@ -26,11 +27,13 @@ router.post("/login", login);
 router.post("/verify-login-otp", verifyLoginOtp);
 
 
-// ================= OTP =================
+// ================= OTP & PASSWORD RECOVERY =================
 
 router.post("/send-otp", sendOtp);
 
 router.post("/verify-otp", verifyOtp);
+
+router.post("/forgot-password", forgotPassword);
 
 
 // ================= PROFILE & SECURITY =================
