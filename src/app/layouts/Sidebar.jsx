@@ -104,6 +104,7 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }
                     const translatedLabel = t(`nav.${key}`) || label;
                     return (
                       <button
+                        type="button"
                         key={key}
                         onClick={() => onNav(key)}
                         style={
@@ -111,9 +112,9 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }
                             ? { backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" }
                             : {}
                         }
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative ${
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative cursor-pointer ${
                           active
-                            ? "text-white shadow-md"
+                            ? "text-white shadow-md font-bold"
                             : "text-slate-400 hover:bg-slate-800 hover:text-white"
                         }`}
                       >

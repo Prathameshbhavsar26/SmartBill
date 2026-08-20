@@ -1,51 +1,424 @@
-import { Bell, CheckCircle, Info, AlertTriangle, XCircle } from "lucide-react";
-import { notifications } from "../../data/mockData";
-import { Card, Btn } from "../../components/common/ui";
+import { useState, useMemo } from "react";
+import {
+  Bell,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Info,
+  Trash2,
+  CheckCheck,
+  RefreshCw,
+  Search,
+  ArrowRight,
+  Package,
+  ShoppingCart,
+  Receipt,
+  CreditCard,
+  Users,
+  ShieldCheck,
+  Check,
+} from "lucide-react";
+import { useNotifications } from "../../hooks/useNotifications";
+import { Btn, Card, Badge, EmptyState, ConfirmDialog } from "../../components/common/ui";
 
-export default function NotificationsScreen() {
-  const typeIcon = {
-    warning: <AlertTriangle className="w-4 h-4 text-amber-500" />,
-    error: <XCircle className="w-4 h-4 text-red-500" />,
-    success: <CheckCircle className="w-4 h-4 text-emerald-500" />,
-    info: <Info className="w-4 h-4 text-blue-500" />,
+function formatRelativeTime(dateString) {
+  if (!dateString) return "Recently";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "Recently";
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 45) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay === 1) return "Yesterday";
+  if (diffDay < 7) return `${diffDay}d ago`;
+
+  return date.toLocaleDateString("en-IN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const CATEGORY_OPTIONS = [
+  { value: "all", label: "All Categories" },
+  { value: "stock", label: "Stock & Inventory" },
+  { value: "sale", label: "Sales & Invoices" },
+  { value: "purchase", label: "Purchases" },
+  { value: "expense", label: "Expenses" },
+  { value: "subscription", label: "Subscriptions" },
+  { value: "customer", label: "Customers" },
+  { value: "system", label: "System" },
+];
+
+export default function NotificationsScreen({ onNav }) {
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAllNotifications,
+    refresh,
+  } = useNotifications();
+
+  const [activeTab, setActiveTab] = useState("all"); // 'all' | 'unread'
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refresh();
+    setTimeout(() => setIsRefreshing(false), 400);
   };
-  const typeBg = {
-    warning: "bg-amber-50 border-amber-200",
-    error: "bg-red-50 border-red-200",
-    success: "bg-emerald-50 border-emerald-200",
-    info: "bg-blue-50 border-blue-200",
+
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter((notif) => {
+      if (activeTab === "unread" && notif.read) return false;
+      if (selectedCategory !== "all" && notif.category !== selectedCategory) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const titleMatch = (notif.title || "").toLowerCase().includes(q);
+        const msgMatch = (notif.message || "").toLowerCase().includes(q);
+        if (!titleMatch && !msgMatch) return false;
+      }
+      return true;
+    });
+  }, [notifications, activeTab, selectedCategory, searchQuery]);
+
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case "warning":
+        return <AlertTriangle className="w-4 h-4 text-amber-600" />;
+      case "error":
+        return <XCircle className="w-4 h-4 text-red-600" />;
+      case "success":
+        return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
+      case "info":
+      default:
+        return <Info className="w-4 h-4 text-blue-600" />;
+    }
+  };
+
+  const getTypeIconBg = (type) => {
+    switch (type) {
+      case "warning":
+        return "bg-amber-50 border border-amber-200";
+      case "error":
+        return "bg-red-50 border border-red-200";
+      case "success":
+        return "bg-emerald-50 border border-emerald-200";
+      case "info":
+      default:
+        return "bg-blue-50 border border-blue-200";
+    }
+  };
+
+  const getCategoryBadgeVariant = (category) => {
+    switch (category) {
+      case "stock":
+        return "yellow";
+      case "sale":
+        return "green";
+      case "purchase":
+        return "purple";
+      case "expense":
+        return "red";
+      case "subscription":
+        return "blue";
+      default:
+        return "gray";
+    }
+  };
+
+  const getLinkDestinationLabel = (link) => {
+    switch (link) {
+      case "inventory":
+        return "View Inventory";
+      case "pos":
+        return "View Sales";
+      case "purchase":
+        return "View Purchases";
+      case "expenses":
+        return "View Expenses";
+      case "customers":
+        return "View Customers";
+      case "suppliers":
+        return "View Suppliers";
+      case "settings":
+        return "View Settings";
+      default:
+        return "View Details";
+    }
   };
 
   return (
-    <div className="max-w-3xl space-y-3">
-      <div className="flex justify-between items-center mb-5">
-        <p className="text-sm text-slate-500">
-          {notifications.filter((n) => !n.read).length} unread notifications
-        </p>
-        <Btn variant="ghost" size="sm">
-          Mark all as read
-        </Btn>
-      </div>
-      {notifications.map((n) => (
-        <div
-          key={n.id}
-          className={`flex gap-4 p-4 rounded-xl border transition-all hover:shadow-sm ${n.read ? "bg-white border-slate-200 opacity-70" : typeBg[n.type]}`}
-        >
-          <div className="flex-shrink-0 mt-0.5">{typeIcon[n.type]}</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-4">
-              <p className="text-sm font-semibold text-slate-900">{n.title}</p>
-              <span className="text-xs text-slate-400 flex-shrink-0">
-                {n.time}
-              </span>
-            </div>
-            <p className="text-sm text-slate-600 mt-0.5">{n.message}</p>
-          </div>
-          {!n.read && (
-            <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5 flex-shrink-0" />
+    <div className="max-w-4xl mx-auto space-y-4">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-gray-200">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Notifications</h2>
+          <p className="text-xs text-slate-500">
+            {unreadCount > 0
+              ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}`
+              : "All notifications are read"}
+          </p>
+        </div>
+
+        {/* Top actions */}
+        <div className="flex items-center gap-2">
+          <Btn
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="text-xs text-slate-600 hover:text-slate-900"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Btn>
+
+          {unreadCount > 0 && (
+            <Btn
+              variant="outline"
+              size="sm"
+              onClick={markAllAsRead}
+              className="text-xs"
+            >
+              <CheckCheck className="w-3.5 h-3.5 mr-1" />
+              Mark all as read
+            </Btn>
+          )}
+
+          {notifications.length > 0 && (
+            <Btn
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowClearConfirm(true)}
+              className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              Clear all
+            </Btn>
           )}
         </div>
-      ))}
+      </div>
+
+      {/* ── Controls: Tabs + Filter + Search ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* All / Unread Tabs */}
+        <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 w-fit">
+          <button
+            type="button"
+            onClick={() => setActiveTab("all")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+              activeTab === "all"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            All ({notifications.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("unread")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+              activeTab === "unread"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span>Unread</span>
+            {unreadCount > 0 && (
+              <span className="px-1.5 py-0.2 bg-blue-600 text-white rounded-full text-[10px] font-semibold">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Category Filter + Search */}
+        <div className="flex items-center gap-2 flex-1 sm:justify-end">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="border border-gray-300 rounded-md bg-white text-xs text-gray-700 px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+          >
+            {CATEGORY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <div className="relative flex-1 sm:max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Notifications Card ── */}
+      <Card className="overflow-hidden">
+        {loading && notifications.length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-400">
+            <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-slate-400" />
+            Loading notifications...
+          </div>
+        ) : filteredNotifications.length === 0 ? (
+          <div className="py-12">
+            <EmptyState
+              icon={<Bell className="w-8 h-8 text-slate-400" />}
+              title="No notifications"
+              sub={
+                searchQuery || selectedCategory !== "all" || activeTab === "unread"
+                  ? "No notifications match your filter criteria."
+                  : "You're all caught up! New sales, inventory alerts, and updates will appear here."
+              }
+              action={
+                (searchQuery || selectedCategory !== "all" || activeTab === "unread") && (
+                  <Btn
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCategory("all");
+                      setActiveTab("all");
+                    }}
+                    className="text-xs"
+                  >
+                    Reset filters
+                  </Btn>
+                )
+              }
+            />
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {filteredNotifications.map((n) => {
+              const notifId = n._id || n.id;
+              const notifType = n.type || "info";
+              const isUnread = !n.read;
+
+              return (
+                <div
+                  key={notifId}
+                  className={`group p-4 flex items-start gap-3.5 transition-colors ${
+                    isUnread ? "bg-white hover:bg-slate-50/80" : "bg-slate-50/40 hover:bg-slate-100/60 opacity-85 hover:opacity-100"
+                  }`}
+                >
+                  {/* Type Icon */}
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${getTypeIconBg(
+                      notifType
+                    )}`}
+                  >
+                    {getTypeIcon(notifType)}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      {/* Unread indicator */}
+                      {isUnread && (
+                        <span className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0" />
+                      )}
+
+                      <h4 className={`text-sm font-semibold ${isUnread ? "text-slate-900" : "text-slate-700"}`}>
+                        {n.title}
+                      </h4>
+
+                      {n.category && (
+                        <Badge
+                          label={n.category.charAt(0).toUpperCase() + n.category.slice(1)}
+                          variant={getCategoryBadgeVariant(n.category)}
+                        />
+                      )}
+
+                      <span className="text-xs text-slate-400 font-normal ml-auto flex-shrink-0">
+                        {formatRelativeTime(n.createdAt || n.time)}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {n.message}
+                    </p>
+
+                    {/* Navigation Link */}
+                    {n.link && onNav && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isUnread) markAsRead(notifId);
+                            onNav(n.link);
+                          }}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+                        >
+                          <span>{getLinkDestinationLabel(n.link)}</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Row Actions */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    {isUnread && (
+                      <button
+                        type="button"
+                        onClick={() => markAsRead(notifId)}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
+                        title="Mark as read"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => deleteNotification(notifId)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* ── Clear All Confirmation Dialog ── */}
+      {showClearConfirm && (
+        <ConfirmDialog
+          message="Are you sure you want to clear all notifications? This action cannot be undone."
+          onConfirm={() => {
+            clearAllNotifications();
+            setShowClearConfirm(false);
+          }}
+          onCancel={() => setShowClearConfirm(false)}
+        />
+      )}
     </div>
   );
 }

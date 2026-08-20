@@ -1,5 +1,6 @@
 import Product from "../models/productModel.js";
 import mongoose from "mongoose";
+import { createNotification } from "../services/notificationService.js";
 
 // Add Product
 export const addProduct = async (req, res) => {
@@ -11,6 +12,35 @@ export const addProduct = async (req, res) => {
 
     // Save product to MongoDB
     await product.save();
+
+    // Trigger instant stock alert if initially low or out of stock
+    try {
+      const stock = Number(product.stock || 0);
+      const minStock = Number(product.minStock ?? 10);
+      if (stock <= 0) {
+        await createNotification({
+          ownerId: req.user._id,
+          title: `Out of Stock: ${product.name}`,
+          message: `${product.name} (SKU: ${product.sku || "N/A"}) was added with 0 stock.`,
+          type: "error",
+          category: "stock",
+          link: "inventory",
+          metadata: { productId: product._id, stock: 0 },
+        });
+      } else if (stock <= minStock) {
+        await createNotification({
+          ownerId: req.user._id,
+          title: `Low Stock: ${product.name}`,
+          message: `${product.name} has only ${stock} ${product.unit || "units"} remaining (Min threshold: ${minStock}).`,
+          type: "warning",
+          category: "stock",
+          link: "inventory",
+          metadata: { productId: product._id, stock },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Product notification error:", notifErr.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -105,6 +135,35 @@ export const updateProduct = async (req, res) => {
     if (status !== undefined) product.status = status || product.status;
 
     await product.save();
+
+    // Trigger instant alert if updated stock is low or out of stock
+    try {
+      const stock = Number(product.stock || 0);
+      const minStock = Number(product.minStock ?? 10);
+      if (stock <= 0) {
+        await createNotification({
+          ownerId: req.user._id,
+          title: `Out of Stock: ${product.name}`,
+          message: `${product.name} (SKU: ${product.sku || "N/A"}) stock has dropped to 0.`,
+          type: "error",
+          category: "stock",
+          link: "inventory",
+          metadata: { productId: product._id, stock: 0 },
+        });
+      } else if (stock <= minStock) {
+        await createNotification({
+          ownerId: req.user._id,
+          title: `Low Stock: ${product.name}`,
+          message: `${product.name} has only ${stock} ${product.unit || "units"} remaining.`,
+          type: "warning",
+          category: "stock",
+          link: "inventory",
+          metadata: { productId: product._id, stock },
+        });
+      }
+    } catch (notifErr) {
+      console.error("Product update notification error:", notifErr.message);
+    }
 
     res.json({
       success: true,

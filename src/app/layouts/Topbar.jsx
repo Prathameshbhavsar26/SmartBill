@@ -4,7 +4,7 @@ import { Btn } from "../components/common/ui";
 import { getUserDisplayName, getUserInitials } from "../utils/userUtils";
 import { useCustomization } from "../hooks/useCustomization";
 
-export const PAGE_LABELS = {
+const PAGE_LABELS = {
   dashboard: "Dashboard",
   "super-dashboard": "Admin Overview",
   businesses: "Businesses",
@@ -55,12 +55,17 @@ export default function Topbar({ page, onLogout, onNav, role, notifCount, user }
 
       <button
         onClick={() => onNav("notifications")}
-        className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+        className={`relative w-9 h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer ${
+          page === "notifications"
+            ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-semibold"
+            : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+        }`}
+        title="Notifications"
       >
         <Bell className="w-4.5 h-4.5" />
         {notifCount > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-            {notifCount}
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs border-2 border-white dark:border-slate-900 animate-in zoom-in-75">
+            {notifCount > 99 ? "99+" : notifCount}
           </span>
         )}
       </button>

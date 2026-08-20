@@ -4,7 +4,6 @@ import BusinessesNew from "./pages/admin/BusinessesNew";
 import Sidebar from "./layouts/Sidebar";
 import Topbar from "./layouts/Topbar";
 import TrialBanner from "./components/common/TrialBanner";
-import { notifications } from "./data/mockData";
 import SuperAdminDashboard from "./pages/dashboard/SuperAdminDashboard";
 import BusinessDashboard from "./pages/dashboard/BusinessDashboard";
 import CustomersScreen from "./pages/commerce/CustomersScreen";
@@ -22,6 +21,8 @@ import NotificationsScreen from "./pages/users/NotificationsScreen";
 import ProfileScreen from "./pages/settings/ProfileScreen";
 import { useCustomization } from "./hooks/useCustomization";
 import { useLowStock } from "./hooks/useLowStock";
+import { useNotifications } from "./hooks/useNotifications";
+import { Toaster } from "sonner";
 import { AlertTriangle, X, ShoppingCart, TrendingDown, ShieldAlert } from "lucide-react";
 import { hasPermission } from "./utils/permissions";
 
@@ -122,12 +123,12 @@ function AccessDenied({ pageKey, onNav }) {
 export default function AppShell({ role, user, onLogout, page, onNav }) {
   const [collapsed, setCollapsed] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
-  const unread = notifications.filter((n) => !n.read).length;
+  const { unreadCount } = useNotifications();
 
   const { lowStockItems, outOfStockItems, alertCount } = useLowStock(60_000);
 
   const totalAlerts = alertCount;
-  const bellCount = unread + totalAlerts;
+  const bellCount = unreadCount;
 
   const renderPage = () => {
     if (!hasPermission(user, page)) {
@@ -168,7 +169,7 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
           <SettingsScreen user={user} />
         );
       case "notifications":
-        return <NotificationsScreen />;
+        return <NotificationsScreen onNav={onNav} />;
       case "profile":
         return <ProfileScreen user={user} />;
       default:
@@ -178,9 +179,10 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
 
   return (
     <div
-      className="flex h-screen bg-slate-100 overflow-hidden"
+      className="flex h-screen bg-slate-100 dark:bg-slate-950 overflow-hidden"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
+      <Toaster position="top-right" richColors closeButton />
       <Sidebar
         page={page}
         onNav={onNav}

@@ -18,6 +18,8 @@ import businessSettingsRoutes from "./routes/businessSettingsRoutes.js";
 import transactionSettingsRoutes from "./routes/transactionSettingsRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import paymentSettingsRoutes from "./routes/paymentSettingsRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -88,8 +90,10 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/settings/business", businessSettingsRoutes);
 app.use("/api/settings/transaction", transactionSettingsRoutes);
+app.use("/api/settings/payment", paymentSettingsRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/admin/businesses", adminRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/", (req, res) => {
   res.send("API working");

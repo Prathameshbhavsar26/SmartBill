@@ -40,10 +40,20 @@ import {
 export default function ExpensesScreen() {
   const { formatCurrency, formatDate } = useCustomization();
   const [showModal, setShowModal] = useState(false);
-
-  // Empty initially - backend will be connected later
   const [expenseList, setExpenseList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expensePaymentMethods, setExpensePaymentMethods] = useState(() => {
+    try {
+      const stored = localStorage.getItem("smartbill_payment_settings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed.expenses) && parsed.expenses.length > 0) {
+          return parsed.expenses;
+        }
+      }
+    } catch (_) {}
+    return ["Cash", "UPI & QR Code", "Bank Transfer", "Credit / Debit Card", "Cheque / DD"];
+  });
 
   const [form, setForm] = useState({
     category: "Rent",
@@ -54,6 +64,22 @@ export default function ExpensesScreen() {
     reference: "",
     status: "Paid",
   });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const stored = localStorage.getItem("smartbill_payment_settings");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed.expenses) && parsed.expenses.length > 0) {
+            setExpensePaymentMethods(parsed.expenses);
+          }
+        }
+      } catch (_) {}
+    };
+    window.addEventListener("paymentSettingsUpdated", handleUpdate);
+    return () => window.removeEventListener("paymentSettingsUpdated", handleUpdate);
+  }, []);
 
   const [toast, setToast] = useState(null);
 
@@ -264,13 +290,11 @@ export default function ExpensesScreen() {
                   paymentMode: v,
                 }))
               }
-              options={[
-                "Cash",
-                "Bank Transfer",
-                "UPI",
-                "Credit Card",
-                "Cheque",
-              ]}
+              options={
+                expensePaymentMethods.length > 0
+                  ? expensePaymentMethods
+                  : ["Cash", "UPI & QR Code", "Bank Transfer", "Credit / Debit Card"]
+              }
             />
 
             <Select

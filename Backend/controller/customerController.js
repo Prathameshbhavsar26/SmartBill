@@ -1,5 +1,6 @@
 import Customer from "../models/Customer.js";
 import Order from "../models/Order.js";
+import { createNotification } from "../services/notificationService.js";
 
 // ================= LIST CUSTOMERS =================
 export const getCustomers = async (req, res) => {
@@ -157,6 +158,21 @@ export const createCustomer = async (req, res) => {
       invoices: 0,
       status: "Active",
     });
+
+    try {
+      await createNotification({
+        ownerId: req.user._id,
+        userId: req.user.actualUserId || req.user._id,
+        title: "Customer Added",
+        message: `${customer.name} was registered in your customer directory.`,
+        type: "info",
+        category: "customer",
+        link: "customers",
+        metadata: { customerId: customer._id, customerName: customer.name },
+      });
+    } catch (notifErr) {
+      console.error("Customer notification error:", notifErr.message);
+    }
 
     return res.status(201).json({
       message: "OK",

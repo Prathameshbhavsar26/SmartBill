@@ -1,4 +1,5 @@
 import Supplier from "../models/Supplier.js";
+import { createNotification } from "../services/notificationService.js";
 
 // ================= LIST SUPPLIERS =================
 export const getSuppliers = async (req, res) => {
@@ -76,6 +77,21 @@ export const createSupplier = async (req, res) => {
       balance: opening,
       status: "Active",
     });
+
+    try {
+      await createNotification({
+        ownerId: req.user._id,
+        userId: req.user.actualUserId || req.user._id,
+        title: "Supplier Registered",
+        message: `Supplier "${supplier.name}" was successfully registered.`,
+        type: "info",
+        category: "purchase",
+        link: "suppliers",
+        metadata: { supplierId: supplier._id, supplierName: supplier.name },
+      });
+    } catch (notifErr) {
+      console.error("Supplier notification error:", notifErr.message);
+    }
 
     return res.status(201).json({ message: "OK", supplier });
   } catch (error) {
