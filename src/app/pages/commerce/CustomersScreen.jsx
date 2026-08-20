@@ -930,13 +930,7 @@ export default function CustomersScreen() {
           icon={<Search className="w-4 h-4" />}
         />
 
-        <Btn
-          variant="outline"
-          size="md"
-          icon={<Download className="w-4 h-4" />}
-        >
-          Export
-        </Btn>
+
 
         <Btn
           variant="primary"
