@@ -333,7 +333,7 @@ export function Input({
   );
 }
 
-export function Select({ label, value, onChange, options }) {
+export function Select({ label, value, onChange, options = [] }) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
@@ -343,14 +343,18 @@ export function Select({ label, value, onChange, options }) {
       )}
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange?.(e.target.value)}
         className="border border-gray-300 rounded-md bg-white text-sm text-gray-900 px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
       >
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
+        {options.map((o) => {
+          const val = typeof o === "object" && o !== null ? o.value : o;
+          const lbl = typeof o === "object" && o !== null ? o.label : o;
+          return (
+            <option key={val} value={val}>
+              {lbl}
+            </option>
+          );
+        })}
       </select>
     </div>
   );

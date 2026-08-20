@@ -25,6 +25,7 @@ import {
   EmptyState,
   Input,
   Modal,
+  Select,
   Toast,
   Badge,
   statusBadge,
@@ -37,6 +38,7 @@ import {
   deleteCustomer,
 } from "../../api/customerAPI";
 import { fetchOrder } from "../../api/orderAPI";
+import { fetchPartySettings } from "../../api/partySettingsAPI";
 
 export default function CustomersScreen() {
   // =========================
@@ -54,6 +56,14 @@ export default function CustomersScreen() {
   const [customerList, setCustomerList] = useState([]);
   const [businessType, setBusinessType] = useState("Retail");
 
+  // Party Settings state
+  const [partySettings, setPartySettings] = useState({
+    enableGrouping: true,
+    trackBalance: false,
+    shippingAddress: true,
+  });
+  const [groupFilter, setGroupFilter] = useState("All");
+
   // Customer details panel (clicked from name)
   const [detailsCustomer, setDetailsCustomer] = useState(null);
   const [detailsData, setDetailsData] = useState(null);
@@ -68,6 +78,9 @@ export default function CustomersScreen() {
     email: "",
     city: "",
     address: "",
+    shippingAddress: "",
+    category: "Retailer",
+    creditLimit: "0",
     gst: "",
     openingBalance: "0",
   };
@@ -102,6 +115,29 @@ export default function CustomersScreen() {
         console.warn("Unable to parse stored user:", err);
       }
     }
+  }, []);
+
+  // Load party settings from backend & listen to update events
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const res = await fetchPartySettings();
+        if (res?.partySettings) {
+          setPartySettings(res.partySettings);
+        }
+      } catch (err) {
+        console.warn("Failed to load party settings:", err);
+      }
+    };
+    loadSettings();
+
+    const handleSettingsUpdated = (e) => {
+      if (e.detail) {
+        setPartySettings(e.detail);
+      }
+    };
+    window.addEventListener("partySettingsUpdated", handleSettingsUpdated);
+    return () => window.removeEventListener("partySettingsUpdated", handleSettingsUpdated);
   }, []);
 
   // =========================
@@ -143,14 +179,21 @@ export default function CustomersScreen() {
     const city = String(customer?.city || "").toLowerCase();
     const phone = String(customer?.phone || "").toLowerCase();
     const email = String(customer?.email || "").toLowerCase();
+    const category = String(customer?.category || "Retailer").toLowerCase();
     const searchText = search.toLowerCase();
 
-    return (
+    const matchesSearch =
       name.includes(searchText) ||
       city.includes(searchText) ||
       phone.includes(searchText) ||
-      email.includes(searchText)
-    );
+      email.includes(searchText);
+
+    const matchesGroup =
+      !partySettings.enableGrouping ||
+      groupFilter === "All" ||
+      category === groupFilter.toLowerCase();
+
+    return matchesSearch && matchesGroup;
   });
 
   // =========================
@@ -186,6 +229,9 @@ export default function CustomersScreen() {
         email: form.email,
         city: form.city,
         address: form.address,
+        shippingAddress: partySettings.shippingAddress ? form.shippingAddress : "",
+        category: partySettings.enableGrouping ? form.category : "Retailer",
+        creditLimit: partySettings.trackBalance ? Number(form.creditLimit || 0) : 0,
         gst: isWholesale ? form.gst : "",
         openingBalance: isWholesale ? Number(form.openingBalance || 0) : 0,
       });
@@ -219,6 +265,9 @@ export default function CustomersScreen() {
         email: editForm.email,
         city: editForm.city,
         address: editForm.address,
+        shippingAddress: partySettings.shippingAddress ? editForm.shippingAddress : "",
+        category: partySettings.enableGrouping ? editForm.category : "Retailer",
+        creditLimit: partySettings.trackBalance ? Number(editForm.creditLimit || 0) : 0,
         gst: isWholesale ? editForm.gst : "",
       });
 
@@ -278,6 +327,9 @@ export default function CustomersScreen() {
       email: customer.email || "",
       city: customer.city || "",
       address: customer.address || "",
+      shippingAddress: customer.shippingAddress || "",
+      category: customer.category || "Retailer",
+      creditLimit: String(customer.creditLimit ?? 0),
       gst: customer.gst || "",
       openingBalance: String(customer.balance ?? 0),
     });
@@ -652,7 +704,11 @@ export default function CustomersScreen() {
               <p className="text-lg font-semibold text-slate-900">
                 {viewCustomer.name}
               </p>
-
+              {partySettings.enableGrouping && viewCustomer.category && (
+                <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                  {viewCustomer.category}
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -679,9 +735,18 @@ export default function CustomersScreen() {
 
               {viewCustomer.address && (
                 <div>
-                  <p className="text-xs text-slate-500 mb-1">Address</p>
+                  <p className="text-xs text-slate-500 mb-1">Billing Address</p>
                   <p className="text-sm text-slate-900">
                     {viewCustomer.address}
+                  </p>
+                </div>
+              )}
+
+              {partySettings.shippingAddress && viewCustomer.shippingAddress && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Shipping Address</p>
+                  <p className="text-sm text-slate-900">
+                    {viewCustomer.shippingAddress}
                   </p>
                 </div>
               )}
@@ -697,6 +762,17 @@ export default function CustomersScreen() {
                     : " (Balanced)"}
                 </p>
               </div>
+
+              {partySettings.trackBalance && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Credit Limit</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {Number(viewCustomer.creditLimit || 0) > 0
+                      ? fmt(viewCustomer.creditLimit)
+                      : "No Limit"}
+                  </p>
+                </div>
+              )}
 
               <div>
                 <p className="text-xs text-slate-500 mb-1">Invoices</p>
@@ -739,6 +815,27 @@ export default function CustomersScreen() {
               }
             />
 
+            {partySettings.enableGrouping && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Party Group / Category
+                </label>
+                <Select
+                  value={editForm.category || "Retailer"}
+                  onChange={(val) =>
+                    setEditForm((f) => ({ ...f, category: val }))
+                  }
+                  options={[
+                    { value: "Retailer", label: "Retailer" },
+                    { value: "Wholesaler", label: "Wholesaler" },
+                    { value: "Supplier", label: "Supplier" },
+                    { value: "Corporate", label: "Corporate" },
+                    { value: "General", label: "General" },
+                  ]}
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Phone"
@@ -771,7 +868,7 @@ export default function CustomersScreen() {
                 }
               />
               <Input
-                label="Address"
+                label="Billing Address"
                 placeholder="123 Main Street, Area"
                 value={editForm.address}
                 onChange={(value) =>
@@ -779,6 +876,29 @@ export default function CustomersScreen() {
                 }
               />
             </div>
+
+            {partySettings.shippingAddress && (
+              <Input
+                label="Shipping Address"
+                placeholder="Warehouse 4, Industrial Area"
+                value={editForm.shippingAddress}
+                onChange={(value) =>
+                  setEditForm((f) => ({ ...f, shippingAddress: value }))
+                }
+              />
+            )}
+
+            {partySettings.trackBalance && (
+              <Input
+                label="Credit Limit Threshold (₹)"
+                placeholder="50000"
+                type="number"
+                value={editForm.creditLimit}
+                onChange={(value) =>
+                  setEditForm((f) => ({ ...f, creditLimit: value }))
+                }
+              />
+            )}
 
             {isWholesale && (
               <Input
@@ -826,6 +946,25 @@ export default function CustomersScreen() {
               }
             />
 
+            {partySettings.enableGrouping && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Party Group / Category
+                </label>
+                <Select
+                  value={form.category || "Retailer"}
+                  onChange={(val) => setForm((f) => ({ ...f, category: val }))}
+                  options={[
+                    { value: "Retailer", label: "Retailer" },
+                    { value: "Wholesaler", label: "Wholesaler" },
+                    { value: "Supplier", label: "Supplier" },
+                    { value: "Corporate", label: "Corporate" },
+                    { value: "General", label: "General" },
+                  ]}
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Phone"
@@ -858,7 +997,7 @@ export default function CustomersScreen() {
                 }
               />
               <Input
-                label="Address"
+                label="Billing Address"
                 placeholder="123 Main Street, Area"
                 value={form.address}
                 onChange={(value) =>
@@ -866,6 +1005,29 @@ export default function CustomersScreen() {
                 }
               />
             </div>
+
+            {partySettings.shippingAddress && (
+              <Input
+                label="Shipping Address"
+                placeholder="Warehouse 4, Industrial Area"
+                value={form.shippingAddress}
+                onChange={(value) =>
+                  setForm((f) => ({ ...f, shippingAddress: value }))
+                }
+              />
+            )}
+
+            {partySettings.trackBalance && (
+              <Input
+                label="Credit Limit Threshold (₹)"
+                placeholder="50000"
+                type="number"
+                value={form.creditLimit}
+                onChange={(value) =>
+                  setForm((f) => ({ ...f, creditLimit: value }))
+                }
+              />
+            )}
 
             {isWholesale && (
               <>
@@ -922,15 +1084,34 @@ export default function CustomersScreen() {
       {/* =========================
           SEARCH + BUTTONS
       ========================= */}
-      <div className="flex items-center gap-3">
-        <Input
-          value={search}
-          onChange={setSearch}
-          placeholder="Search customers by name, city, phone, email..."
-          icon={<Search className="w-4 h-4" />}
-        />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex-1 flex items-center gap-3">
+          <Input
+            value={search}
+            onChange={setSearch}
+            placeholder="Search customers by name, city, phone, email..."
+            icon={<Search className="w-4 h-4" />}
+          />
 
-
+          {partySettings.enableGrouping && (
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
+              {["All", "Retailer", "Wholesaler", "Supplier", "Corporate", "General"].map((grp) => (
+                <button
+                  key={grp}
+                  type="button"
+                  onClick={() => setGroupFilter(grp)}
+                  className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                    groupFilter === grp
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {grp}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <Btn
           variant="primary"
@@ -968,6 +1149,7 @@ export default function CustomersScreen() {
               <tr className="border-b border-slate-100">
                 {[
                   isWholesale ? "Business" : "Customer Name",
+                  ...(partySettings.enableGrouping ? ["Group"] : []),
                   "Email",
                   "Phone",
                   "City",
@@ -987,7 +1169,7 @@ export default function CustomersScreen() {
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center">
+                  <td colSpan={partySettings.enableGrouping ? 7 : 6} className="py-8 text-center">
                     <p className="text-sm text-slate-500">
                       Loading customers...
                     </p>
@@ -995,7 +1177,7 @@ export default function CustomersScreen() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8">
+                  <td colSpan={partySettings.enableGrouping ? 7 : 6} className="py-8">
                     <EmptyState
                       icon={<Users className="w-6 h-6" />}
                       title="No customers found"
@@ -1007,6 +1189,8 @@ export default function CustomersScreen() {
                 filtered.map((customer) => {
                   const customerId = customer._id || customer.id;
                   const balance = Number(customer.balance || 0);
+                  const creditLimit = Number(customer.creditLimit || 0);
+                  const isLimitExceeded = partySettings.trackBalance && creditLimit > 0 && balance > creditLimit;
 
                   return (
                     <tr
@@ -1028,6 +1212,15 @@ export default function CustomersScreen() {
                         </button>
                       </td>
 
+                      {/* GROUP / CATEGORY */}
+                      {partySettings.enableGrouping && (
+                        <td className="px-5 py-4">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                            {customer.category || "Retailer"}
+                          </span>
+                        </td>
+                      )}
+
                       {/* EMAIL */}
                       <td className="px-5 py-4 text-slate-600">
                         {customer.email || "—"}
@@ -1045,25 +1238,37 @@ export default function CustomersScreen() {
 
                       {/* BALANCE */}
                       <td className="px-5 py-4">
-                        <span
-                          className={`font-semibold font-mono text-sm ${
-                            balance > 0
-                              ? "text-emerald-600"
+                        <div className="flex flex-col">
+                          <span
+                            className={`font-semibold font-mono text-sm ${
+                              balance > 0
+                                ? "text-emerald-600"
+                                : balance < 0
+                                ? "text-red-500"
+                                : "text-slate-500"
+                            }`}
+                          >
+                            {balance > 0 ? "+" : ""}
+                            {fmt(Math.abs(balance))}
+                          </span>
+                          <p className="text-[10px] text-slate-400">
+                            {balance > 0
+                              ? "To Receive"
                               : balance < 0
-                              ? "text-red-500"
-                              : "text-slate-500"
-                          }`}
-                        >
-                          {balance > 0 ? "+" : ""}
-                          {fmt(Math.abs(balance))}
-                        </span>
-                        <p className="text-[10px] text-slate-400">
-                          {balance > 0
-                            ? "To Receive"
-                            : balance < 0
-                            ? "To Pay"
-                            : "Balanced"}
-                        </p>
+                              ? "To Pay"
+                              : "Balanced"}
+                          </p>
+                          {partySettings.trackBalance && creditLimit > 0 && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              Limit: {fmt(creditLimit)}
+                            </span>
+                          )}
+                          {isLimitExceeded && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 w-max mt-1">
+                              Limit Exceeded!
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* ACTIONS */}

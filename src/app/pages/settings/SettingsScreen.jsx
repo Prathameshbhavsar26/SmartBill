@@ -35,6 +35,10 @@ import InvoiceSettingsTab from "./InvoiceSettingsTab";
 import AccountingSettingsTab from "./AccountingSettingsTab";
 import ItemInventorySettingsTab from "./ItemInventorySettingsTab";
 import TransactionSettingsTab from "./TransactionSettingsTab";
+import {
+  fetchPartySettings,
+  savePartySettings,
+} from "../../api/partySettingsAPI";
 
 const INDIAN_STATES = [
   "Andhra Pradesh",
@@ -307,6 +311,8 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
   const [enableGrouping, setEnableGrouping] = useState(true);
   const [trackBalance, setTrackBalance] = useState(false);
   const [shippingAddress, setShippingAddress] = useState(true);
+  const [partyLoading, setPartyLoading] = useState(false);
+  const [partySaving, setPartySaving] = useState(false);
 
   // Item & Inventory states
   const [enableSerial, setEnableSerial] = useState(false);
@@ -387,6 +393,33 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
 
 
 
+  // Party Settings load
+  const loadPartySettings = async () => {
+    try {
+      setPartyLoading(true);
+      const response = await fetchPartySettings();
+      if (response?.partySettings) {
+        setEnableGrouping(Boolean(response.partySettings.enableGrouping));
+        setTrackBalance(Boolean(response.partySettings.trackBalance));
+        setShippingAddress(Boolean(response.partySettings.shippingAddress));
+        try {
+          const rawUser = localStorage.getItem("smartbill_user");
+          const user = rawUser ? JSON.parse(rawUser) : null;
+          const id = user?._id || user?.id || user?.email;
+          const key = id ? `smartbill_party_settings_${id}` : "smartbill_party_settings_guest";
+          localStorage.setItem(key, JSON.stringify(response.partySettings));
+        } catch {}
+      }
+    } catch (error) {
+      console.error("Failed to load party settings:", error);
+    } finally {
+      setPartyLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPartySettings();
+  }, [activeTab]);
 
 
   // Handle invoice settings save
@@ -403,16 +436,39 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
   };
 
   // Handle party settings save
-  const handleSavePartySettings = () => {
-    localStorage.setItem(
-      "partySettings",
-      JSON.stringify({
+  const handleSavePartySettings = async () => {
+    try {
+      setPartySaving(true);
+      const payload = {
         enableGrouping,
         trackBalance,
         shippingAddress,
-      }),
-    );
-    alert("✓ Party settings saved successfully!");
+      };
+      const response = await savePartySettings(payload);
+      const savedData = response?.partySettings || payload;
+
+      setEnableGrouping(Boolean(savedData.enableGrouping));
+      setTrackBalance(Boolean(savedData.trackBalance));
+      setShippingAddress(Boolean(savedData.shippingAddress));
+
+      try {
+        const rawUser = localStorage.getItem("smartbill_user");
+        const user = rawUser ? JSON.parse(rawUser) : null;
+        const id = user?._id || user?.id || user?.email;
+        const key = id ? `smartbill_party_settings_${id}` : "smartbill_party_settings_guest";
+        localStorage.setItem(key, JSON.stringify(savedData));
+      } catch {}
+
+      window.dispatchEvent(
+        new CustomEvent("partySettingsUpdated", { detail: savedData })
+      );
+      alert("✓ Party settings saved successfully!");
+    } catch (error) {
+      console.error("Failed to save party settings:", error);
+      alert(error?.message || "Failed to save party settings.");
+    } finally {
+      setPartySaving(false);
+    }
   };
 
   // Handle item settings save
@@ -1457,9 +1513,10 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
               variant="primary"
               className="mt-5"
               onClick={handleSavePartySettings}
-              icon={<Check className="w-4 h-4" />}
+              disabled={partySaving}
+              icon={partySaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
             >
-              Save Party Profiles
+              {partySaving ? "Saving..." : "Save Party Profiles"}
             </Btn>
           </div>
         )}

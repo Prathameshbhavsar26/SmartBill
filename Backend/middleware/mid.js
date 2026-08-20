@@ -40,6 +40,31 @@ export const protect = async (req, res, next) => {
         .json({ message: "Not authorized, user not found." });
     }
 
+    if (user.role !== "superadmin") {
+      let ownerUser = null;
+      if (user.ownerId) {
+        ownerUser = await User.findById(user.ownerId);
+      }
+
+      const userStatus = user.status || "Active";
+      const ownerStatus = ownerUser ? (ownerUser.status || "Active") : "Active";
+
+      if (userStatus === "Suspended" || ownerStatus === "Suspended") {
+        const reason = user.suspensionReason || ownerUser?.suspensionReason;
+        return res.status(403).json({
+          message: reason
+            ? `Your account has been suspended by administration. Reason: ${reason}`
+            : "Your account has been suspended by administration. Access denied.",
+        });
+      }
+
+      if (userStatus === "Inactive" || ownerStatus === "Inactive") {
+        return res.status(403).json({
+          message: "Your account is deactivated. Access denied.",
+        });
+      }
+    }
+
     const effectiveOwnerId = user.ownerId ? user.ownerId : user._id;
 
     req.user = user.toObject();

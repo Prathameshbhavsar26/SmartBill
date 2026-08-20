@@ -47,6 +47,23 @@ const customerSchema = new mongoose.Schema(
       default: "",
     },
 
+    category: {
+      type: String,
+      trim: true,
+      default: "Retailer",
+    },
+
+    creditLimit: {
+      type: Number,
+      default: 0,
+    },
+
+    shippingAddress: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     openingBalance: {
       type: Number,
       default: 0,

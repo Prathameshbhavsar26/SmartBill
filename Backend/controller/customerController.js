@@ -119,6 +119,9 @@ export const createCustomer = async (req, res) => {
       city,
       address,
       gst,
+      category,
+      creditLimit,
+      shippingAddress,
       openingBalance = 0,
     } = req.body;
 
@@ -151,6 +154,9 @@ export const createCustomer = async (req, res) => {
       city: city || "",
       address: address || "",
       gst: gst || "",
+      category: category || "Retailer",
+      creditLimit: Number(creditLimit) || 0,
+      shippingAddress: shippingAddress || "",
       openingBalance: opening,
       totalOrderValue: 0,
       totalPaid: 0,
@@ -198,6 +204,9 @@ export const updateCustomer = async (req, res) => {
       city,
       address,
       gst,
+      category,
+      creditLimit,
+      shippingAddress,
       status,
     } = req.body;
 
@@ -238,6 +247,18 @@ export const updateCustomer = async (req, res) => {
 
     if (gst !== undefined) {
       customer.gst = gst;
+    }
+
+    if (category !== undefined) {
+      customer.category = category;
+    }
+
+    if (creditLimit !== undefined) {
+      customer.creditLimit = Number(creditLimit) || 0;
+    }
+
+    if (shippingAddress !== undefined) {
+      customer.shippingAddress = shippingAddress;
     }
 
     if (status !== undefined) {

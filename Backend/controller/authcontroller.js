@@ -298,10 +298,29 @@ export const login = async (req, res) => {
       });
     }
 
-    if (user.status === "Inactive") {
-      return res.status(403).json({
-        message: "Your account is deactivated. Please contact your business owner.",
-      });
+    let ownerUser = null;
+    if (user.ownerId) {
+      ownerUser = await User.findById(user.ownerId);
+    }
+
+    const userStatus = user.status || "Active";
+    const ownerStatus = ownerUser ? (ownerUser.status || "Active") : "Active";
+
+    if (user.role !== "superadmin") {
+      if (userStatus === "Suspended" || ownerStatus === "Suspended") {
+        const reason = user.suspensionReason || ownerUser?.suspensionReason;
+        return res.status(403).json({
+          message: reason
+            ? `Your account has been suspended by administration. Reason: ${reason}`
+            : "Your account has been suspended by administration. Please contact support.",
+        });
+      }
+
+      if (userStatus === "Inactive" || ownerStatus === "Inactive") {
+        return res.status(403).json({
+          message: "Your account is deactivated. Please contact your business owner or support.",
+        });
+      }
     }
 
     // Check if Two-Factor Authentication is enabled
@@ -328,8 +347,7 @@ export const login = async (req, res) => {
       });
     }
 
-    let ownerUser = null;
-    if (user.ownerId) {
+    if (user.ownerId && !ownerUser) {
       ownerUser = await User.findById(user.ownerId);
     }
 
@@ -806,6 +824,31 @@ export const verifyLoginOtp = async (req, res) => {
       });
     }
 
+    let ownerUser = null;
+    if (user.ownerId) {
+      ownerUser = await User.findById(user.ownerId);
+    }
+
+    const userStatus = user.status || "Active";
+    const ownerStatus = ownerUser ? (ownerUser.status || "Active") : "Active";
+
+    if (user.role !== "superadmin") {
+      if (userStatus === "Suspended" || ownerStatus === "Suspended") {
+        const reason = user.suspensionReason || ownerUser?.suspensionReason;
+        return res.status(403).json({
+          message: reason
+            ? `Your account has been suspended by administration. Reason: ${reason}`
+            : "Your account has been suspended by administration. Please contact support.",
+        });
+      }
+
+      if (userStatus === "Inactive" || ownerStatus === "Inactive") {
+        return res.status(403).json({
+          message: "Your account is deactivated. Please contact your business owner or support.",
+        });
+      }
+    }
+
     const targetPhone = phone || normalizePhone(user.phone);
     const record = await Verification.findOne({
       phone: targetPhone,
@@ -833,8 +876,7 @@ export const verifyLoginOtp = async (req, res) => {
     // Clean up used OTP
     await Verification.deleteOne({ _id: record._id });
 
-    let ownerUser = null;
-    if (user.ownerId) {
+    if (user.ownerId && !ownerUser) {
       ownerUser = await User.findById(user.ownerId);
     }
 

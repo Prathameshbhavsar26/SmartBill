@@ -33,6 +33,7 @@ import { fetchCustomers, createCustomer } from "../../api/customerAPI";
 import { createOrder, createOrderReturn, fetchOrders } from "../../api/orderAPI";
 import { getProducts } from "../../api/productAPI";
 import { getInvoiceSettings } from "../../api/invoiceSettingsAPI";
+import { fetchPartySettings } from "../../api/partySettingsAPI";
 import { useTransactionSettings } from "../../hooks/useTransactionSettings";
 
 export default function POSScreen() {
@@ -115,11 +116,26 @@ export default function POSScreen() {
   const [successToast, setSuccessToast] = useState("");
   const [lastOrder, setLastOrder] = useState(null);
   const [invSettings, setInvSettings] = useState({});
+  const [partySettings, setPartySettings] = useState({
+    enableGrouping: true,
+    trackBalance: false,
+    shippingAddress: true,
+  });
 
   useEffect(() => {
     getInvoiceSettings().then(res => {
       if(res?.settings) setInvSettings(res.settings);
     }).catch(console.warn);
+
+    fetchPartySettings().then(res => {
+      if (res?.partySettings) setPartySettings(res.partySettings);
+    }).catch(console.warn);
+
+    const handleSettingsUpdated = (e) => {
+      if (e.detail) setPartySettings(e.detail);
+    };
+    window.addEventListener("partySettingsUpdated", handleSettingsUpdated);
+    return () => window.removeEventListener("partySettingsUpdated", handleSettingsUpdated);
   }, []);
 
   // Sync default payment mode from transaction settings
@@ -853,6 +869,26 @@ export default function POSScreen() {
       paymentMode: finalPaymentMode,
       transactionRef: transactionRef.trim() || undefined,
     };
+
+    if (partySettings.trackBalance && selectedCustomer) {
+      const creditLimit = Number(selectedCustomer.creditLimit || 0);
+      if (creditLimit > 0) {
+        const orderTotal = Math.round(total);
+        const paidAmount = Math.round(effectivePaid);
+        const newUnpaidBalance = Math.max(0, orderTotal - paidAmount);
+        const currentBalance = Number(selectedCustomer.balance || 0);
+        const projectedBalance = currentBalance + newUnpaidBalance;
+
+        if (projectedBalance > creditLimit) {
+          const confirmProceed = window.confirm(
+            `⚠️ Credit Limit Warning!\n\nCustomer ${selectedCustomer.name}'s credit limit is ₹${creditLimit}.\nCurrent Balance: ₹${currentBalance}\nProjected Balance after this order: ₹${projectedBalance}\n\nDo you still want to proceed with this order?`
+          );
+          if (!confirmProceed) {
+            return;
+          }
+        }
+      }
+    }
 
     setSaving(true);
     try {
