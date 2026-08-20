@@ -468,6 +468,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                 >
                   Cancel & Return to Login
                 </button>
+
               </div>
             ) : (
               <>
@@ -628,6 +629,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
               </>
             )
           )}
+
 
           {view === "register" && (
             <>

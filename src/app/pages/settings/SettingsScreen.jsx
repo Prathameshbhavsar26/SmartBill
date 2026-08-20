@@ -31,6 +31,9 @@ import { setUserToStorage } from "../../utils/userUtils";
 import UserPermissionsSettings from "./components/UserPermissionsSettings";
 import SecuritySettings from "./components/SecuritySettings";
 import PaymentMethodSettings from "./components/PaymentMethodSettings";
+import InvoiceSettingsTab from "./InvoiceSettingsTab";
+import AccountingSettingsTab from "./AccountingSettingsTab";
+import ItemInventorySettingsTab from "./ItemInventorySettingsTab";
 
 import {
   fetchTransactionSettings,
@@ -1834,7 +1837,11 @@ const [transactionSaved, setTransactionSaved] = useState(false);
 )}
 
         {/* TAB 4: INVOICE SETTINGS */}
-        {activeTab === "invoice" && (
+        {activeTab === "invoice" && <InvoiceSettingsTab />}
+
+        {/* TAB: ACCOUNTING SETTINGS */}
+        {activeTab === "accounting" && <AccountingSettingsTab />}
+        {activeTab === "invoice_deprecated" && (
           <div className="bg-white border rounded-xl p-6 shadow-sm">
             <h3 className="font-semibold text-slate-900 mb-5">
               Invoice Settings
@@ -2062,97 +2069,7 @@ const [transactionSaved, setTransactionSaved] = useState(false);
         )}
 
         {/* TAB 6: ITEM & INVENTORY */}
-        {activeTab === "item" && (
-          <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              Item & Inventory Settings
-            </h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <Select
-                label="Stock Value Formula"
-                value={inventorySettings.stockValueFormula}
-                onChange={(value) =>
-                  handleInventoryChange("stockValueFormula", value)
-                }
-                options={["FIFO Method", "Average Base Price Code"]}
-              />
-              <Input
-                label="Low Stock Warning Counter Alert"
-                value={inventorySettings.lowStockAlert}
-                onChange={(value) =>
-                  handleInventoryChange("lowStockAlert", value)
-                }
-              />
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Enable Serial Tracking / Batch Numbers
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Store dynamic batch indices and expiry timestamps inside
-                    database records
-                  </p>
-                </div>
-                <button
-                  onClick={() => setEnableSerial(!enableSerial)}
-                  className={`w-10 h-6 rounded-full relative ${enableSerial ? "bg-blue-600" : "bg-slate-200"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableSerial ? "right-1" : "left-1"}`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Multi-unit Measurement Scale
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Allow dynamic calculation mappings like Box to individual
-                    pieces conversion
-                  </p>
-                </div>
-                <button
-                  onClick={() => setEnableMultiUnit(!enableMultiUnit)}
-                  className={`w-10 h-6 rounded-full relative ${enableMultiUnit ? "bg-blue-600" : "bg-slate-200"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableMultiUnit ? "right-1" : "left-1"}`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Barcode Scanner Integration Hook
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Map standard text fields inputs direct via optical barcode
-                    readings
-                  </p>
-                </div>
-                <button
-                  onClick={() => setEnableBarcode(!enableBarcode)}
-                  className={`w-10 h-6 rounded-full relative ${enableBarcode ? "bg-blue-600" : "bg-slate-200"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${enableBarcode ? "right-1" : "left-1"}`}
-                  />
-                </button>
-              </div>
-            </div>
-            <Btn
-              variant="primary"
-              className="mt-5"
-              onClick={handleSaveItemSettings}
-              icon={<Check className="w-4 h-4" />}
-            >
-              Save Inventory Parameters
-            </Btn>
-          </div>
-        )}
+        {activeTab === "item" && <ItemInventorySettingsTab />}
 
         {/* TAB 7: ACCOUNTING & BOOKS */}
         {activeTab === "accounting" && (

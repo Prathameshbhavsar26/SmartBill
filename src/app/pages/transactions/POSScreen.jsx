@@ -32,6 +32,7 @@ import { Badge, Btn, Card, Input, Select, Modal } from "../../components/common/
 import { fetchCustomers, createCustomer } from "../../api/customerAPI";
 import { createOrder, createOrderReturn, fetchOrders } from "../../api/orderAPI";
 import { getProducts } from "../../api/productAPI";
+import { getInvoiceSettings } from "../../api/invoiceSettingsAPI";
 import { useTransactionSettings } from "../../hooks/useTransactionSettings";
 
 export default function POSScreen() {
@@ -113,6 +114,13 @@ export default function POSScreen() {
   const [error, setError] = useState("");
   const [successToast, setSuccessToast] = useState("");
   const [lastOrder, setLastOrder] = useState(null);
+  const [invSettings, setInvSettings] = useState({});
+
+  useEffect(() => {
+    getInvoiceSettings().then(res => {
+      if(res?.settings) setInvSettings(res.settings);
+    }).catch(console.warn);
+  }, []);
 
   // Global Invoice Discount state (for Entire Invoice mode)
   const [globalDiscount, setGlobalDiscount] = useState(0);
@@ -469,17 +477,18 @@ export default function POSScreen() {
       order?.items && order.items.length > 0
         ? order.items
         : cart.map((i) => ({
-            name: i.product?.name || "Item",
-            qty: i.qty,
-            price:
-              i.price !== undefined
-                ? Number(i.price)
-                : getProductDefaultPrice(i.product),
-            amount:
-              (i.price !== undefined
-                ? Number(i.price)
-                : getProductDefaultPrice(i.product)) * i.qty,
-          }));
+          name: i.product?.name || "Item",
+          sku: i.product?.sku || "",
+          qty: i.qty,
+          price:
+            i.price !== undefined
+              ? Number(i.price)
+              : getProductDefaultPrice(i.product),
+          amount:
+            (i.price !== undefined
+              ? Number(i.price)
+              : getProductDefaultPrice(i.product)) * i.qty,
+        }));
 
     const invoiceSubtotal = order?.subtotal ?? subtotal;
     const invoiceGst = order?.gst ?? gst;
@@ -498,12 +507,20 @@ export default function POSScreen() {
           ? "Partial"
           : "Due");
 
-    const fmtVal = (v) =>
-      "₹" +
-      (Number(v) || 0).toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
+    const fmtVal = (v) => "₹" + (Number(v) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const s = invSettings || {};
+    const tpl = s.template === "Modern" 
+      ? { headerBg: s.primaryColor || '#2563eb', headerColor: '#ffffff', border: `1px solid ${s.primaryColor || '#2563eb'}` }
+      : s.template === "Minimal"
+      ? { headerBg: 'transparent', headerColor: '#333333', border: '1px solid #eeeeee' }
+      : { headerBg: '#f8fafc', headerColor: '#0f172a', border: '1px solid #e2e8f0' };
+      
+    const pSize = s.paperSize || "A4";
+    let cssPageSize = "A4";
+    let maxW = "680px";
+    if(pSize.includes("Thermal 58")) { cssPageSize = "58mm auto"; maxW = "300px"; }
+    else if(pSize.includes("Thermal 80")) { cssPageSize = "80mm auto"; maxW = "400px"; }
 
     // Dynamic UPI QR generation
     const upiCfg = paymentSettings?.upiSettings || {};
@@ -524,7 +541,11 @@ export default function POSScreen() {
       .map(
         (item) => `
       <tr style="border-bottom: 1px solid #e2e8f0;">
-        <td style="padding: 10px 8px; font-weight: 600; color: #0f172a; text-align: left;">${item.name || "Item"}</td>
+        <td style="padding: 10px 8px; font-weight: 600; color: #0f172a; text-align: left;">
+          ${item.name || "Item"}
+          ${s.showDescription && item.sku ? `<div style="font-size:10px; color:#64748b; font-weight:normal;">SKU: ${item.sku}</div>` : ""}
+        </td>
+        ${s.showHSN ? `<td style="padding: 10px 8px; text-align: center; color: #475569; font-size:11px;">${item.hsn || "-"}</td>` : ""}
         <td style="padding: 10px 8px; text-align: center; color: #475569; font-family: monospace;">${item.qty || 1}</td>
         <td style="padding: 10px 8px; text-align: right; color: #475569; font-family: monospace;">${fmtVal(item.price || 0)}</td>
         <td style="padding: 10px 8px; text-align: right; font-weight: 700; color: #0f172a; font-family: monospace;">${fmtVal(item.amount || (item.price || 0) * (item.qty || 1))}</td>
@@ -533,18 +554,20 @@ export default function POSScreen() {
       )
       .join("");
 
-    const statusBg =
-      status === "Paid"
-        ? "#dcfce7"
-        : status === "Partial"
-          ? "#fef9c3"
-          : "#fee2e2";
-    const statusColor =
-      status === "Paid"
-        ? "#15803d"
-        : status === "Partial"
-          ? "#a16207"
-          : "#b91c1c";
+    const statusBg = status === "Paid" ? "#dcfce7" : status === "Partial" ? "#fef9c3" : "#fee2e2";
+    const statusColor = status === "Paid" ? "#15803d" : status === "Partial" ? "#a16207" : "#b91c1c";
+
+    const bnk = s.showBankDetails ? `
+      <div class="bank-info" style="margin-top: 20px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11px;">
+        <strong>Bank Details:</strong><br/>
+        Bank: ${s.bankName || bBankName} | A/C Name: ${s.accountHolder || bName}<br/>
+        A/C No: ${s.accountNumber || bAccNo} | IFSC: ${s.ifsc || bIfsc}
+      </div>
+    ` : "";
+    
+    const upi = s.showUPIQR ? `<div style="font-size:11px; margin-top:10px;"><strong>UPI ID:</strong> ${s.upiId || bUpiId}</div>` : "";
+
+    const terms = s.termsAndConditions ? `<div style="font-size: 10px; color: #64748b; margin-top: 10px; white-space: pre-wrap;"><strong>Terms:</strong><br/>${s.termsAndConditions}</div>` : "";
 
     const printHtml = `
       <!DOCTYPE html>
@@ -553,43 +576,27 @@ export default function POSScreen() {
           <meta charset="utf-8" />
           <title>Invoice - ${invoiceNo}</title>
           <style>
-            @page { size: A4; margin: 12mm; }
+            @page { size: ${cssPageSize}; margin: 10mm; }
             * { box-sizing: border-box; margin: 0; padding: 0; }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-              color: #0f172a;
-              background: #ffffff;
-              padding: 20px;
-              font-size: 13px;
-            }
-            .invoice-card {
-              max-width: 680px;
-              margin: 0 auto;
-              border: 1px solid #cbd5e1;
-              border-radius: 12px;
-              padding: 28px;
-              background: #ffffff;
-            }
-            .header-table { width: 100%; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; }
-            .brand { font-size: 22px; font-weight: 800; color: #2563eb; letter-spacing: -0.5px; }
-            .subtext { font-size: 12px; color: #64748b; margin-top: 2px; }
-            .inv-title { font-size: 20px; font-weight: 800; color: #0f172a; font-family: monospace; text-align: right; }
+            body { font-family: sans-serif; color: #0f172a; background: #ffffff; padding: 20px; font-size: 13px; }
+            .invoice-card { max-width: ${maxW}; margin: 0 auto; border: ${tpl.border}; border-radius: 12px; padding: 28px; background: #ffffff; }
+            .header-table { width: 100%; margin-bottom: 24px; padding: 16px; background-color: ${tpl.headerBg}; color: ${tpl.headerColor}; border-radius: 8px; }
+            .brand { font-size: 22px; font-weight: 800; }
+            .subtext { font-size: 12px; margin-top: 2px; opacity: 0.9; }
+            .inv-title { font-size: 20px; font-weight: 800; font-family: monospace; text-align: right; text-transform: uppercase; }
             .status-pill { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; margin-top: 6px; background: ${statusBg}; color: ${statusColor}; }
-            .bill-to { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
-            .bill-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+            .bill-to { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
+            .bill-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
             .bill-name { font-size: 14px; font-weight: 700; color: #0f172a; margin-top: 2px; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; padding: 8px; }
+            th { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; padding: 8px; text-align: right; }
             .totals-container { display: flex; justify-content: flex-end; }
             .totals-box { width: 260px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; }
             .row { display: flex; justify-content: space-between; font-size: 12px; color: #475569; margin-bottom: 6px; }
             .row.total { border-top: 2px solid #e2e8f0; padding-top: 8px; margin-top: 8px; font-size: 15px; font-weight: 800; color: #0f172a; }
             .row.due { border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 6px; font-weight: 700; }
-            .bank-info { margin-top: 20px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11px; }
             .footer-note { margin-top: 28px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 16px; }
             .footer-greeting { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
-            .footer-terms { font-size: 10px; color: #64748b; margin-bottom: 6px; white-space: pre-line; }
-            .footer-brand { font-size: 10px; color: #94a3b8; font-weight: 500; }
           </style>
         </head>
         <body>
@@ -597,13 +604,13 @@ export default function POSScreen() {
             <table class="header-table">
               <tr>
                 <td style="border:none; padding:0;">
-                  <div class="brand">${bName}</div>
-                  ${bTagline ? `<div class="subtext">${bTagline}</div>` : ""}
-                  ${bAddress ? `<div class="subtext">${bAddress}</div>` : ""}
-                  ${bGstin ? `<div class="subtext">${bGstin} ${bPhone ? " | " + bPhone : ""}</div>` : ""}
+                  <div class="brand">${activeBiz.businessName || "Your Business Name"}</div>
+                  ${activeBiz.address ? `<div class="subtext">${activeBiz.address}, ${activeBiz.city}</div>` : ""}
+                  ${activeBiz.gstin ? `<div class="subtext">GSTIN: ${activeBiz.gstin}</div>` : ""}
                 </td>
                 <td style="border:none; padding:0; text-align:right;">
-                  <div class="inv-title">${invoiceNo}</div>
+                  <div class="inv-title">${s.invoiceTitle || "Tax Invoice"}</div>
+                  <div class="subtext">${invoiceNo}</div>
                   <div class="subtext">Date: ${dateStr}</div>
                   <div><span class="status-pill">${status}</span></div>
                 </td>
@@ -612,16 +619,17 @@ export default function POSScreen() {
 
             <div class="bill-to">
               <div class="bill-label">Billed To</div>
-              <div class="bill-name">${order?.customerName || customer}</div>
+              <div class="bill-name">${s.showCustomerName ? (order?.customerName || customer) : "Customer"}</div>
             </div>
 
             <table>
               <thead>
                 <tr>
                   <th style="text-align: left;">Item</th>
+                  ${s.showHSN ? `<th style="text-align: center;">HSN</th>` : ""}
                   <th style="text-align: center;">Qty</th>
-                  <th style="text-align: right;">Rate</th>
-                  <th style="text-align: right;">Amount</th>
+                  <th>Rate</th>
+                  <th>Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -635,26 +643,30 @@ export default function POSScreen() {
                   <span>Subtotal</span>
                   <span style="font-family: monospace;">${fmtVal(invoiceSubtotal)}</span>
                 </div>
+                ${s.showTax ? `
                 <div class="row">
                   <span>GST Tax</span>
                   <span style="font-family: monospace; color: #16a34a;">+${fmtVal(invoiceGst)}</span>
                 </div>
+                ` : ""}
                 <div class="row total">
                   <span>Total Amount</span>
-                  <span style="font-family: monospace; color: #2563eb;">${fmtVal(invoiceTotal)}</span>
+                  <span style="font-family: monospace; color: ${s.primaryColor || '#2563eb'};">${fmtVal(invoiceTotal)}</span>
                 </div>
                 <div class="row" style="margin-top: 4px;">
                   <span>Amount Paid</span>
                   <span style="font-family: monospace; color: #16a34a; font-weight: 700;">${fmtVal(invoicePaid)}</span>
                 </div>
+                ${s.showBalanceDue ? `
                 <div class="row due">
                   <span>Balance Due</span>
                   <span style="font-family: monospace; color: ${invoiceDue > 0 ? "#dc2626" : "#16a34a"};">${fmtVal(invoiceDue)}</span>
                 </div>
+                ` : ""}
               </div>
             </div>
 
-            ${(showBank || showUpiQr || bBankName || bUpiId) ? `
+            ${(showBank || showUpiQr || bBankName || bUpiId || bnk || upi) ? `
               <div class="bank-info" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11px;">
                 <div>
                   <strong style="color: #0f172a; font-size: 12px; display: block; margin-bottom: 4px;">Payment Remittance Info:</strong>
@@ -683,10 +695,20 @@ export default function POSScreen() {
               </div>
             ` : ""}
 
+            <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+              <div>
+                ${terms}
+              </div>
+              ${s.showSignature ? `
+              <div style="text-align: right; width: 150px; display: flex; flex-direction: column; justify-content: flex-end;">
+                ${s.signatureUrl ? `<img src="${s.signatureUrl}" style="height: 50px; object-fit: contain; margin-bottom: 5px;" />` : `<div style="height: 50px; border-bottom: 1px dashed #ccc; margin-bottom: 5px;"></div>`}
+                <div style="font-size: 10px; font-weight: 600;">Authorized Signatory</div>
+              </div>
+              ` : ""}
+            </div>
+
             <div class="footer-note">
-              <div class="footer-greeting">${bFooter}</div>
-              ${bTerms ? `<div class="footer-terms">Terms & Conditions: ${bTerms}</div>` : ""}
-              <div class="footer-brand">Powered by SmartBill Pro</div>
+              <div class="footer-greeting">${s.invoiceFooter || bFooter}</div>
             </div>
           </div>
         </body>
