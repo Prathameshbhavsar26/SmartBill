@@ -270,25 +270,26 @@ export const login = async (req, res) => {
       });
     }
 
-    const query =
-      identifier.type === "email"
-        ? { email: identifier.value }
-        : { phone: identifier.value };
+    let user = null;
 
-    const user = await User.findOne(query);
-
-    if (!user) {
-      const label =
-        identifier.type === "email" ? "email" : "mobile number";
-
-      return res.status(400).json({
-        message: `Invalid ${label} or password.`,
-      });
+    if (identifier.type === "email") {
+      const candidate = await User.findOne({ email: identifier.value });
+      if (candidate) {
+        const match = await bcrypt.compare(password, candidate.password);
+        if (match) user = candidate;
+      }
+    } else {
+      const candidates = await User.find({ phone: identifier.value });
+      for (const candidate of candidates) {
+        const match = await bcrypt.compare(password, candidate.password);
+        if (match) {
+          user = candidate;
+          break;
+        }
+      }
     }
 
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match) {
+    if (!user) {
       const label =
         identifier.type === "email" ? "email" : "mobile number";
 
@@ -322,6 +323,7 @@ export const login = async (req, res) => {
         requireOtp: true,
         phone: targetPhone,
         userId: user._id,
+        otp: otp,
         message: `Two-Factor OTP sent to +91 ${targetPhone.slice(-4).padStart(10, "*")}`,
       });
     }
@@ -387,6 +389,13 @@ export const updateProfile = async (req, res) => {
   try {
     userId = req.user._id || req.user.id;
 
+    const currentUserDoc = await User.findById(userId);
+    if (!currentUserDoc) {
+      return res.status(404).json({
+        message: "User profile not found.",
+      });
+    }
+
     const {
       firstName,
       lastName,
@@ -396,46 +405,34 @@ export const updateProfile = async (req, res) => {
       phone,
     } = req.body;
 
-    // ----------------------------------------------
-    // Validation
-    // ----------------------------------------------
+    // Use provided values or keep existing ones from database
+    const resolvedFirstName = firstName !== undefined ? String(firstName).trim() : currentUserDoc.firstName;
+    const resolvedLastName = lastName !== undefined ? String(lastName).trim() : (currentUserDoc.lastName || "");
+    const resolvedBusinessName = businessName !== undefined ? String(businessName).trim() : currentUserDoc.businessName;
+    const resolvedEmail = email !== undefined ? String(email).trim().toLowerCase() : currentUserDoc.email;
 
-    if (!firstName || !String(firstName).trim()) {
+    if (!resolvedFirstName) {
       return res.status(400).json({
         message: "First name is required.",
         field: "firstName",
       });
     }
 
-    if (!businessName || !String(businessName).trim()) {
+    if (!resolvedBusinessName) {
       return res.status(400).json({
         message: "Business name is required.",
         field: "businessName",
       });
     }
 
-    const normalizedEmail = String(email ?? "")
-      .trim()
-      .toLowerCase();
-
-    if (
-      !normalizedEmail ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
-    ) {
+    if (!resolvedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resolvedEmail)) {
       return res.status(400).json({
         message: "A valid email is required.",
         field: "email",
       });
     }
 
-    const currentUserDoc = await User.findById(userId);
-    if (!currentUserDoc) {
-      return res.status(404).json({
-        message: "User profile not found.",
-      });
-    }
-
-    let normalizedPhone = normalizePhone(phone);
+    let normalizedPhone = phone !== undefined ? normalizePhone(phone) : currentUserDoc.phone;
     if (!normalizedPhone || normalizedPhone.length < 5) {
       normalizedPhone = currentUserDoc.phone || "";
     }
@@ -446,9 +443,9 @@ export const updateProfile = async (req, res) => {
     // Check whether email belongs to another user (only if email changed)
     // ----------------------------------------------
 
-    if (normalizedEmail && normalizedEmail !== currentUserDoc.email) {
+    if (resolvedEmail && resolvedEmail !== currentUserDoc.email) {
       const existingEmail = await User.findOne({
-        email: normalizedEmail,
+        email: resolvedEmail,
         _id: { $ne: userId },
       });
 
@@ -465,11 +462,11 @@ export const updateProfile = async (req, res) => {
     // ----------------------------------------------
 
     updateFields = {
-      firstName: String(firstName).trim(),
-      lastName: String(lastName || "").trim(),
-      businessName: String(businessName).trim(),
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
+      businessName: resolvedBusinessName,
       businessType: normalizedBusinessType,
-      email: normalizedEmail,
+      email: resolvedEmail,
       phone: normalizedPhone,
     };
 

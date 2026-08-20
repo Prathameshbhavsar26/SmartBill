@@ -61,6 +61,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
   const [login2faPhone, setLogin2faPhone] = useState("");
   const [loginOtpVerifying, setLoginOtpVerifying] = useState(false);
   const [loginOtpError, setLoginOtpError] = useState("");
+  const [devOtpHint, setDevOtpHint] = useState("");
 
   // ---- Error state ----
   const [loginEmailError, setLoginEmailError] = useState("");
@@ -163,6 +164,7 @@ export default function AuthScreen({ view, onNav, onLogin }) {
         setLoginRequireOtp(true);
         setLogin2faUserId(data.userId);
         setLogin2faPhone(data.phone);
+        setDevOtpHint(String(data.otp || ""));
         setLoginOtp("");
         setLoginOtpError("");
         showToast(data.message || "OTP code sent to your registered phone", "info");
@@ -397,226 +399,237 @@ export default function AuthScreen({ view, onNav, onLogin }) {
             <ArrowRight className="w-3 h-3 rotate-180" /> Back to home
           </button>
 
-          {view === "login" && loginRequireOtp ? (
-            <div className="space-y-4">
-              <div className="text-center mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
-                  <Lock className="w-6 h-6" />
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-                  Two-Factor Verification
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Enter the 6-digit OTP code sent to your registered phone number ending in <span className="font-bold text-slate-700 dark:text-slate-200">+{login2faPhone ? login2faPhone.slice(-4) : "••••"}</span>
-                </p>
-              </div>
-
-              {loginOtpError && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {loginOtpError}
-                </div>
-              )}
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
-                  6-Digit Security OTP
-                </label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  autoFocus
-                  placeholder="Enter 6-digit OTP"
-                  value={loginOtp}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    setLoginOtp(val);
-                    if (loginOtpError) setLoginOtpError("");
-                  }}
-                  className="w-full text-center tracking-[0.35em] font-mono text-lg font-bold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl py-3 text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                />
-              </div>
-
-              <Btn
-                variant="primary"
-                size="lg"
-                onClick={handleVerify2FaLogin}
-                className="w-full justify-center mt-2"
-                disabled={loginOtpVerifying || loginOtp.length !== 6}
-              >
-                {loginOtpVerifying ? "Verifying OTP..." : "Verify & Sign In"}
-              </Btn>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginRequireOtp(false);
-                  setLoginOtp("");
-                  setLoginOtpError("");
-                }}
-                className="w-full text-center text-xs text-slate-500 hover:text-slate-700 py-1 cursor-pointer"
-              >
-                Cancel & Return to Login
-              </button>
-            </div>
-          ) : view === "login" ? (
-            <>
-              <h2 className="text-2xl font-bold text-slate-900 mb-1">
-                Welcome back
-              </h2>
-              <p className="text-sm text-slate-500 mb-6">
-                Sign in to your BillTrack account
-              </p>
+          {view === "login" && (
+            loginRequireOtp ? (
               <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
-                    Login As
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {["owner", "superadmin"].map((r) => (
-                      <button
-                        key={r}
-                        onClick={() => setRole(r)}
-                        className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all capitalize ${role === r ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}
-                      >
-                        {r === "superadmin" ? "Super Admin" : "Business Owner"}
-                      </button>
-                    ))}
+                <div className="text-center mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
+                    <Lock className="w-6 h-6" />
                   </div>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+                    Two-Factor Verification
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Enter the 6-digit OTP code sent to your registered phone number ending in <span className="font-bold text-slate-700 dark:text-slate-200">+{login2faPhone ? login2faPhone.slice(-4) : "••••"}</span>
+                  </p>
                 </div>
 
-                {formError && (
+                {loginOtpError && (
                   <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    {formError}
+                    {loginOtpError}
                   </div>
                 )}
 
-                {role === "owner" && (
-                  <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
-                      Sign in with
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
-                      {["email", "phone"].map((m) => {
-                        const active = loginMethod === m;
-                        return (
-                          <button
-                            key={m}
-                            onClick={() => {
-                              setLoginMethod(m);
-                              setLoginEmailError("");
-                              setLoginPhoneError("");
-                            }}
-                            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${active ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-700"}`}
-                          >
-                            {m === "email" ? (
-                              <Mail
-                                className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
-                              />
-                            ) : (
-                              <Phone
-                                className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
-                              />
-                            )}
-                            {m === "email" ? "Email" : "Mobile"}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {role === "superadmin" || loginMethod === "email" ? (
-                  <Input
-                    label="Email Address"
-                    value={email}
-                    onChange={(v) => {
-                      const trimmed = String(v ?? "").trimStart();
-                      setEmail(trimmed);
-                      if (trimmed && isValidEmail(trimmed))
-                        setLoginEmailError("");
-                      else setLoginEmailError(getLoginEmailError(trimmed));
-                    }}
-                    placeholder=""
-                    icon={<Mail className="w-4 h-4" />}
-                    error={loginEmailError}
-                  />
-                ) : (
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Mobile Number
-                    </label>
-                    <FixedPhoneInput
-                      placeholder="+91"
-                      icon={<Phone className="w-4 h-4" />}
-                      value={loginPhone}
-                      onChange={(value) => {
-                        setLoginPhone(value);
-                        setLoginPhoneError(validatePhone(value, false));
-                      }}
-                      error={loginPhoneError}
-                    />
-                  </div>
-                )}
-                <Input
-                  label="Password"
-                  type="password"
-                  value={password}
-                  onChange={(v) => {
-                    setPassword(v);
-                    const err = validateLoginPassword(v);
-                    if (!err) setLoginPasswordError("");
-                    else setLoginPasswordError(err);
-                  }}
-                  placeholder="••••••••"
-                  icon={<Lock className="w-4 h-4" />}
-                  error={loginPasswordError}
-                />
-                <div className="flex justify-between items-center text-xs">
-                  <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      defaultChecked
-                      className="accent-blue-600"
-                    />
-                    Remember me
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                    6-Digit Security OTP
                   </label>
-                  <button
-                    onClick={() => onNav("forgot")}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Forgot password?
-                  </button>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    autoFocus
+                    placeholder="Enter 6-digit OTP"
+                    value={loginOtp}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      setLoginOtp(val);
+                      if (loginOtpError) setLoginOtpError("");
+                    }}
+                    className="w-full text-center tracking-[0.35em] font-mono text-lg font-bold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl py-3 text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  {devOtpHint && (
+                    <div className="mt-2.5 p-2.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl text-center">
+                      <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                        Demo OTP Code: <span className="font-mono font-bold tracking-widest text-blue-900 dark:text-blue-200 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">{devOtpHint}</span>
+                      </p>
+                    </div>
+                  )}
                 </div>
+
                 <Btn
                   variant="primary"
                   size="lg"
-                  onClick={handleSubmit}
-                  className="w-full justify-center"
-                  disabled={loading}
-                  icon={
-                    loading ? (
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <LogIn className="w-4 h-4" />
-                    )
-                  }
+                  onClick={handleVerify2FaLogin}
+                  className="w-full justify-center mt-2"
+                  disabled={loginOtpVerifying || loginOtp.length !== 6}
                 >
-                  {loading ? "Signing in..." : "Sign In"}
+                  {loginOtpVerifying ? "Verifying OTP..." : "Verify & Sign In"}
                 </Btn>
-              </div>
-              <p className="text-xs text-center text-slate-500 mt-5">
-                Don't have an account?{" "}
+
                 <button
-                  onClick={() => onNav("register")}
-                  className="text-blue-600 font-medium hover:underline"
+                  type="button"
+                  onClick={() => {
+                    setLoginRequireOtp(false);
+                    setLoginOtp("");
+                    setLoginOtpError("");
+                  }}
+                  className="w-full text-center text-xs text-slate-500 hover:text-slate-700 py-1 cursor-pointer"
                 >
-                  Register Business
+                  Cancel & Return to Login
                 </button>
-              </p>
-            </>
-          ) : null}
+
+              </div>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-slate-900 mb-1">
+                  Welcome back
+                </h2>
+                <p className="text-sm text-slate-500 mb-6">
+                  Sign in to your SmartBill account
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                      Login As
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {["owner", "superadmin"].map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setRole(r)}
+                          className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all capitalize ${role === r ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}
+                        >
+                          {r === "superadmin" ? "Super Admin" : "Business Owner"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {formError && (
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      {formError}
+                    </div>
+                  )}
+
+                  {role === "owner" && (
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                        Sign in with
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                        {["email", "phone"].map((m) => {
+                          const active = loginMethod === m;
+                          return (
+                            <button
+                              key={m}
+                              onClick={() => {
+                                setLoginMethod(m);
+                                setLoginEmailError("");
+                                setLoginPhoneError("");
+                              }}
+                              className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${active ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-700"}`}
+                            >
+                              {m === "email" ? (
+                                <Mail
+                                  className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
+                                />
+                              ) : (
+                                <Phone
+                                  className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
+                                />
+                              )}
+                              {m === "email" ? "Email" : "Mobile"}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {role === "superadmin" || loginMethod === "email" ? (
+                    <Input
+                      label="Email Address"
+                      value={email}
+                      onChange={(v) => {
+                        const trimmed = String(v ?? "").trimStart();
+                        setEmail(trimmed);
+                        if (trimmed && isValidEmail(trimmed))
+                          setLoginEmailError("");
+                        else setLoginEmailError(getLoginEmailError(trimmed));
+                      }}
+                      placeholder=""
+                      icon={<Mail className="w-4 h-4" />}
+                      error={loginEmailError}
+                    />
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        Mobile Number
+                      </label>
+                      <FixedPhoneInput
+                        placeholder="+91"
+                        icon={<Phone className="w-4 h-4" />}
+                        value={loginPhone}
+                        onChange={(value) => {
+                          setLoginPhone(value);
+                          setLoginPhoneError(validatePhone(value, false));
+                        }}
+                        error={loginPhoneError}
+                      />
+                    </div>
+                  )}
+                  <Input
+                    label="Password"
+                    type="password"
+                    value={password}
+                    onChange={(v) => {
+                      setPassword(v);
+                      const err = validateLoginPassword(v);
+                      if (!err) setLoginPasswordError("");
+                      else setLoginPasswordError(err);
+                    }}
+                    placeholder="••••••••"
+                    icon={<Lock className="w-4 h-4" />}
+                    error={loginPasswordError}
+                  />
+                  <div className="flex justify-between items-center text-xs">
+                    <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        className="accent-blue-600"
+                      />
+                      Remember me
+                    </label>
+                    <button
+                      onClick={() => onNav("forgot")}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <Btn
+                    variant="primary"
+                    size="lg"
+                    onClick={handleLogin}
+                    className="w-full justify-center"
+                    disabled={loading}
+                    icon={
+                      loading ? (
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <LogIn className="w-4 h-4" />
+                      )
+                    }
+                  >
+                    {loading ? "Signing in..." : "Sign In"}
+                  </Btn>
+                </div>
+                <p className="text-xs text-center text-slate-500 mt-5">
+                  Don't have an account?{" "}
+                  <button
+                    onClick={() => onNav("register")}
+                    className="text-blue-600 font-medium hover:underline"
+                  >
+                    Register Business
+                  </button>
+                </p>
+              </>
+            )
+          )}
+
 
           {view === "register" && (
             <>

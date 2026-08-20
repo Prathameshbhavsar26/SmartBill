@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   BarChart2,
   Download,
@@ -12,16 +12,25 @@ import {
   Trash2,
   X,
   RefreshCw,
+  RotateCcw,
+  Tag,
+  Percent,
+  CheckCircle2,
+  Lock,
+  Edit3,
 } from "lucide-react";
 import { posProducts } from "../../data/mockData";
 import { fmt } from "../../utils/format";
-import { Badge, Btn, Card, Input, Select } from "../../components/common/ui";
+import { Badge, Btn, Card, Input, Select, Modal } from "../../components/common/ui";
 import { fetchCustomers, createCustomer } from "../../api/customerAPI";
-import { createOrder } from "../../api/orderAPI";
+import { createOrder, createOrderReturn, fetchOrders } from "../../api/orderAPI";
 import { getProducts } from "../../api/productAPI";
 import { getInvoiceSettings } from "../../api/invoiceSettingsAPI";
+import { useTransactionSettings } from "../../hooks/useTransactionSettings";
 
 export default function POSScreen() {
+  const { settings: txSettings } = useTransactionSettings();
+
   const [cart, setCart] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [productList, setProductList] = useState(posProducts);
@@ -36,6 +45,7 @@ export default function POSScreen() {
   const [amountPaid, setAmountPaid] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [successToast, setSuccessToast] = useState("");
   const [lastOrder, setLastOrder] = useState(null);
   const [invSettings, setInvSettings] = useState({});
 
@@ -45,6 +55,57 @@ export default function POSScreen() {
     }).catch(console.warn);
   }, []);
 
+  // Global Invoice Discount state (for Entire Invoice mode)
+  const [globalDiscount, setGlobalDiscount] = useState(0);
+
+  // --- SALES RETURN MODAL STATES ---
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [pastOrders, setPastOrders] = useState([]);
+  const [returnInvoiceNo, setReturnInvoiceNo] = useState("");
+  const [selectedReturnOrder, setSelectedReturnOrder] = useState(null);
+  const [returnItems, setReturnItems] = useState([]);
+  const [returnPasscode, setReturnPasscode] = useState("");
+  const [returnReason, setReturnReason] = useState("Customer Return");
+  const [returnPaymentMode, setReturnPaymentMode] = useState("Cash");
+  const [processingReturn, setProcessingReturn] = useState(false);
+  const [returnError, setReturnError] = useState("");
+  const [manualReturnProduct, setManualReturnProduct] = useState("");
+
+  const showToast = (msg) => {
+    setSuccessToast(msg);
+    setTimeout(() => setSuccessToast(""), 4000);
+  };
+
+  // Helper to extract product ID safely (supporting MongoDB _id and legacy id)
+  const getProductId = (p) => {
+    if (!p) return undefined;
+    return p._id || p.id;
+  };
+
+  // Pricing rule from Transaction Settings: Retail Price, Wholesale Price, or Minimum Sale Price
+  const getProductDefaultPrice = useCallback(
+    (p) => {
+      if (!p) return 0;
+      const mode = txSettings?.salePrice || "Retail Price";
+      if (mode === "Wholesale Price") {
+        return p.wholesalePrice && Number(p.wholesalePrice) > 0
+          ? Number(p.wholesalePrice)
+          : p.cost && Number(p.cost) > 0
+            ? Math.round(Number(p.cost) * 1.15)
+            : Number(p.price) || 0;
+      }
+      if (mode === "Minimum Sale Price") {
+        return p.minPrice && Number(p.minPrice) > 0
+          ? Number(p.minPrice)
+          : p.cost && Number(p.cost) > 0
+            ? Number(p.cost)
+            : Number(p.price) || 0;
+      }
+      return Number(p.price) || 0;
+    },
+    [txSettings?.salePrice]
+  );
+
   // Derived selected customer matching current customer input
   const selectedCustomer = (customers || []).find(
     (c) =>
@@ -53,12 +114,6 @@ export default function POSScreen() {
       customer &&
       String(c.name).trim().toLowerCase() === String(customer).trim().toLowerCase()
   );
-
-  // Helper to extract product ID safely (supporting MongoDB _id and legacy id)
-  const getProductId = (p) => {
-    if (!p) return undefined;
-    return p._id || p.id;
-  };
 
   // Load products from backend API with fallback
   const loadProductsList = useCallback(async () => {
@@ -90,6 +145,28 @@ export default function POSScreen() {
     loadProductsList();
   }, [loadProductsList]);
 
+  // Load past orders for sales returns
+  const loadPastOrders = async () => {
+    try {
+      const res = await fetchOrders();
+      if (res && Array.isArray(res.orders)) {
+        setPastOrders(res.orders);
+      }
+    } catch (err) {
+      console.warn("Failed to load past orders for return:", err);
+    }
+  };
+
+  const handleOpenReturnModal = () => {
+    setShowReturnModal(true);
+    setReturnError("");
+    setReturnInvoiceNo("");
+    setSelectedReturnOrder(null);
+    setReturnItems([]);
+    setReturnPasscode("");
+    loadPastOrders();
+  };
+
   const filteredProducts = (productList || []).filter(
     (p) =>
       p &&
@@ -97,10 +174,20 @@ export default function POSScreen() {
         (p.sku && String(p.sku).toLowerCase().includes((search || "").toLowerCase())))
   );
 
+  const allowNegativeStock = txSettings?.allowNegativeStock === true;
+  const allowDiscount = txSettings?.allowDiscount !== false;
+  const allowPriceEditing = txSettings?.allowPriceEditing === true;
+  const discountAppliedOn = txSettings?.discountAppliedOn || "Item-wise";
+  const discountType = txSettings?.discountType || "Percentage";
+  const maxDiscountLimit = Number(txSettings?.maximumDiscount || 100);
+  const restrictDiscountLimit = txSettings?.restrictDiscountLimit === true;
+
   const addToCart = (p) => {
     const targetId = getProductId(p);
-    if ((p.stock || 0) <= 0) {
-      setError(`"${p.name}" is out of stock!`);
+    const inStock = Number(p.stock) || 0;
+
+    if (!allowNegativeStock && inStock <= 0) {
+      setError(`"${p.name}" is out of stock! Enable Negative Stock in Transaction Settings to allow selling.`);
       return;
     }
     setError("");
@@ -108,15 +195,24 @@ export default function POSScreen() {
     setCart((c) => {
       const ex = c.find((i) => getProductId(i.product) === targetId);
       if (ex) {
-        if (ex.qty >= p.stock) {
-          setError(`Cannot add more than available stock (${p.stock}) for ${p.name}.`);
+        if (!allowNegativeStock && ex.qty >= inStock) {
+          setError(`Cannot add more than available stock (${inStock}) for ${p.name}.`);
           return c;
         }
         return c.map((i) =>
           getProductId(i.product) === targetId ? { ...i, qty: i.qty + 1 } : i
         );
       }
-      return [...c, { product: p, qty: 1, discount: 0 }];
+      const initialPrice = getProductDefaultPrice(p);
+      return [
+        ...c,
+        {
+          product: p,
+          price: initialPrice,
+          qty: 1,
+          discount: 0,
+        },
+      ];
     });
   };
 
@@ -128,8 +224,9 @@ export default function POSScreen() {
           const itemPId = getProductId(i.product);
           if (itemPId === id) {
             const nextQty = i.qty + delta;
-            if (delta > 0 && nextQty > (i.product.stock || 0)) {
-              setError(`Cannot exceed available stock (${i.product.stock}) for ${i.product.name}.`);
+            const inStock = Number(i.product?.stock) || 0;
+            if (!allowNegativeStock && delta > 0 && nextQty > inStock) {
+              setError(`Cannot exceed available stock (${inStock}) for ${i.product?.name}.`);
               return i;
             }
             return { ...i, qty: Math.max(1, nextQty) };
@@ -140,26 +237,119 @@ export default function POSScreen() {
     );
   };
 
+  const updateItemPrice = (id, val) => {
+    const numericPrice = Math.max(0, Number(val) || 0);
+    setCart((c) =>
+      c.map((i) =>
+        getProductId(i.product) === id ? { ...i, price: numericPrice } : i
+      )
+    );
+  };
+
+  const updateItemDiscount = (id, val) => {
+    const numericVal = Math.max(0, Number(val) || 0);
+    if (restrictDiscountLimit && discountType === "Percentage" && numericVal > maxDiscountLimit) {
+      setError(`Discount cannot exceed ${maxDiscountLimit}% as per Transaction Settings.`);
+    } else {
+      setError("");
+    }
+    setCart((c) =>
+      c.map((i) =>
+        getProductId(i.product) === id ? { ...i, discount: numericVal } : i
+      )
+    );
+  };
+
   const removeItem = (id) => {
     setError("");
     setCart((c) => c.filter((i) => getProductId(i.product) !== id));
   };
 
-  const subtotal = cart.reduce(
-    (s, i) => s + (Number(i?.product?.price) || 0) * i.qty * (1 - (Number(i.discount) || 0) / 100),
+  // Financial Calculations
+  const calculatedItems = useMemo(() => {
+    return cart.map((i) => {
+      const unitPrice =
+        i.price !== undefined
+          ? Number(i.price)
+          : getProductDefaultPrice(i.product);
+      const disc =
+        allowDiscount && discountAppliedOn === "Item-wise"
+          ? Number(i.discount) || 0
+          : 0;
+
+      let itemSubtotal = unitPrice * i.qty;
+      if (disc > 0) {
+        if (discountType === "Percentage") {
+          itemSubtotal = itemSubtotal * (1 - disc / 100);
+        } else if (discountType === "Flat Amount") {
+          itemSubtotal = Math.max(0, itemSubtotal - disc);
+        }
+      }
+
+      const productGstRate = Number(
+        i?.product?.gst ?? i?.product?.gstRate ?? 18
+      );
+      const itemGst = (itemSubtotal * productGstRate) / 100;
+
+      return {
+        ...i,
+        unitPrice,
+        itemSubtotal,
+        productGstRate,
+        itemGst,
+      };
+    });
+  }, [
+    cart,
+    allowDiscount,
+    discountAppliedOn,
+    discountType,
+    getProductDefaultPrice,
+  ]);
+
+  const grossSubtotal = calculatedItems.reduce(
+    (s, i) => s + i.itemSubtotal,
     0
   );
-  const gst = Math.round(
-    cart.reduce((sum, i) => {
-      const price = Number(i?.product?.price) || 0;
-      const disc = Number(i.discount) || 0;
-      const itemSubtotal = price * i.qty * (1 - disc / 100);
-      const productGstRate = Number(i?.product?.gst ?? i?.product?.gstRate ?? 18);
-      return sum + (itemSubtotal * productGstRate) / 100;
-    }, 0)
+
+  // Global Invoice Discount (if applied on Entire Invoice)
+  let invoiceDiscountAmount = 0;
+  if (allowDiscount && discountAppliedOn === "Entire Invoice" && globalDiscount > 0) {
+    if (discountType === "Percentage") {
+      invoiceDiscountAmount = (grossSubtotal * globalDiscount) / 100;
+    } else {
+      invoiceDiscountAmount = Math.min(grossSubtotal, globalDiscount);
+    }
+  }
+
+  // Cash Discount calculation
+  let cashDiscountAmount = 0;
+  if (paymentMode === "Cash" && txSettings?.enableCashDiscount) {
+    const defaultCash = Number(txSettings?.defaultCashDiscount || 0);
+    if (defaultCash > 0) {
+      if (txSettings?.cashDiscountType === "Percentage") {
+        cashDiscountAmount = ((grossSubtotal - invoiceDiscountAmount) * defaultCash) / 100;
+      } else {
+        cashDiscountAmount = Math.min(
+          grossSubtotal - invoiceDiscountAmount,
+          defaultCash
+        );
+      }
+    }
+  }
+
+  const subtotal = Math.max(
+    0,
+    grossSubtotal - invoiceDiscountAmount - cashDiscountAmount
   );
-  const total = subtotal + gst;
-  const effectiveGstRate = subtotal > 0 ? Math.round((gst / subtotal) * 100) : 0;
+
+  const gst = Math.round(
+    calculatedItems.reduce((sum, i) => sum + i.itemGst, 0)
+  );
+
+  const total = Math.round(subtotal + gst);
+  const effectiveGstRate =
+    subtotal > 0 ? Math.round((gst / subtotal) * 100) : 0;
 
   const paidValue = Number(amountPaid);
   const balanceDue = Number.isFinite(paidValue)
@@ -172,7 +362,8 @@ export default function POSScreen() {
       const u = rawUser ? JSON.parse(rawUser) : {};
       const id = u?._id || u?.id;
       const key = id ? `businessInfo_${id}` : "businessInfo";
-      const rawB = localStorage.getItem(key) || localStorage.getItem("businessInfo");
+      const rawB =
+        localStorage.getItem(key) || localStorage.getItem("businessInfo");
       const b = rawB ? JSON.parse(rawB) : {};
       return { ...u, ...b };
     } catch {
@@ -182,7 +373,14 @@ export default function POSScreen() {
 
   const bName = activeBiz.businessName || "Smart Bill Business";
   const bTagline = activeBiz.tagline || "";
-  const bAddress = [activeBiz.address, activeBiz.city, activeBiz.state, activeBiz.pincode].filter(Boolean).join(", ");
+  const bAddress = [
+    activeBiz.address,
+    activeBiz.city,
+    activeBiz.state,
+    activeBiz.pincode,
+  ]
+    .filter(Boolean)
+    .join(", ");
   const bGstin = activeBiz.gstin ? `GSTIN: ${activeBiz.gstin}` : "";
   const bPhone = activeBiz.phone ? `Ph: ${activeBiz.phone}` : "";
   const bBankName = activeBiz.bankName || "";
@@ -190,74 +388,13 @@ export default function POSScreen() {
   const bIfsc = activeBiz.ifscCode || "";
   const bUpiId = activeBiz.upiId || "";
   const bTerms = activeBiz.invoiceTerms || "";
-  const bFooter = activeBiz.invoiceFooter || activeBiz.invoiceFooterNote || "Thank you for your business! Visit Again 🙏";
+  const bFooter =
+    activeBiz.invoiceFooter ||
+    activeBiz.invoiceFooterNote ||
+    "Thank you for your business! Visit Again 🙏";
 
-  const handleGenerateInvoice = async () => {
-    if (cart.length === 0) return;
-    setError("");
-
-    const effectivePaid = paidValue > 0 ? paidValue : total;
-
-    const items = cart.map((i) => ({
-      productId: getProductId(i.product),
-      name: i.product.name,
-      sku: i.product.sku || "",
-      price: Number(i.product.price) || 0,
-      qty: i.qty,
-      discount: Number(i.discount) || 0,
-      amount: (Number(i.product.price) || 0) * i.qty,
-    }));
-
-    let currentCustomerId = selectedCustomer ? (selectedCustomer._id || selectedCustomer.id) : null;
-    let currentCustomerName = customer || "Walk-in Customer";
-    let currentCustomerEmail = selectedCustomer?.email || customerEmail.trim();
-
-    if (!selectedCustomer && customer.trim()) {
-      try {
-        const newCust = await createCustomer({
-          name: customer.trim(),
-          phone: customerPhone.trim(),
-          city: customerCity.trim(),
-          email: customerEmail.trim()
-        });
-        currentCustomerId = newCust.customer?._id || newCust.customer?.id || newCust._id || null;
-        currentCustomerName = newCust.customer?.name || newCust.name || customer.trim();
-        // Refresh customer list in background
-        fetchCustomers().then(res => {
-          if (res && Array.isArray(res.customers)) setCustomers(res.customers);
-        }).catch(() => { });
-      } catch (err) {
-        console.error("Failed to auto-create customer", err);
-      }
-    }
-
-    const payload = {
-      customerId: currentCustomerId,
-      customerName: currentCustomerName,
-      customerEmail: currentCustomerEmail,
-      items,
-      subtotal: Math.round(subtotal),
-      gstRate: effectiveGstRate,
-      gst,
-      totalOrderValue: Math.round(total),
-      amountPaid: Math.round(effectivePaid),
-      paymentMode,
-    };
-
-    setSaving(true);
-    try {
-      const res = await createOrder(payload);
-      setLastOrder(res.order);
-      setShowInvoice(true);
-    } catch (err) {
-      setError(err?.message || "Failed to save order. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handlePrintInvoice = () => {
-    const order = lastOrder;
+  const handlePrintInvoice = (orderOverride) => {
+    const order = orderOverride || lastOrder;
     const invoiceItems =
       order?.items && order.items.length > 0
         ? order.items
@@ -265,20 +402,34 @@ export default function POSScreen() {
           name: i.product?.name || "Item",
           sku: i.product?.sku || "",
           qty: i.qty,
-          price: Number(i.product?.price) || 0,
-          amount: (Number(i.product?.price) || 0) * i.qty,
+          price:
+            i.price !== undefined
+              ? Number(i.price)
+              : getProductDefaultPrice(i.product),
+          amount:
+            (i.price !== undefined
+              ? Number(i.price)
+              : getProductDefaultPrice(i.product)) * i.qty,
         }));
 
     const invoiceSubtotal = order?.subtotal ?? subtotal;
     const invoiceGst = order?.gst ?? gst;
     const invoiceTotal = order?.totalOrderValue ?? total;
-    const invoicePaid = order?.amountPaid ?? (paidValue > 0 ? paidValue : total);
-    const invoiceDue = order?.balanceDue ?? Math.max(0, invoiceTotal - invoicePaid);
+    const invoicePaid =
+      order?.amountPaid ?? (paidValue > 0 ? paidValue : total);
+    const invoiceDue =
+      order?.balanceDue ?? Math.max(0, invoiceTotal - invoicePaid);
     const invoiceNo = order?.invoiceNo || "INV-001";
     const dateStr = order?.createdAt
       ? new Date(order.createdAt).toLocaleDateString("en-IN")
       : new Date().toLocaleDateString("en-IN");
-    const status = order?.status || (invoicePaid >= invoiceTotal ? "Paid" : invoicePaid > 0 ? "Partial" : "Due");
+    const status =
+      order?.status ||
+      (invoicePaid >= invoiceTotal
+        ? "Paid"
+        : invoicePaid > 0
+          ? "Partial"
+          : "Due");
 
     const fmtVal = (v) => "₹" + (Number(v) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -458,23 +609,204 @@ export default function POSScreen() {
     }
   };
 
+  const handleGenerateInvoice = async () => {
+    if (cart.length === 0) return;
+    setError("");
+
+    // Validate discount restrictions
+    if (restrictDiscountLimit && discountType === "Percentage") {
+      if (discountAppliedOn === "Item-wise") {
+        for (const item of cart) {
+          if (Number(item.discount || 0) > maxDiscountLimit) {
+            setError(`Discount of ${item.discount}% on "${item.product?.name}" exceeds allowed limit of ${maxDiscountLimit}%.`);
+            return;
+          }
+        }
+      } else if (globalDiscount > maxDiscountLimit) {
+        setError(`Invoice discount of ${globalDiscount}% exceeds allowed limit of ${maxDiscountLimit}%.`);
+        return;
+      }
+    }
+
+    const effectivePaid = paidValue > 0 ? paidValue : total;
+
+    const items = calculatedItems.map((i) => ({
+      productId: getProductId(i.product),
+      name: i.product?.name || "Item",
+      sku: i.product?.sku || "",
+      price: i.unitPrice,
+      qty: i.qty,
+      discount: Number(i.discount) || 0,
+      amount: i.itemSubtotal,
+    }));
+
+    let currentCustomerId = selectedCustomer
+      ? selectedCustomer._id || selectedCustomer.id
+      : null;
+    let currentCustomerName = customer || "Walk-in Customer";
+    let currentCustomerEmail = selectedCustomer?.email || customerEmail.trim();
+
+    if (!selectedCustomer && customer.trim()) {
+      try {
+        const newCust = await createCustomer({
+          name: customer.trim(),
+          phone: customerPhone.trim(),
+          city: customerCity.trim(),
+          email: customerEmail.trim(),
+        });
+        currentCustomerId =
+          newCust.customer?._id ||
+          newCust.customer?.id ||
+          newCust._id ||
+          null;
+        currentCustomerName =
+          newCust.customer?.name || newCust.name || customer.trim();
+        fetchCustomers()
+          .then((res) => {
+            if (res && Array.isArray(res.customers))
+              setCustomers(res.customers);
+          })
+          .catch(() => {});
+      } catch (err) {
+        console.error("Failed to auto-create customer", err);
+      }
+    }
+
+    const payload = {
+      customerId: currentCustomerId,
+      customerName: currentCustomerName,
+      customerEmail: currentCustomerEmail,
+      items,
+      subtotal: Math.round(subtotal),
+      gstRate: effectiveGstRate,
+      gst,
+      discount: invoiceDiscountAmount,
+      cashDiscount: cashDiscountAmount,
+      totalOrderValue: Math.round(total),
+      amountPaid: Math.round(effectivePaid),
+      paymentMode,
+    };
+
+    setSaving(true);
+    try {
+      const res = await createOrder(payload);
+      setLastOrder(res.order);
+
+      // Behavior: Print After Saving
+      if (txSettings?.printAfterSaving) {
+        handlePrintInvoice(res.order);
+      }
+
+      // Behavior: Show Print Preview
+      if (txSettings?.showPrintPreview !== false) {
+        setShowInvoice(true);
+      } else {
+        // Direct reset for quick billing
+        setCart([]);
+        setAmountPaid("");
+        setGlobalDiscount(0);
+        showToast("✓ Invoice created successfully!");
+      }
+      loadProductsList();
+    } catch (err) {
+      setError(err?.message || "Failed to save order. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // --- SALES RETURN EXECUTION ---
+  const handleSelectOrderForReturn = (order) => {
+    setSelectedReturnOrder(order);
+    setReturnInvoiceNo(order.invoiceNo);
+    const initialItems = (order.items || []).map((it) => ({
+      ...it,
+      returnQty: it.qty,
+      selected: true,
+    }));
+    setReturnItems(initialItems);
+  };
+
+  const handleProcessSalesReturn = async () => {
+    setReturnError("");
+    setProcessingReturn(true);
+
+    try {
+      const activeItemsToReturn = returnItems
+        .filter((it) => it.selected && Number(it.returnQty) > 0)
+        .map((it) => ({
+          productId: it.productId,
+          name: it.name,
+          sku: it.sku,
+          price: it.price,
+          qty: Number(it.returnQty),
+          amount: (Number(it.price) || 0) * Number(it.returnQty),
+        }));
+
+      if (activeItemsToReturn.length === 0) {
+        setReturnError("Please select at least one item and quantity to return.");
+        setProcessingReturn(false);
+        return;
+      }
+
+      const totalRefund = activeItemsToReturn.reduce(
+        (s, i) => s + (i.amount || 0),
+        0
+      );
+
+      const payload = {
+        orderId: selectedReturnOrder?._id,
+        invoiceNo: returnInvoiceNo.trim(),
+        items: activeItemsToReturn,
+        reason: returnReason,
+        refundAmount: totalRefund,
+        paymentMode: returnPaymentMode,
+        passcode: returnPasscode,
+      };
+
+      const res = await createOrderReturn(payload);
+
+      showToast(
+        `✓ Sales Return processed! Refund: ${fmt(res.refundAmount)}${
+          res.restoredStock ? " (Stock restored to inventory)" : ""
+        }`
+      );
+      setShowReturnModal(false);
+      loadProductsList();
+    } catch (err) {
+      setReturnError(
+        err?.response?.data?.message || err?.message || "Failed to process sales return."
+      );
+    } finally {
+      setProcessingReturn(false);
+    }
+  };
+
   if (showInvoice) {
     const order = lastOrder;
     const invoiceItems =
       order?.items && order.items.length > 0
         ? order.items
         : cart.map((i) => ({
-          name: i.product?.name || "Item",
-          qty: i.qty,
-          price: Number(i.product?.price) || 0,
-          amount: (Number(i.product?.price) || 0) * i.qty,
-        }));
+            name: i.product?.name || "Item",
+            qty: i.qty,
+            price:
+              i.price !== undefined
+                ? Number(i.price)
+                : getProductDefaultPrice(i.product),
+            amount:
+              (i.price !== undefined
+                ? Number(i.price)
+                : getProductDefaultPrice(i.product)) * i.qty,
+          }));
 
     const invoiceSubtotal = order?.subtotal ?? subtotal;
     const invoiceGst = order?.gst ?? gst;
     const invoiceTotal = order?.totalOrderValue ?? total;
-    const invoicePaid = order?.amountPaid ?? (paidValue > 0 ? paidValue : total);
-    const invoiceDue = order?.balanceDue ?? Math.max(0, invoiceTotal - invoicePaid);
+    const invoicePaid =
+      order?.amountPaid ?? (paidValue > 0 ? paidValue : total);
+    const invoiceDue =
+      order?.balanceDue ?? Math.max(0, invoiceTotal - invoicePaid);
 
     return (
       <div className="max-w-2xl mx-auto">
@@ -485,6 +817,7 @@ export default function POSScreen() {
             setShowInvoice(false);
             setCart([]);
             setAmountPaid("");
+            setGlobalDiscount(0);
             setLastOrder(null);
           }}
           className="mb-4"
@@ -496,7 +829,11 @@ export default function POSScreen() {
             <div>
               <div className="flex items-center gap-3 mb-1">
                 {activeBiz.logoUrl ? (
-                  <img src={activeBiz.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700" />
+                  <img
+                    src={activeBiz.logoUrl}
+                    alt="Logo"
+                    className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700"
+                  />
                 ) : (
                   <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white">
                     <BarChart2 className="w-5 h-5 text-white" />
@@ -507,15 +844,21 @@ export default function POSScreen() {
                     {activeBiz.businessName || "Smart Bill"}
                   </h2>
                   {activeBiz.tagline && (
-                    <p className="text-xs font-medium text-blue-600 dark:text-blue-400">{activeBiz.tagline}</p>
+                    <p className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                      {activeBiz.tagline}
+                    </p>
                   )}
                 </div>
               </div>
               {bAddress && (
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">{bAddress}</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
+                  {bAddress}
+                </p>
               )}
               {bGstin && (
-                <p className="text-xs font-mono text-slate-400 mt-0.5">{bGstin}</p>
+                <p className="text-xs font-mono text-slate-400 mt-0.5">
+                  {bGstin}
+                </p>
               )}
               {bPhone && (
                 <p className="text-xs font-mono text-slate-400">{bPhone}</p>
@@ -533,11 +876,28 @@ export default function POSScreen() {
               </p>
               <div className="mt-1.5 flex justify-end">
                 <Badge
-                  label={order?.status || (invoicePaid >= invoiceTotal ? "Paid" : invoicePaid > 0 ? "Partial" : "Due")}
+                  label={
+                    order?.status ||
+                    (invoicePaid >= invoiceTotal
+                      ? "Paid"
+                      : invoicePaid > 0
+                        ? "Partial"
+                        : "Due")
+                  }
                   variant={
-                    (order?.status || (invoicePaid >= invoiceTotal ? "Paid" : invoicePaid > 0 ? "Partial" : "Due")) === "Paid"
+                    (order?.status ||
+                      (invoicePaid >= invoiceTotal
+                        ? "Paid"
+                        : invoicePaid > 0
+                          ? "Partial"
+                          : "Due")) === "Paid"
                       ? "green"
-                      : (order?.status || (invoicePaid >= invoiceTotal ? "Paid" : invoicePaid > 0 ? "Partial" : "Due")) === "Partial"
+                      : (order?.status ||
+                            (invoicePaid >= invoiceTotal
+                              ? "Paid"
+                              : invoicePaid > 0
+                                ? "Partial"
+                                : "Due")) === "Partial"
                         ? "yellow"
                         : "red"
                   }
@@ -547,7 +907,9 @@ export default function POSScreen() {
           </div>
 
           <div className="mb-6 bg-slate-50/80 dark:bg-slate-800/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Billed To</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+              Billed To
+            </p>
             <p className="font-bold text-slate-900 dark:text-white text-sm">
               {order?.customerName || customer}
             </p>
@@ -565,8 +927,12 @@ export default function POSScreen() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {invoiceItems.map((i, idx) => (
                 <tr key={idx}>
-                  <td className="py-3 text-xs font-bold text-slate-800 dark:text-slate-200">{i.name}</td>
-                  <td className="py-3 text-xs text-center font-mono font-medium text-slate-600 dark:text-slate-300">{i.qty}</td>
+                  <td className="py-3 text-xs font-bold text-slate-800 dark:text-slate-200">
+                    {i.name}
+                  </td>
+                  <td className="py-3 text-xs text-center font-mono font-medium text-slate-600 dark:text-slate-300">
+                    {i.qty}
+                  </td>
                   <td className="py-3 text-xs text-right font-mono text-slate-600 dark:text-slate-400">
                     {fmt(i.price)}
                   </td>
@@ -582,15 +948,21 @@ export default function POSScreen() {
             <div className="w-64 space-y-2 text-xs bg-slate-50/60 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Subtotal</span>
-                <span className="font-mono font-medium">{fmt(invoiceSubtotal)}</span>
+                <span className="font-mono font-medium">
+                  {fmt(invoiceSubtotal)}
+                </span>
               </div>
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>GST Tax</span>
-                <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">+{fmt(invoiceGst)}</span>
+                <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                  +{fmt(invoiceGst)}
+                </span>
               </div>
               <div className="flex justify-between font-extrabold text-slate-900 dark:text-white text-sm pt-2 border-t border-slate-200 dark:border-slate-700">
                 <span>Total Amount</span>
-                <span className="font-mono text-blue-600 dark:text-blue-400 font-extrabold text-base">{fmt(invoiceTotal)}</span>
+                <span className="font-mono text-blue-600 dark:text-blue-400 font-extrabold text-base">
+                  {fmt(invoiceTotal)}
+                </span>
               </div>
               <div className="flex justify-between text-slate-600 dark:text-slate-300 pt-1">
                 <span>Amount Paid</span>
@@ -601,7 +973,11 @@ export default function POSScreen() {
               <div className="flex justify-between font-bold text-slate-900 dark:text-white pt-1 border-t border-slate-100 dark:border-slate-700/60">
                 <span>Balance Due</span>
                 <span
-                  className={`font-mono font-bold ${invoiceDue > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}
+                  className={`font-mono font-bold ${
+                    invoiceDue > 0
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-emerald-600 dark:text-emerald-400"
+                  }`}
                 >
                   {fmt(invoiceDue)}
                 </span>
@@ -609,24 +985,36 @@ export default function POSScreen() {
             </div>
           </div>
 
-          {/* Bank & Payment Info Section */}
           {(bBankName || bUpiId) && (
             <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs bg-slate-50/60 dark:bg-slate-800/40 p-3.5 rounded-xl">
-              <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">Bank & Payment Details</p>
-              {bBankName && <p className="text-slate-500 dark:text-slate-400">Bank: {bBankName} {bAccNo ? `| A/C: ${bAccNo}` : ""} {bIfsc ? `| IFSC: ${bIfsc}` : ""}</p>}
-              {bUpiId && <p className="text-blue-600 dark:text-blue-400 font-mono font-semibold mt-0.5">UPI ID: {bUpiId}</p>}
+              <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Bank & Payment Details
+              </p>
+              {bBankName && (
+                <p className="text-slate-500 dark:text-slate-400">
+                  Bank: {bBankName} {bAccNo ? `| A/C: ${bAccNo}` : ""}{" "}
+                  {bIfsc ? `| IFSC: ${bIfsc}` : ""}
+                </p>
+              )}
+              {bUpiId && (
+                <p className="text-blue-600 dark:text-blue-400 font-mono font-semibold mt-0.5">
+                  UPI ID: {bUpiId}
+                </p>
+              )}
             </div>
           )}
 
-          {/* Invoice Terms Section */}
           {bTerms && (
             <div className="mt-4 text-xs bg-slate-50/60 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
-              <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">Terms & Conditions</p>
-              <p className="text-slate-500 dark:text-slate-400 whitespace-pre-line text-[11px] leading-relaxed">{bTerms}</p>
+              <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Terms & Conditions
+              </p>
+              <p className="text-slate-500 dark:text-slate-400 whitespace-pre-line text-[11px] leading-relaxed">
+                {bTerms}
+              </p>
             </div>
           )}
 
-          {/* Invoice Footer Greeting Note Section */}
           <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 text-center">
             <div className="p-3 bg-blue-50/60 dark:bg-blue-950/40 rounded-xl border border-blue-100/60 dark:border-blue-900/40 inline-block max-w-md w-full">
               <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
@@ -638,18 +1026,17 @@ export default function POSScreen() {
             </p>
           </div>
 
-          {/* Bottom Action Controls (Hidden on Print) */}
           <div className="mt-8 pt-5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 no-print">
             <Btn
               variant="primary"
-              onClick={handlePrintInvoice}
+              onClick={() => handlePrintInvoice(order)}
               icon={<Printer className="w-4 h-4" />}
             >
               Print Invoice
             </Btn>
             <Btn
               variant="outline"
-              onClick={handlePrintInvoice}
+              onClick={() => handlePrintInvoice(order)}
               icon={<Download className="w-4 h-4" />}
             >
               Download PDF
@@ -660,6 +1047,7 @@ export default function POSScreen() {
                 setShowInvoice(false);
                 setCart([]);
                 setAmountPaid("");
+                setGlobalDiscount(0);
                 setLastOrder(null);
               }}
             >
@@ -672,8 +1060,16 @@ export default function POSScreen() {
   }
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-110px)]">
-      {/* Left: Products */}
+    <div className="flex gap-5 h-[calc(100vh-110px)] relative">
+      {/* Success Notification */}
+      {successToast && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-xs font-semibold animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>{successToast}</span>
+        </div>
+      )}
+
+      {/* Left: Products List */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
         <div className="flex items-center gap-3">
           <Input
@@ -688,12 +1084,36 @@ export default function POSScreen() {
             size="md"
             onClick={loadProductsList}
             disabled={loadingProducts}
-            icon={<RefreshCw className={`w-4 h-4 ${loadingProducts ? "animate-spin" : ""}`} />}
-            className="ml-3"
+            icon={
+              <RefreshCw
+                className={`w-4 h-4 ${loadingProducts ? "animate-spin" : ""}`}
+              />
+            }
           >
             Refresh
           </Btn>
+          <Btn
+            variant="secondary"
+            size="md"
+            onClick={handleOpenReturnModal}
+            icon={<RotateCcw className="w-4 h-4" />}
+          >
+            Sales Return
+          </Btn>
         </div>
+
+        {/* Pricing tier notification badge if wholesale / min price configured */}
+        {txSettings?.salePrice && txSettings.salePrice !== "Retail Price" && (
+          <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-lg px-3 py-1.5 text-xs text-blue-700 dark:text-blue-300 flex items-center justify-between">
+            <span className="font-semibold">
+              Pricing Tier: {txSettings.salePrice}
+            </span>
+            <span className="text-[11px] text-blue-500">
+              Active in Transaction Settings
+            </span>
+          </div>
+        )}
+
         {loadingProducts ? (
           <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
             Loading products from database...
@@ -702,22 +1122,28 @@ export default function POSScreen() {
           <div className="flex-1 flex flex-col items-center justify-center text-gray-500 text-sm bg-gray-50 rounded-md border border-dashed border-gray-200 p-6">
             <Package className="w-10 h-10 text-gray-300 mb-2" />
             <p className="font-medium text-gray-700">No products found</p>
-            <p className="text-xs text-gray-400">Add products in the Products section to sell here.</p>
+            <p className="text-xs text-gray-400">
+              Add products in the Products section to sell here.
+            </p>
           </div>
         ) : (
           <div className="flex flex-col gap-3 overflow-y-auto pr-2">
             {filteredProducts.map((p, idx) => {
               const pId = getProductId(p) || idx;
-              const isOut = (p.stock || 0) <= 0;
+              const stockCount = Number(p.stock) || 0;
+              const isOut = !allowNegativeStock && stockCount <= 0;
+              const defaultPrice = getProductDefaultPrice(p);
+
               return (
                 <button
                   key={pId}
                   onClick={() => addToCart(p)}
                   disabled={isOut}
-                  className={`bg-white border rounded-md p-3 text-left transition-colors group flex items-center gap-4 ${isOut
+                  className={`bg-white border rounded-md p-3 text-left transition-colors group flex items-center gap-4 ${
+                    isOut
                       ? "opacity-60 border-gray-200 cursor-not-allowed bg-gray-50"
                       : "border-gray-200 hover:border-blue-400"
-                    }`}
+                  }`}
                 >
                   <div className="w-12 h-12 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center">
                     <Package className="w-6 h-6 text-gray-400" />
@@ -726,21 +1152,30 @@ export default function POSScreen() {
                     <p className="text-sm font-semibold text-slate-900 truncate">
                       {p.name}
                     </p>
-                    <p className="text-xs text-slate-400 font-mono mt-0.5">{p.sku || "NO-SKU"}</p>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      {p.sku || "NO-SKU"}
+                    </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <span className="text-sm font-bold text-blue-600">
-                      {fmt(p.price)}
+                      {fmt(defaultPrice)}
                     </span>
                     <span
-                      className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isOut
-                          ? "bg-red-50 text-red-500"
-                          : p.stock < 10
+                      className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                        stockCount <= 0
+                          ? allowNegativeStock
+                            ? "bg-purple-50 text-purple-600"
+                            : "bg-red-50 text-red-500"
+                          : stockCount < 10
                             ? "bg-amber-50 text-amber-600"
                             : "bg-emerald-50 text-emerald-600"
-                        }`}
+                      }`}
                     >
-                      {isOut ? "Out of Stock" : `Stock: ${p.stock}`}
+                      {stockCount <= 0
+                        ? allowNegativeStock
+                          ? `Backorder (${stockCount})`
+                          : "Out of Stock"
+                        : `Stock: ${stockCount}`}
                     </span>
                   </div>
                 </button>
@@ -751,7 +1186,7 @@ export default function POSScreen() {
       </div>
 
       {/* Right: Current Bill Sidebar */}
-      <Card className="w-[420px] flex-shrink-0 flex flex-col h-full rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden bg-white dark:bg-gray-900 shadow-sm">
+      <Card className="w-[440px] flex-shrink-0 flex flex-col h-full rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden bg-white dark:bg-gray-900 shadow-sm">
         {/* Header & Customer Selection */}
         <div className="p-3.5 bg-gray-50/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800 space-y-2.5 flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -774,7 +1209,10 @@ export default function POSScreen() {
             {cart.length > 0 && (
               <button
                 type="button"
-                onClick={() => setCart([])}
+                onClick={() => {
+                  setCart([]);
+                  setGlobalDiscount(0);
+                }}
                 className="text-[11px] text-rose-600 hover:text-rose-700 dark:text-rose-400 flex items-center gap-1 hover:bg-rose-50 dark:hover:bg-rose-950/40 px-2.5 py-1 rounded-lg transition-all font-semibold border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 cursor-pointer"
                 title="Clear all items in cart"
               >
@@ -899,53 +1337,107 @@ export default function POSScreen() {
             </div>
           ) : (
             cart.map((item, idx) => {
-              const itemId = item && item.product ? getProductId(item.product) || idx : idx;
+              const itemId =
+                item && item.product ? getProductId(item.product) || idx : idx;
               const prodName = item?.product?.name || "Item";
-              const prodPrice = Number(item?.product?.price) || 0;
+              const unitPrice =
+                item.price !== undefined
+                  ? Number(item.price)
+                  : getProductDefaultPrice(item.product);
+
               return (
                 <div
                   key={itemId}
-                  className="bg-slate-50/90 dark:bg-slate-800/70 hover:bg-slate-100/90 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-3.5 transition-all shadow-2xs group"
+                  className="bg-slate-50/90 dark:bg-slate-800/70 hover:bg-slate-100/90 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-3 transition-all shadow-2xs group space-y-2"
                 >
-                  <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-bold text-slate-900 dark:text-white truncate flex-1 leading-snug">
                       {prodName}
                     </p>
                     <button
                       type="button"
                       onClick={() => removeItem(itemId)}
-                      className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                      className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                       title="Remove item"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-1.5 shadow-2xs">
+
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    {/* Qty Counter */}
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-1 shadow-2xs">
                       <button
                         type="button"
                         onClick={() => updateQty(itemId, -1)}
-                        className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                        className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
                       >
-                        <Minus className="w-4 h-4" />
+                        <Minus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="text-base font-bold text-slate-900 dark:text-white min-w-[32px] text-center font-mono">
+                      <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[24px] text-center font-mono">
                         {item.qty}
                       </span>
                       <button
                         type="button"
                         onClick={() => updateQty(itemId, 1)}
-                        className="w-7 h-7 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white transition-colors cursor-pointer shadow-xs"
+                        className="w-6 h-6 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white transition-colors cursor-pointer shadow-xs"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    <div className="text-right">
-                      <span className="text-xs text-slate-400 font-mono block font-medium mb-0.5">
-                        @{fmt(prodPrice)}
-                      </span>
-                      <span className="text-base font-bold font-mono text-slate-900 dark:text-white">
-                        {fmt(prodPrice * item.qty)}
+
+                    {/* Unit Price (Editable if allowPriceEditing is true) */}
+                    <div className="flex items-center gap-1">
+                      {allowPriceEditing ? (
+                        <div className="flex items-center bg-white dark:bg-slate-900 border border-blue-300 rounded px-1.5 py-0.5">
+                          <span className="text-[10px] text-slate-400 font-mono">@₹</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={item.price !== undefined ? item.price : unitPrice}
+                            onChange={(e) => updateItemPrice(itemId, e.target.value)}
+                            className="w-16 text-xs font-mono font-bold text-blue-600 bg-transparent outline-none text-right"
+                            title="Edit Unit Price (Allowed in Settings)"
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-mono font-medium">
+                          @{fmt(unitPrice)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Item-wise Discount Input (if enabled) */}
+                    {allowDiscount && discountAppliedOn === "Item-wise" && (
+                      <div className="flex items-center gap-1 bg-amber-50/70 border border-amber-200 rounded px-1.5 py-0.5">
+                        <span className="text-[10px] text-amber-700 font-medium">
+                          {discountType === "Percentage" ? "%" : "₹"}
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.discount || 0}
+                          onChange={(e) =>
+                            updateItemDiscount(itemId, e.target.value)
+                          }
+                          className="w-12 text-xs font-mono font-bold text-amber-800 bg-transparent outline-none text-right"
+                          placeholder="Disc"
+                        />
+                      </div>
+                    )}
+
+                    {/* Line Total */}
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-sm font-bold font-mono text-slate-900 dark:text-white">
+                        {fmt(
+                          (unitPrice * item.qty) *
+                            (discountType === "Percentage"
+                              ? 1 - (Number(item.discount) || 0) / 100
+                              : 1) -
+                            (discountType === "Flat Amount"
+                              ? Number(item.discount) || 0
+                              : 0)
+                        )}
                       </span>
                     </div>
                   </div>
@@ -960,12 +1452,68 @@ export default function POSScreen() {
           <div className="bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-3 space-y-1.5 text-xs shadow-2xs">
             <div className="flex justify-between text-slate-500 dark:text-slate-400 text-xs">
               <span>Subtotal</span>
-              <span className="font-mono font-medium">{fmt(subtotal)}</span>
+              <span className="font-mono font-medium">
+                {fmt(grossSubtotal)}
+              </span>
             </div>
+
+            {/* Global Invoice Discount Field (if Entire Invoice mode) */}
+            {allowDiscount && discountAppliedOn === "Entire Invoice" && (
+              <div className="flex justify-between items-center text-amber-700 text-xs py-1 border-t border-dashed border-slate-100">
+                <span className="flex items-center gap-1 font-medium">
+                  <Tag className="w-3.5 h-3.5" />
+                  Invoice Discount ({discountType === "Percentage" ? "%" : "₹"})
+                </span>
+                <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                  <input
+                    type="number"
+                    min={0}
+                    value={globalDiscount}
+                    onChange={(e) => {
+                      const val = Math.max(0, Number(e.target.value) || 0);
+                      if (
+                        restrictDiscountLimit &&
+                        discountType === "Percentage" &&
+                        val > maxDiscountLimit
+                      ) {
+                        setError(`Invoice discount cannot exceed ${maxDiscountLimit}%.`);
+                      } else {
+                        setError("");
+                      }
+                      setGlobalDiscount(val);
+                    }}
+                    className="w-14 text-xs font-mono font-bold text-amber-900 bg-transparent outline-none text-right"
+                  />
+                  <span className="text-[10px] font-bold text-amber-700">
+                    -{fmt(invoiceDiscountAmount)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Cash Discount Display */}
+            {paymentMode === "Cash" && txSettings?.enableCashDiscount && (
+              <div className="flex justify-between text-emerald-600 text-xs">
+                <span>
+                  Cash Discount (
+                  {txSettings?.cashDiscountType === "Percentage"
+                    ? `${txSettings.defaultCashDiscount || 0}%`
+                    : `₹${txSettings.defaultCashDiscount || 0}`}
+                  )
+                </span>
+                <span className="font-mono font-medium">
+                  -{fmt(cashDiscountAmount)}
+                </span>
+              </div>
+            )}
+
             <div className="flex justify-between text-slate-500 dark:text-slate-400 text-xs">
-              <span>GST</span>
-              <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">+{fmt(gst)}</span>
+              <span>GST Tax</span>
+              <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                +{fmt(gst)}
+              </span>
             </div>
+
             <div className="flex justify-between font-extrabold text-slate-900 dark:text-white text-sm pt-2 border-t border-slate-100 dark:border-slate-700/60">
               <span>Order Total</span>
               <span className="font-mono text-blue-600 dark:text-blue-400 font-extrabold text-base">
@@ -1016,7 +1564,9 @@ export default function POSScreen() {
           {paidValue > total ? (
             <div className="flex justify-between items-center text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl px-3 py-2 text-emerald-700 dark:text-emerald-400 shadow-2xs">
               <span>Change Return</span>
-              <span className="font-mono text-sm">{fmt(paidValue - total)}</span>
+              <span className="font-mono text-sm">
+                {fmt(paidValue - total)}
+              </span>
             </div>
           ) : (
             <div className="flex justify-between items-center text-xs font-bold bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl px-3 py-2 text-rose-700 dark:text-rose-400 shadow-2xs">
@@ -1067,6 +1617,313 @@ export default function POSScreen() {
           </button>
         </div>
       </Card>
+
+      {/* --- SALES RETURN MODAL --- */}
+      {showReturnModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center">
+                  <RotateCcw className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    Process Sales Return
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Return sold items and restore inventory according to Transaction Settings.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReturnModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Return Settings Summary Badge */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap gap-2 justify-between">
+              <span>
+                Stock Restoral:{" "}
+                <strong>
+                  {txSettings?.restoreStockAfterReturn !== false
+                    ? "Automatic"
+                    : "Disabled"}
+                </strong>
+              </span>
+              <span>
+                Partial Return:{" "}
+                <strong>
+                  {txSettings?.allowPartialReturn !== false ? "Allowed" : "Full Only"}
+                </strong>
+              </span>
+              <span>
+                Passcode:{" "}
+                <strong>
+                  {txSettings?.requireReturnPasscode ? "Required" : "Not Required"}
+                </strong>
+              </span>
+            </div>
+
+            {/* Invoice Lookup */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                Select Invoice / Enter Invoice No.
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={returnInvoiceNo}
+                  onChange={(e) => setReturnInvoiceNo(e.target.value)}
+                  placeholder="e.g. INV-2026-0001"
+                  className="flex-1 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <Btn
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const match = pastOrders.find(
+                      (o) =>
+                        o.invoiceNo?.toLowerCase() ===
+                        returnInvoiceNo.trim().toLowerCase()
+                    );
+                    if (match) {
+                      handleSelectOrderForReturn(match);
+                      setReturnError("");
+                    } else {
+                      setReturnError("No order found with this invoice number.");
+                    }
+                  }}
+                >
+                  Lookup
+                </Btn>
+              </div>
+            </div>
+
+            {/* Quick list of past orders */}
+            {!selectedReturnOrder && pastOrders.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Recent Invoices
+                </p>
+                <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                  {pastOrders.slice(0, 5).map((o) => (
+                    <button
+                      key={o._id}
+                      type="button"
+                      onClick={() => handleSelectOrderForReturn(o)}
+                      className="w-full text-left text-xs p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 flex justify-between items-center"
+                    >
+                      <span className="font-mono font-bold text-blue-600">
+                        {o.invoiceNo}
+                      </span>
+                      <span className="text-slate-500">
+                        {o.customerName} • {fmt(o.totalOrderValue)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Direct product return if allowReturnWithoutInvoice is true */}
+            {!selectedReturnOrder && txSettings?.allowReturnWithoutInvoice && (
+              <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <label className="text-xs font-semibold text-slate-700 block">
+                  Or Add Direct Item to Return (No Invoice Mode)
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={manualReturnProduct}
+                    onChange={(e) => setManualReturnProduct(e.target.value)}
+                    className="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"
+                  >
+                    <option value="">Select product to return...</option>
+                    {productList.map((p) => (
+                      <option key={p._id || p.name} value={p._id || p.name}>
+                        {p.name} ({fmt(p.price)})
+                      </option>
+                    ))}
+                  </select>
+                  <Btn
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const prod = productList.find(
+                        (p) => (p._id || p.name) === manualReturnProduct
+                      );
+                      if (prod) {
+                        setReturnItems((prev) => [
+                          ...prev,
+                          {
+                            productId: prod._id,
+                            name: prod.name,
+                            sku: prod.sku,
+                            price: prod.price,
+                            qty: 1,
+                            returnQty: 1,
+                            selected: true,
+                          },
+                        ]);
+                      }
+                    }}
+                  >
+                    Add
+                  </Btn>
+                </div>
+              </div>
+            )}
+
+            {/* Items list for Return */}
+            {returnItems.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Select Items & Return Quantities:
+                </p>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {returnItems.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs border border-slate-200 dark:border-slate-700"
+                    >
+                      <div className="flex items-center gap-2">
+                        {txSettings?.allowPartialReturn !== false && (
+                          <input
+                            type="checkbox"
+                            checked={item.selected}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setReturnItems((prev) =>
+                                prev.map((it, i) =>
+                                  i === idx ? { ...it, selected: checked } : it
+                                )
+                              );
+                            }}
+                            className="rounded text-blue-600 focus:ring-blue-500"
+                          />
+                        )}
+                        <div>
+                          <p className="font-semibold text-slate-900 dark:text-white">
+                            {item.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            @{fmt(item.price)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">Return Qty:</span>
+                        {txSettings?.allowPartialReturn !== false ? (
+                          <input
+                            type="number"
+                            min={1}
+                            max={item.qty || 999}
+                            value={item.returnQty}
+                            onChange={(e) => {
+                              const val = Math.max(1, Number(e.target.value) || 1);
+                              setReturnItems((prev) =>
+                                prev.map((it, i) =>
+                                  i === idx ? { ...it, returnQty: val } : it
+                                )
+                              );
+                            }}
+                            className="w-16 border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-right"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold">
+                            {item.qty || 1} (Full)
+                          </span>
+                        )}
+                        <span className="font-mono font-bold text-rose-600 min-w-[60px] text-right">
+                          {fmt((item.price || 0) * (item.returnQty || 1))}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Passcode input if requireReturnPasscode is enabled */}
+            {txSettings?.requireReturnPasscode && (
+              <div className="space-y-1 pt-2 border-t border-slate-100">
+                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-600" />
+                  Authorization Passcode / Password (Required)
+                </label>
+                <input
+                  type="password"
+                  value={returnPasscode}
+                  onChange={(e) => setReturnPasscode(e.target.value)}
+                  placeholder="Enter your account password or PIN..."
+                  className="w-full border border-amber-300 bg-amber-50/40 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                />
+              </div>
+            )}
+
+            {/* Reason & Refund Mode */}
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">
+                  Return Reason
+                </label>
+                <input
+                  type="text"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">
+                  Refund Method
+                </label>
+                <select
+                  value={returnPaymentMode}
+                  onChange={(e) => setReturnPaymentMode(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs"
+                >
+                  {["Cash", "UPI", "Bank Transfer", "Credit Note"].map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {returnError && (
+              <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl font-medium">
+                {returnError}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <Btn
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowReturnModal(false)}
+              >
+                Cancel
+              </Btn>
+              <Btn
+                variant="danger"
+                size="md"
+                onClick={handleProcessSalesReturn}
+                disabled={processingReturn || returnItems.length === 0}
+              >
+                {processingReturn ? "Processing..." : "Confirm & Process Return"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

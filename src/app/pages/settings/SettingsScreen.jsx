@@ -400,69 +400,68 @@ const [transactionSaved, setTransactionSaved] = useState(false);
 
   // Transaction Settings load
   const loadTransactionSettings = async () => {
-  try {
-    setTransactionLoading(true);
+    try {
+      setTransactionLoading(true);
 
-    const response = await fetchTransactionSettings();
+      const response = await fetchTransactionSettings();
 
-    if (response?.transactionSettings) {
-      setTransactionSettings(response.transactionSettings);
+      if (response?.transactionSettings) {
+        setTransactionSettings(response.transactionSettings);
+        setTransactionSaved(true);
+        try {
+          const rawUser = localStorage.getItem("smartbill_user");
+          const user = rawUser ? JSON.parse(rawUser) : null;
+          const id = user?._id || user?.id || user?.email;
+          const key = id ? `smartbill_transaction_settings_${id}` : "smartbill_transaction_settings_guest";
+          localStorage.setItem(key, JSON.stringify(response.transactionSettings));
+        } catch {}
+      }
+    } catch (error) {
+      console.error("Failed to load transaction settings:", error);
+    } finally {
+      setTransactionLoading(false);
+    }
+  };
+
+  // Handle Transaction settings save
+  const handleSaveTransactionSettings = async () => {
+    try {
+      setTransactionSaving(true);
+      setTransactionSaved(false);
+
+      const response = await saveTransactionSettings(transactionSettings);
+
+      const savedData = response?.transactionSettings || transactionSettings;
+      setTransactionSettings(savedData);
       setTransactionSaved(true);
+
+      try {
+        const rawUser = localStorage.getItem("smartbill_user");
+        const user = rawUser ? JSON.parse(rawUser) : null;
+        const id = user?._id || user?.id || user?.email;
+        const key = id ? `smartbill_transaction_settings_${id}` : "smartbill_transaction_settings_guest";
+        localStorage.setItem(key, JSON.stringify(savedData));
+      } catch {}
+
+      window.dispatchEvent(
+        new CustomEvent("transactionSettingsUpdated", { detail: savedData })
+      );
+
+      console.log("Transaction settings saved successfully:", response);
+    } catch (error) {
+      console.error("Failed to save transaction settings:", error);
+      alert(
+        error?.response?.data?.message ||
+          "Failed to save transaction settings."
+      );
+    } finally {
+      setTransactionSaving(false);
     }
-  } catch (error) {
-    console.error("Failed to load transaction settings:", error);
+  };
 
-    alert(
-      error?.response?.data?.message ||
-        "Failed to load transaction settings."
-    );
-  } finally {
-    setTransactionLoading(false);
-  }
-};
-
-
-// Handle Transaction settings save
-const handleSaveTransactionSettings = async () => {
-  try {
-    setTransactionSaving(true);
-    setTransactionSaved(false);
-
-    const response = await saveTransactionSettings(
-      transactionSettings
-    );
-
-    if (response?.transactionSettings) {
-      setTransactionSettings(response.transactionSettings);
-    }
-
-    setTransactionSaved(true);
-
-    console.log(
-      "Transaction settings saved successfully:",
-      response
-    );
-  } catch (error) {
-    console.error(
-      "Failed to save transaction settings:",
-      error
-    );
-
-    alert(
-      error?.response?.data?.message ||
-        "Failed to save transaction settings."
-    );
-  } finally {
-    setTransactionSaving(false);
-  }
-};
-
-
-useEffect(() => {
-  if (activeTab === "transaction") {
+  useEffect(() => {
     loadTransactionSettings();
-  }
-}, [activeTab]);
+  }, [activeTab]);
 
 
   // Handle invoice settings save

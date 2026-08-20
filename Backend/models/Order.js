@@ -72,6 +72,27 @@ const orderSchema = new mongoose.Schema(
       enum: ["Paid", "Partial", "Due"],
       default: "Due",
     },
+    returnStatus: {
+      type: String,
+      enum: ["None", "Partial", "Returned"],
+      default: "None",
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
+    },
+    returnedItems: {
+      type: [orderItemSchema],
+      default: [],
+    },
+    discount: {
+      type: Number,
+      default: 0,
+    },
+    cashDiscount: {
+      type: Number,
+      default: 0,
+    },
     date: {
       type: Date,
       default: Date.now,
