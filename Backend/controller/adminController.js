@@ -26,41 +26,58 @@ export const getAllBusinesses = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Map each owner to business card format with employee count and revenue
-    const businessList = await Promise.all(
-      owners.map(async (owner) => {
-        const employeeCount = await User.countDocuments({ ownerId: owner._id });
+    // Aggregate revenue per owner from Order collection using totalOrderValue
+    const revenueByOwner = await Order.aggregate([
+      {
+        $group: {
+          _id: "$ownerId",
+          totalRevenue: { $sum: "$totalOrderValue" },
+        },
+      },
+    ]);
 
-        const revAggregation = await Order.aggregate([
-          { $match: { ownerId: owner._id } },
-          { $group: { _id: null, totalSum: { $sum: "$total" } } },
-        ]);
-
-        const revenue = revAggregation[0]?.totalSum || 0;
-
-        const rawPlan = owner.subscription?.plan || "starter";
-        const formattedPlan =
-          rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1);
-
-        return {
-          _id: owner._id,
-          id: owner._id.toString(),
-          name: owner.businessName || `${owner.firstName} ${owner.lastName}'s Business`,
-          owner: `${owner.firstName} ${owner.lastName}`.trim(),
-          ownerEmail: owner.email,
-          ownerPhone: owner.phone || "N/A",
-          ownerCity: owner.city || "N/A",
-          plan: formattedPlan,
-          users: employeeCount + 1, // Owner + employees
-          revenue: revenue,
-          status: owner.status || "Active",
-          suspensionReason: owner.suspensionReason || "",
-          joined: owner.createdAt
-            ? new Date(owner.createdAt).toISOString().split("T")[0]
-            : "N/A",
-        };
-      })
+    const revenueMap = new Map(
+      revenueByOwner.map((item) => [String(item._id), Number(item.totalRevenue) || 0])
     );
+
+    // Aggregate employee count per owner
+    const employeeCounts = await User.aggregate([
+      { $match: { ownerId: { $ne: null } } },
+      { $group: { _id: "$ownerId", count: { $sum: 1 } } },
+    ]);
+
+    const employeeMap = new Map(
+      employeeCounts.map((item) => [String(item._id), Number(item.count) || 0])
+    );
+
+    // Map each owner to business card format with employee count and revenue
+    const businessList = owners.map((owner) => {
+      const ownerIdStr = owner._id.toString();
+      const employeeCount = employeeMap.get(ownerIdStr) || 0;
+      const revenue = revenueMap.get(ownerIdStr) || 0;
+
+      const rawPlan = owner.subscription?.plan || "starter";
+      const formattedPlan =
+        rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1);
+
+      return {
+        _id: owner._id,
+        id: ownerIdStr,
+        name: owner.businessName || `${owner.firstName} ${owner.lastName}'s Business`,
+        owner: `${owner.firstName} ${owner.lastName}`.trim(),
+        ownerEmail: owner.email,
+        ownerPhone: owner.phone || "N/A",
+        ownerCity: owner.city || "N/A",
+        plan: formattedPlan,
+        users: employeeCount + 1, // Owner + employees
+        revenue: revenue,
+        status: owner.status || "Active",
+        suspensionReason: owner.suspensionReason || "",
+        joined: owner.createdAt
+          ? new Date(owner.createdAt).toISOString().split("T")[0]
+          : "N/A",
+      };
+    });
 
     return res.status(200).json({
       success: true,
