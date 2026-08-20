@@ -128,11 +128,20 @@ export const createOrder = async (req, res) => {
     }).lean();
 
     const allowNegativeStock = txSettings?.allowNegativeStock === true;
-    const restrictDiscount = txSettings?.restrictDiscountLimit === true;
+    const allowDiscount = txSettings?.allowDiscount !== false;
     const maxDiscountPercent = Number(txSettings?.maximumDiscount || 100);
 
-    // Validate discount limit if restriction is enabled
-    if (restrictDiscount && Number.isFinite(maxDiscountPercent)) {
+    // Validate discount limit
+    if (!allowDiscount) {
+      for (const item of items) {
+        if (Number(item.discount) > 0) {
+          await abortSession();
+          return res.status(400).json({
+            message: `Discounts are disabled in Transaction Settings.`,
+          });
+        }
+      }
+    } else if (Number.isFinite(maxDiscountPercent) && maxDiscountPercent < 100) {
       for (const item of items) {
         const itemDisc = Number(item.discount) || 0;
         if (itemDisc > maxDiscountPercent) {

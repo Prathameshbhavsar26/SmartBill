@@ -12,38 +12,29 @@ export const getTransactionSettings = async (req, res) => {
       transaction = await TransactionSettings.create({
         userId,
 
-        // Sales & Pricing
+        // 1. Pricing & Billing Rules
         salePrice: "Retail Price",
-        discountType: "Percentage",
-        allowDiscount: true,
         allowPriceEditing: false,
         allowNegativeStock: false,
 
-        // Discount Rules
+        // 2. Discount Management
+        allowDiscount: true,
+        discountType: "Percentage",
         discountAppliedOn: "Item-wise",
         maximumDiscount: "20",
-        restrictDiscountLimit: true,
 
-        // Sales Returns
-        requireReturnPasscode: false,
-        allowPartialReturn: true,
-        restoreStockAfterReturn: true,
-        allowReturnWithoutInvoice: false,
-
-        // Cash Discount
-        enableCashDiscount: true,
-        cashDiscountType: "Percentage",
-        defaultCashDiscount: "0",
-
-        // Invoice Behavior
-        autoSaveInvoice: true,
-        printAfterSaving: false,
+        // 3. Payment & Checkout
+        defaultPaymentMode: "Cash",
+        enableRoundOff: false,
+        cashDiscountPercent: "0",
         showPrintPreview: true,
+        printAfterSaving: false,
 
-        // Order Management
-        linkOrdersToInvoices: true,
-        autoConvertOrders: false,
-        allowPartialOrderConversion: true,
+        // 4. Sales Returns & Refunds
+        restoreStockAfterReturn: true,
+        allowPartialReturn: true,
+        requireReturnPasscode: false,
+        allowReturnWithoutInvoice: false,
       });
     }
 
@@ -67,66 +58,51 @@ export const updateTransactionSettings = async (req, res) => {
 
     const {
       salePrice,
-      discountType,
-      allowDiscount,
       allowPriceEditing,
       allowNegativeStock,
 
+      allowDiscount,
+      discountType,
       discountAppliedOn,
       maximumDiscount,
-      restrictDiscountLimit,
 
-      requireReturnPasscode,
-      allowPartialReturn,
-      restoreStockAfterReturn,
-      allowReturnWithoutInvoice,
-
-      enableCashDiscount,
-      cashDiscountType,
-      defaultCashDiscount,
-
-      autoSaveInvoice,
-      printAfterSaving,
+      defaultPaymentMode,
+      enableRoundOff,
+      cashDiscountPercent,
       showPrintPreview,
+      printAfterSaving,
 
-      linkOrdersToInvoices,
-      autoConvertOrders,
-      allowPartialOrderConversion,
+      restoreStockAfterReturn,
+      allowPartialReturn,
+      requireReturnPasscode,
+      allowReturnWithoutInvoice,
     } = req.body;
+
+    const updateDoc = {
+      salePrice: salePrice ?? "Retail Price",
+      allowPriceEditing: allowPriceEditing ?? false,
+      allowNegativeStock: allowNegativeStock ?? false,
+
+      allowDiscount: allowDiscount ?? true,
+      discountType: discountType ?? "Percentage",
+      discountAppliedOn: discountAppliedOn ?? "Item-wise",
+      maximumDiscount: maximumDiscount !== undefined ? String(maximumDiscount) : "20",
+
+      defaultPaymentMode: defaultPaymentMode ?? "Cash",
+      enableRoundOff: enableRoundOff ?? false,
+      cashDiscountPercent: cashDiscountPercent !== undefined ? String(cashDiscountPercent) : "0",
+      showPrintPreview: showPrintPreview ?? true,
+      printAfterSaving: printAfterSaving ?? false,
+
+      restoreStockAfterReturn: restoreStockAfterReturn ?? true,
+      allowPartialReturn: allowPartialReturn ?? true,
+      requireReturnPasscode: requireReturnPasscode ?? false,
+      allowReturnWithoutInvoice: allowReturnWithoutInvoice ?? false,
+    };
 
     const transaction = await TransactionSettings.findOneAndUpdate(
       { userId },
-      {
-        $set: {
-          salePrice: salePrice ?? "Retail Price",
-          discountType: discountType ?? "Percentage",
-          allowDiscount: allowDiscount ?? true,
-          allowPriceEditing: allowPriceEditing ?? false,
-          allowNegativeStock: allowNegativeStock ?? false,
-
-          discountAppliedOn: discountAppliedOn ?? "Item-wise",
-          maximumDiscount: maximumDiscount ?? "20",
-          restrictDiscountLimit: restrictDiscountLimit ?? true,
-
-          requireReturnPasscode: requireReturnPasscode ?? false,
-          allowPartialReturn: allowPartialReturn ?? true,
-          restoreStockAfterReturn: restoreStockAfterReturn ?? true,
-          allowReturnWithoutInvoice: allowReturnWithoutInvoice ?? false,
-
-          enableCashDiscount: enableCashDiscount ?? true,
-          cashDiscountType: cashDiscountType ?? "Percentage",
-          defaultCashDiscount: defaultCashDiscount ?? "0",
-
-          autoSaveInvoice: autoSaveInvoice ?? true,
-          printAfterSaving: printAfterSaving ?? false,
-          showPrintPreview: showPrintPreview ?? true,
-
-          linkOrdersToInvoices: linkOrdersToInvoices ?? true,
-          autoConvertOrders: autoConvertOrders ?? false,
-          allowPartialOrderConversion:
-            allowPartialOrderConversion ?? true,
-        },
-      },
+      { $set: updateDoc },
       {
         new: true,
         upsert: true,

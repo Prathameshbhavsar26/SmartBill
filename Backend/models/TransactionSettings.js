@@ -9,22 +9,11 @@ const transactionSettingsSchema = new mongoose.Schema(
       unique: true,
     },
 
-    // Sales & Pricing
+    // 1. Pricing & Billing Rules
     salePrice: {
       type: String,
       default: "Retail Price",
       trim: true,
-    },
-
-    discountType: {
-      type: String,
-      default: "Percentage",
-      trim: true,
-    },
-
-    allowDiscount: {
-      type: Boolean,
-      default: true,
     },
 
     allowPriceEditing: {
@@ -37,7 +26,18 @@ const transactionSettingsSchema = new mongoose.Schema(
       default: false,
     },
 
-    // Discount Rules
+    // 2. Discount Management
+    allowDiscount: {
+      type: Boolean,
+      default: true,
+    },
+
+    discountType: {
+      type: String,
+      default: "Percentage",
+      trim: true,
+    },
+
     discountAppliedOn: {
       type: String,
       default: "Item-wise",
@@ -50,52 +50,25 @@ const transactionSettingsSchema = new mongoose.Schema(
       trim: true,
     },
 
-    restrictDiscountLimit: {
-      type: Boolean,
-      default: true,
-    },
-
-    // Sales Returns
-    requireReturnPasscode: {
-      type: Boolean,
-      default: false,
-    },
-
-    allowPartialReturn: {
-      type: Boolean,
-      default: true,
-    },
-
-    restoreStockAfterReturn: {
-      type: Boolean,
-      default: true,
-    },
-
-    allowReturnWithoutInvoice: {
-      type: Boolean,
-      default: false,
-    },
-
-    // Cash Discount
-    enableCashDiscount: {
-      type: Boolean,
-      default: true,
-    },
-
-    cashDiscountType: {
+    // 3. Payment & Checkout
+    defaultPaymentMode: {
       type: String,
-      default: "Percentage",
+      default: "Cash",
       trim: true,
     },
 
-    defaultCashDiscount: {
+    enableRoundOff: {
+      type: Boolean,
+      default: false,
+    },
+
+    cashDiscountPercent: {
       type: String,
       default: "0",
       trim: true,
     },
 
-    // Invoice Behavior
-    autoSaveInvoice: {
+    showPrintPreview: {
       type: Boolean,
       default: true,
     },
@@ -105,25 +78,25 @@ const transactionSettingsSchema = new mongoose.Schema(
       default: false,
     },
 
-    showPrintPreview: {
+    // 4. Sales Returns & Refunds
+    restoreStockAfterReturn: {
       type: Boolean,
       default: true,
     },
 
-    // Order Management
-    linkOrdersToInvoices: {
+    allowPartialReturn: {
       type: Boolean,
       default: true,
     },
 
-    autoConvertOrders: {
+    requireReturnPasscode: {
       type: Boolean,
       default: false,
     },
 
-    allowPartialOrderConversion: {
+    allowReturnWithoutInvoice: {
       type: Boolean,
-      default: true,
+      default: false,
     },
   },
   {
