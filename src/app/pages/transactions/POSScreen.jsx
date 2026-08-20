@@ -463,111 +463,6 @@ export default function POSScreen() {
     activeBiz.invoiceFooterNote ||
     "Thank you for your business! Visit Again 🙏";
 
-  const handleGenerateInvoice = async () => {
-    if (cart.length === 0) return;
-    setError("");
-
-    // Validate reference number if required by business rule
-    if (!isSplitMode && requireRef && !transactionRef.trim()) {
-      setError(`Please enter the UTR / Transaction Reference Number for ${paymentMode}.`);
-      return;
-    }
-
-    let finalPaymentMode = paymentMode;
-    let effectivePaid = paidValue > 0 ? paidValue : roundedTotal;
-
-    if (isSplitMode) {
-      const cashAmt = Number(splitCash) || 0;
-      const digAmt = Number(splitDigital) || 0;
-      if (cashAmt + digAmt <= 0) {
-        setError("Please enter split payment amounts.");
-        return;
-      }
-      effectivePaid = cashAmt + digAmt;
-      finalPaymentMode = `Split (Cash: ₹${cashAmt} + ${splitDigitalMode}: ₹${digAmt})`;
-    }
-
-    const items = cart.map((i) => ({
-      productId: getProductId(i.product),
-      name: i.product.name,
-      sku: i.product.sku || "",
-      price: Number(i.product.price) || 0,
-      qty: i.qty,
-      discount: Number(i.discount) || 0,
-      amount: (Number(i.product.price) || 0) * i.qty,
-    }));
-
-    let currentCustomerId = selectedCustomer ? (selectedCustomer._id || selectedCustomer.id) : null;
-    let currentCustomerName = customer || "Walk-in Customer";
-    let currentCustomerEmail = selectedCustomer?.email || customerEmail.trim();
-
-    if (!selectedCustomer && customer.trim()) {
-      try {
-        const newCust = await createCustomer({
-          name: customer.trim(),
-          phone: customerPhone.trim(),
-          city: customerCity.trim(),
-          email: customerEmail.trim()
-        });
-        currentCustomerId = newCust.customer?._id || newCust.customer?.id || newCust._id || null;
-        currentCustomerName = newCust.customer?.name || newCust.name || customer.trim();
-        fetchCustomers().then(res => {
-          if (res && Array.isArray(res.customers)) setCustomers(res.customers);
-        }).catch(() => { });
-      } catch (err) {
-        console.error("Failed to auto-create customer", err);
-      }
-    }
-
-    const payload = {
-      customerId: currentCustomerId,
-      customerName: currentCustomerName,
-      customerEmail: currentCustomerEmail,
-      items,
-      subtotal: Math.round(subtotal),
-      gstRate: effectiveGstRate,
-      gst,
-      totalOrderValue: Math.round(roundedTotal),
-      amountPaid: Math.round(effectivePaid),
-      paymentMode: finalPaymentMode,
-      transactionRef: transactionRef.trim() || undefined,
-    };
-
-    setSaving(true);
-    try {
-      const res = await createOrder(payload);
-      setLastOrder(res.order);
-      setPaymentModalOpen(false);
-      setShowInvoice(true);
-    } catch (err) {
-      setError(err?.message || "Failed to save order. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleInitiatePayment = () => {
-    if (cart.length === 0) {
-      setError("Please add at least one product to the cart before generating an invoice.");
-      return;
-    }
-    setError("");
-
-    const isDigital =
-      paymentMode.toLowerCase().includes("upi") ||
-      paymentMode.toLowerCase().includes("qr") ||
-      paymentMode.toLowerCase().includes("card") ||
-      paymentMode.toLowerCase().includes("bank") ||
-      paymentMode.toLowerCase().includes("wallet") ||
-      isSplitMode;
-
-    if (isDigital) {
-      setPaymentModalOpen(true);
-    } else {
-      handleGenerateInvoice();
-    }
-  };
-
   const handlePrintInvoice = (orderOverride) => {
     const order = orderOverride || lastOrder;
     const invoiceItems =
@@ -843,6 +738,12 @@ export default function POSScreen() {
     if (cart.length === 0) return;
     setError("");
 
+    // Validate reference number if required by business rule
+    if (!isSplitMode && requireRef && !transactionRef.trim()) {
+      setError(`Please enter the UTR / Transaction Reference Number for ${paymentMode}.`);
+      return;
+    }
+
     // Validate discount restrictions
     if (restrictDiscountLimit && discountType === "Percentage") {
       if (discountAppliedOn === "Item-wise") {
@@ -858,7 +759,19 @@ export default function POSScreen() {
       }
     }
 
-    const effectivePaid = paidValue > 0 ? paidValue : total;
+    let finalPaymentMode = paymentMode;
+    let effectivePaid = paidValue > 0 ? paidValue : roundedTotal;
+
+    if (isSplitMode) {
+      const cashAmt = Number(splitCash) || 0;
+      const digAmt = Number(splitDigital) || 0;
+      if (cashAmt + digAmt <= 0) {
+        setError("Please enter split payment amounts.");
+        return;
+      }
+      effectivePaid = cashAmt + digAmt;
+      finalPaymentMode = `Split (Cash: ₹${cashAmt} + ${splitDigitalMode}: ₹${digAmt})`;
+    }
 
     const items = calculatedItems.map((i) => ({
       productId: getProductId(i.product),
@@ -912,15 +825,17 @@ export default function POSScreen() {
       gst,
       discount: invoiceDiscountAmount,
       cashDiscount: cashDiscountAmount,
-      totalOrderValue: Math.round(total),
+      totalOrderValue: Math.round(roundedTotal),
       amountPaid: Math.round(effectivePaid),
-      paymentMode,
+      paymentMode: finalPaymentMode,
+      transactionRef: transactionRef.trim() || undefined,
     };
 
     setSaving(true);
     try {
       const res = await createOrder(payload);
       setLastOrder(res.order);
+      setPaymentModalOpen(false);
 
       // Behavior: Print After Saving
       if (txSettings?.printAfterSaving) {
@@ -942,6 +857,28 @@ export default function POSScreen() {
       setError(err?.message || "Failed to save order. Please try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleInitiatePayment = () => {
+    if (cart.length === 0) {
+      setError("Please add at least one product to the cart before generating an invoice.");
+      return;
+    }
+    setError("");
+
+    const isDigital =
+      paymentMode.toLowerCase().includes("upi") ||
+      paymentMode.toLowerCase().includes("qr") ||
+      paymentMode.toLowerCase().includes("card") ||
+      paymentMode.toLowerCase().includes("bank") ||
+      paymentMode.toLowerCase().includes("wallet") ||
+      isSplitMode;
+
+    if (isDigital) {
+      setPaymentModalOpen(true);
+    } else {
+      handleGenerateInvoice();
     }
   };
 
@@ -1772,8 +1709,6 @@ export default function POSScreen() {
               >
                 {isSplitMode ? "Active" : "Enable"}
               </button>
-            </div>
-          )}
             </div>
           )}
 
