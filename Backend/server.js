@@ -25,6 +25,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import paymentSettingsRoutes from "./routes/paymentSettingsRoutes.js";
 import subscriptionPlanRoutes from "./routes/subscriptionPlanRoutes.js";
 import inventorySettingsRoutes from "./routes/inventorySettingsRoutes.js";
+import subscriptionPublicRoutes from "./routes/subscriptionPublicRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -49,6 +50,11 @@ await seedAdmin();
 await migrateExistingUserTrials();
 
 // CORS - allow all localhost origins, 127.0.0.1, and client origins
+app.use(
+  "/api/subscription-plans",
+  subscriptionPublicRoutes
+);
+
 app.use(
   cors({
     origin: true, // Seamlessly accept all local dev origins (5173, 5174, 127.0.0.1, localhost)

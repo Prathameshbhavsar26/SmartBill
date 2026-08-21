@@ -56,12 +56,68 @@ export default function SuperAdminSettingsScreen() {
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [planError, setPlanError] = useState("");
 
-  const [newPlanName, setNewPlanName] = useState("");
-  const [newPlanPrice, setNewPlanPrice] = useState("");
+  const featureLabels = {
+  basicReports: "Basic Reports",
+  emailSupport: "Email Support",
+  advancedReports: "Advanced Reports",
+  gstFiling: "GST Filing",
+  prioritySupport: "Priority Support",
+  barcodeScanner: "Barcode Scanner",
+  apiAccess: "API Access",
+  customIntegrations: "Custom Integrations",
+  dedicatedManager: "Dedicated Manager",
+};
 
-  const [editingPlan, setEditingPlan] = useState(null);
-  const [savingPlan, setSavingPlan] = useState(false);
-  const [deletingPlanId, setDeletingPlanId] = useState(null);
+const defaultFeatures = {
+  basicReports: false,
+  emailSupport: false,
+  advancedReports: false,
+  gstFiling: false,
+  prioritySupport: false,
+  barcodeScanner: false,
+  apiAccess: false,
+  customIntegrations: false,
+  dedicatedManager: false,
+};
+
+const [newPlanName, setNewPlanName] =
+  useState("");
+
+const [newPlanPrice, setNewPlanPrice] =
+  useState("");
+
+const [newPlanBillingCycle, setNewPlanBillingCycle] =
+  useState("monthly");
+
+const [newPlanFeatures, setNewPlanFeatures] =
+  useState(defaultFeatures);
+
+const [newPlanStatus, setNewPlanStatus] =
+  useState("active");
+
+const [editingPlan, setEditingPlan] =
+  useState(null);
+
+const [editPlanName, setEditPlanName] =
+  useState("");
+
+const [editPlanPrice, setEditPlanPrice] =
+  useState("");
+
+const [editPlanBillingCycle, setEditPlanBillingCycle] =
+  useState("monthly");
+
+const [editPlanFeatures, setEditPlanFeatures] =
+  useState(defaultFeatures);
+
+const [editPlanStatus, setEditPlanStatus] =
+  useState("active");
+
+const [savingPlan, setSavingPlan] =
+  useState(false);
+
+const [deletingPlanId, setDeletingPlanId] =
+  useState(null);
 
   // Support Settings states
   const [supportEmail, setSupportEmail] = useState("support@smartbill.com");
@@ -202,67 +258,73 @@ export default function SuperAdminSettingsScreen() {
   };
 
   const handleAddPlan = async () => {
-    if (!newPlanName.trim() || !newPlanPrice) {
-      alert("Please enter plan name and price.");
-      return;
-    }
+  if (!newPlanName.trim()) {
+    showToast(
+      "Please enter a plan name.",
+      "error"
+    );
+    return;
+  }
 
-    try {
-      setSavingPlan(true);
+  if (
+    newPlanPrice === "" ||
+    Number(newPlanPrice) < 0
+  ) {
+    showToast(
+      "Please enter a valid price.",
+      "error"
+    );
+    return;
+  }
 
-      const payload = {
-        key: newPlanName
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, "-"),
+  try {
+    setSavingPlan(true);
 
-        name: newPlanName.trim(),
+    const payload = {
+      name: newPlanName.trim(),
 
-        price: Number(newPlanPrice),
+      price: Number(newPlanPrice),
 
-        billingCycle: "monthly",
+      billingCycle: newPlanBillingCycle,
 
-        maxBusinesses: 1,
-        maxUsers: 10,
-        maxInvoicesPerMonth: 500,
+      features: {
+        ...newPlanFeatures,
+      },
 
-        features: {
-          basicReports: true,
-          emailSupport: true,
-          advancedReports: false,
-          gstFiling: false,
-          prioritySupport: false,
-          barcodeScanner: false,
-          apiAccess: false,
-          customIntegrations: false,
-          dedicatedManager: false,
-        },
+      status: newPlanStatus,
+    };
 
-        status: "active",
-      };
+    await createSubscriptionPlan(payload);
 
-      await createSubscriptionPlan(payload);
+    setNewPlanName("");
+    setNewPlanPrice("");
+    setNewPlanBillingCycle("monthly");
+    setNewPlanFeatures({
+      ...defaultFeatures,
+    });
+    setNewPlanStatus("active");
 
-      setNewPlanName("");
-      setNewPlanPrice("");
+    await loadSubscriptionPlans();
 
-      await loadSubscriptionPlans();
+    showToast(
+      "Subscription plan added successfully!",
+      "success"
+    );
+  } catch (error) {
+    console.error(
+      "Failed to create subscription plan:",
+      error
+    );
 
-      alert("✓ Subscription plan added successfully!");
-    } catch (error) {
-      console.error(
-        "Failed to create subscription plan:",
-        error
-      );
-
-      alert(
-        error.response?.data?.message ||
-          "Failed to create subscription plan."
-      );
-    } finally {
-      setSavingPlan(false);
-    }
-  };
+    showToast(
+      error.response?.data?.message ||
+        "Failed to create subscription plan.",
+      "error"
+    );
+  } finally {
+    setSavingPlan(false);
+  }
+};
 
   const handleDeletePlan = async (id) => {
     const confirmed = window.confirm(
@@ -294,53 +356,119 @@ export default function SuperAdminSettingsScreen() {
     }
   };
 
-  const handleEditPlan = async (plan) => {
-    const name = window.prompt(
-      "Enter plan name:",
-      plan.name
+  const handleEditPlan = (plan) => {
+  setEditingPlan(plan);
+
+  setEditPlanName(plan.name || "");
+
+  setEditPlanPrice(
+    String(plan.price ?? "")
+  );
+
+  setEditPlanBillingCycle(
+    plan.billingCycle || "monthly"
+  );
+
+  setEditPlanFeatures({
+    ...defaultFeatures,
+    ...(plan.features || {}),
+  });
+
+  setEditPlanStatus(
+    plan.status || "active"
+  );
+};
+
+
+const handleUpdatePlan = async () => {
+  if (!editingPlan) return;
+
+  if (!editPlanName.trim()) {
+    showToast(
+      "Please enter a plan name.",
+      "error"
+    );
+    return;
+  }
+
+  if (
+    editPlanPrice === "" ||
+    Number(editPlanPrice) < 0
+  ) {
+    showToast(
+      "Please enter a valid price.",
+      "error"
+    );
+    return;
+  }
+
+  try {
+    setSavingPlan(true);
+
+    const payload = {
+      name: editPlanName.trim(),
+
+      price: Number(editPlanPrice),
+
+      billingCycle: editPlanBillingCycle,
+
+      features: {
+        ...editPlanFeatures,
+      },
+
+      status: editPlanStatus,
+    };
+
+    await updateSubscriptionPlan(
+      editingPlan._id,
+      payload
     );
 
-    if (name === null) return;
+    await loadSubscriptionPlans();
 
-    const price = window.prompt(
-      "Enter monthly price:",
-      plan.price
+    setEditingPlan(null);
+
+    showToast(
+      "Subscription plan updated successfully!",
+      "success"
+    );
+  } catch (error) {
+    console.error(
+      "Failed to update subscription plan:",
+      error
     );
 
-    if (price === null) return;
+    showToast(
+      error.response?.data?.message ||
+        "Failed to update subscription plan.",
+      "error"
+    );
+  } finally {
+    setSavingPlan(false);
+  }
+};
 
-    if (!name.trim() || !price || Number(price) < 0) {
-      alert("Please enter valid plan details.");
-      return;
-    }
+const handleCancelEdit = () => {
+  setEditingPlan(null);
 
-    try {
-      setSavingPlan(true);
-      setEditingPlan(plan._id);
+  setPlanForm({
+    name: "",
+    price: "",
+    billingCycle: "monthly",
+    status: "active",
+    features: defaultFeatures,
+  });
+};
 
-      await updateSubscriptionPlan(plan._id, {
-        name: name.trim(),
-        price: Number(price),
-      });
-
-      await loadSubscriptionPlans();
-
-      alert("✓ Subscription plan updated successfully!");
-    } catch (error) {
-      console.error(
-        "Failed to update subscription plan:",
-        error
-      );
-
-      alert(
-        error.response?.data?.message ||
-          "Failed to update subscription plan."
-      );
-    } finally {
-      setSavingPlan(false);
-      setEditingPlan(null);
-    }
-  };
+const handleFeatureChange = (feature) => {
+  setPlanForm((prev) => ({
+    ...prev,
+    features: {
+      ...prev.features,
+      [feature]: !prev.features[feature],
+    },
+  }));
+};
 
   // Save Support Settings
   const handleSaveSupportSettings = () => {
@@ -826,200 +954,574 @@ export default function SuperAdminSettingsScreen() {
         </Card>
       )}
 
-      {/* SUBSCRIPTION PLANS */}
-      {activeTab === "plans" && (
-        <div className="space-y-4">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="font-semibold text-slate-900">
-                  Manage Subscription Plans
-                </h3>
+    {/* SUBSCRIPTION PLANS */}
+{activeTab === "plans" && (
+  <div className="space-y-4">
 
-                <p className="text-xs text-slate-500 mt-1">
-                  Create, update and manage SmartBill subscription plans.
-                </p>
-              </div>
+    <Card className="p-6">
 
-              {loadingPlans && (
-                <span className="text-sm text-slate-500">
-                  Loading...
-                </span>
-              )}
-            </div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="font-semibold text-slate-900 text-lg">
+            Manage Subscription Plans
+          </h3>
 
-            {planError && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-                {planError}
-              </div>
-            )}
+          <p className="text-xs text-slate-500 mt-1">
+            Create and manage SmartBill subscription plans.
+          </p>
+        </div>
 
-            {loadingPlans ? (
-              <div className="py-10 text-center text-slate-500">
-                Loading subscription plans...
-              </div>
-            ) : plans.length === 0 ? (
-              <div className="py-10 text-center text-slate-500">
-                No subscription plans found.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                {plans.map((plan) => (
-                  <div
-                    key={plan._id}
-                    className="border border-slate-200 rounded-lg p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-slate-900">
-                        {plan.name}
-                      </h4>
+        {loadingPlans && (
+          <div className="flex items-center gap-2 text-sm text-blue-600">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading...
+          </div>
+        )}
+      </div>
 
-                      <Badge
-                        label={plan.status}
-                        variant={
-                          plan.status === "active"
-                            ? "green"
-                            : "gray"
-                        }
-                      />
-                    </div>
-
-                    <p className="text-2xl font-bold text-blue-600 mt-3">
-                      ₹{Number(plan.price).toLocaleString("en-IN")}
-                    </p>
-
-                    <p className="text-xs text-slate-500">
-                      per {plan.billingCycle || "month"}
-                    </p>
-
-                    <div className="mt-4 space-y-1">
-                      <p className="text-xs text-slate-600">
-                        Businesses:{" "}
-                        {plan.maxBusinesses === Infinity ||
-                        plan.maxBusinesses === "Infinity"
-                          ? "Unlimited"
-                          : plan.maxBusinesses}
-                      </p>
-
-                      <p className="text-xs text-slate-600">
-                        Users:{" "}
-                        {plan.maxUsers === Infinity ||
-                        plan.maxUsers === "Infinity"
-                          ? "Unlimited"
-                          : plan.maxUsers}
-                      </p>
-
-                      <p className="text-xs text-slate-600">
-                        Invoices/month:{" "}
-                        {plan.maxInvoicesPerMonth === Infinity ||
-                        plan.maxInvoicesPerMonth === "Infinity"
-                          ? "Unlimited"
-                          : plan.maxInvoicesPerMonth}
-                      </p>
-                    </div>
-
-                    <div className="mt-4">
-                      <p className="text-xs font-semibold text-slate-700 mb-2">
-                        Features
-                      </p>
-
-                      <div className="space-y-1">
-                        {plan.features &&
-                          Object.entries(plan.features)
-                            .filter(([, enabled]) => enabled)
-                            .map(([feature]) => (
-                              <p
-                                key={feature}
-                                className="text-xs text-slate-500"
-                              >
-                                ✓{" "}
-                                {feature
-                                  .replace(
-                                    /([A-Z])/g,
-                                    " $1"
-                                  )
-                                  .replace(/^./, (str) =>
-                                    str.toUpperCase()
-                                  )}
-                              </p>
-                            ))}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 mt-5">
-                      <Btn
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditPlan(plan)}
-                        disabled={savingPlan}
-                      >
-                        {editingPlan === plan._id
-                          ? "Updating..."
-                          : "Edit"}
-                      </Btn>
-
-                      <Btn
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handleDeletePlan(plan._id)
-                        }
-                        disabled={
-                          deletingPlanId === plan._id
-                        }
-                      >
-                        {deletingPlanId === plan._id
-                          ? "Deleting..."
-                          : "Delete"}
-                      </Btn>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="border-t border-slate-100 pt-5">
-              <h4 className="font-medium text-slate-900 mb-3">
-                Add New Plan
-              </h4>
-
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={newPlanName}
-                  onChange={(e) =>
-                    setNewPlanName(e.target.value)
-                  }
-                  placeholder="Plan Name"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-
-                <input
-                  type="number"
-                  value={newPlanPrice}
-                  onChange={(e) =>
-                    setNewPlanPrice(e.target.value)
-                  }
-                  placeholder="Price (e.g. 999)"
-                  min="0"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-
-                <Btn
-                  variant="primary"
-                  onClick={handleAddPlan}
-                  disabled={savingPlan}
-                  icon={<Plus className="w-4 h-4" />}
-                >
-                  {savingPlan
-                    ? "Adding Plan..."
-                    : "Add Plan"}
-                </Btn>
-              </div>
-            </div>
-          </Card>
+      {/* Error */}
+      {planError && (
+        <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          {planError}
         </div>
       )}
+
+      {/* Loading */}
+      {loadingPlans ? (
+        <div className="py-12 text-center text-slate-500">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
+
+          <p className="text-sm">
+            Loading subscription plans...
+          </p>
+        </div>
+      ) : plans.length === 0 ? (
+        <div className="py-12 text-center text-slate-500">
+          <Package className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+
+          <p className="text-sm font-medium">
+            No subscription plans found.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+
+          {plans.map((plan) => (
+            <div
+              key={plan._id}
+              className="border border-slate-200 rounded-xl p-5 bg-white"
+            >
+
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-slate-900">
+                  {plan.name}
+                </h4>
+
+                <Badge
+                  label={plan.status}
+                  variant={
+                    plan.status === "active"
+                      ? "green"
+                      : "gray"
+                  }
+                />
+              </div>
+
+              {/* Price */}
+              <div className="mt-4">
+                <span className="text-3xl font-bold text-blue-600">
+                  ₹{Number(plan.price).toLocaleString("en-IN")}
+                </span>
+
+                <span className="text-xs text-slate-500 ml-1">
+                  / {plan.billingCycle || "month"}
+                </span>
+              </div>
+
+              {/* Features */}
+              <div className="mt-5">
+
+                <p className="text-xs font-semibold text-slate-700 mb-3">
+                  Features
+                </p>
+
+                <div className="space-y-2">
+
+                  {Object.entries(
+                    featureLabels
+                  ).map(([key, label]) => {
+
+                    const enabled =
+                      Boolean(
+                        plan.features?.[key]
+                      );
+
+                    return (
+                      <div
+                        key={key}
+                        className="flex items-center gap-2 text-xs"
+                      >
+
+                        <span
+                          className={
+                            enabled
+                              ? "text-green-600 font-bold"
+                              : "text-slate-300"
+                          }
+                        >
+                          {enabled ? "✓" : "×"}
+                        </span>
+
+                        <span
+                          className={
+                            enabled
+                              ? "text-slate-700"
+                              : "text-slate-400"
+                          }
+                        >
+                          {label}
+                        </span>
+
+                      </div>
+                    );
+                  })}
+
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 mt-6">
+
+                <Btn
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    handleEditPlan(plan)
+                  }
+                  disabled={
+                    savingPlan ||
+                    deletingPlanId === plan._id
+                  }
+                >
+                  Edit
+                </Btn>
+
+                <Btn
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    handleDeletePlan(plan._id)
+                  }
+                  disabled={
+                    savingPlan ||
+                    deletingPlanId === plan._id
+                  }
+                >
+                  {deletingPlanId === plan._id
+                    ? "Deleting..."
+                    : "Delete"}
+                </Btn>
+
+              </div>
+
+            </div>
+          ))}
+
+        </div>
+      )}
+
+    </Card>
+
+
+    {/* EDIT PLAN FORM */}
+
+    {editingPlan && (
+      <Card className="p-6 border-2 border-blue-100">
+
+        <div className="flex items-center justify-between mb-6">
+
+          <div>
+            <h3 className="font-semibold text-slate-900 text-lg">
+              Edit Subscription Plan
+            </h3>
+
+            <p className="text-xs text-slate-500 mt-1">
+              Update plan details and features.
+            </p>
+          </div>
+
+          <Badge
+            label="Editing"
+            variant="blue"
+          />
+
+        </div>
+
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+          {/* Plan Name */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Plan Name
+            </label>
+
+            <input
+              type="text"
+              value={editPlanName}
+              onChange={(e) =>
+                setEditPlanName(e.target.value)
+              }
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          </div>
+
+
+          {/* Price */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Price
+            </label>
+
+            <input
+              type="number"
+              min="0"
+              value={editPlanPrice}
+              onChange={(e) =>
+                setEditPlanPrice(e.target.value)
+              }
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          </div>
+
+
+          {/* Billing Cycle */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Billing Cycle
+            </label>
+
+            <select
+              value={editPlanBillingCycle}
+              onChange={(e) =>
+                setEditPlanBillingCycle(
+                  e.target.value
+                )
+              }
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="monthly">
+                Monthly
+              </option>
+
+              <option value="yearly">
+                Yearly
+              </option>
+
+              <option value="custom">
+                Custom
+              </option>
+            </select>
+          </div>
+
+
+          {/* Status */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Status
+            </label>
+
+            <select
+              value={editPlanStatus}
+              onChange={(e) =>
+                setEditPlanStatus(
+                  e.target.value
+                )
+              }
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="active">
+                Active
+              </option>
+
+              <option value="inactive">
+                Inactive
+              </option>
+            </select>
+          </div>
+
+        </div>
+
+
+        {/* Features */}
+        <div className="mt-6">
+
+          <h4 className="font-semibold text-slate-900 mb-4">
+            Plan Features
+          </h4>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+            {Object.entries(
+              featureLabels
+            ).map(([key, label]) => (
+
+              <label
+                key={key}
+                className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50"
+              >
+
+                <input
+                  type="checkbox"
+                  checked={Boolean(
+                    editPlanFeatures[key]
+                  )}
+                  onChange={(e) =>
+                    setEditPlanFeatures(
+                      (prev) => ({
+                        ...prev,
+                        [key]:
+                          e.target.checked,
+                      })
+                    )
+                  }
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+
+                <span className="text-sm text-slate-700">
+                  {label}
+                </span>
+
+              </label>
+
+            ))}
+
+          </div>
+
+        </div>
+
+
+        {/* Buttons */}
+        <div className="flex gap-3 mt-7">
+
+          <Btn
+            variant="outline"
+            onClick={() =>
+              setEditingPlan(null)
+            }
+            disabled={savingPlan}
+          >
+            Cancel
+          </Btn>
+
+          <Btn
+            variant="primary"
+            onClick={handleUpdatePlan}
+            disabled={savingPlan}
+            icon={
+              savingPlan ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : null
+            }
+          >
+            {savingPlan
+              ? "Saving Changes..."
+              : "Save Changes"}
+          </Btn>
+
+        </div>
+
+      </Card>
+    )}
+
+
+    {/* ADD NEW PLAN */}
+
+    <Card className="p-6">
+
+      <div className="mb-6">
+
+        <h3 className="font-semibold text-slate-900 text-lg">
+          Add New Subscription Plan
+        </h3>
+
+        <p className="text-xs text-slate-500 mt-1">
+          Create a new plan that will be stored in MongoDB.
+        </p>
+
+      </div>
+
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        {/* Name */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Plan Name
+          </label>
+
+          <input
+            type="text"
+            value={newPlanName}
+            onChange={(e) =>
+              setNewPlanName(e.target.value)
+            }
+            placeholder="e.g. Premium"
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+        </div>
+
+
+        {/* Price */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Price
+          </label>
+
+          <input
+            type="number"
+            min="0"
+            value={newPlanPrice}
+            onChange={(e) =>
+              setNewPlanPrice(e.target.value)
+            }
+            placeholder="e.g. 999"
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+        </div>
+
+
+        {/* Billing */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Billing Cycle
+          </label>
+
+          <select
+            value={newPlanBillingCycle}
+            onChange={(e) =>
+              setNewPlanBillingCycle(
+                e.target.value
+              )
+            }
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+          >
+            <option value="monthly">
+              Monthly
+            </option>
+
+            <option value="yearly">
+              Yearly
+            </option>
+
+            <option value="custom">
+              Custom
+            </option>
+          </select>
+        </div>
+
+
+        {/* Status */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Status
+          </label>
+
+          <select
+            value={newPlanStatus}
+            onChange={(e) =>
+              setNewPlanStatus(e.target.value)
+            }
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+          >
+            <option value="active">
+              Active
+            </option>
+
+            <option value="inactive">
+              Inactive
+            </option>
+          </select>
+        </div>
+
+      </div>
+
+
+      {/* Features */}
+      <div className="mt-6">
+
+        <h4 className="font-semibold text-slate-900 mb-4">
+          Plan Features
+        </h4>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+          {Object.entries(
+            featureLabels
+          ).map(([key, label]) => (
+
+            <label
+              key={key}
+              className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50"
+            >
+
+              <input
+                type="checkbox"
+                checked={Boolean(
+                  newPlanFeatures[key]
+                )}
+                onChange={(e) =>
+                  setNewPlanFeatures(
+                    (prev) => ({
+                      ...prev,
+                      [key]:
+                        e.target.checked,
+                    })
+                  )
+                }
+                className="w-4 h-4 text-blue-600 rounded"
+              />
+
+              <span className="text-sm text-slate-700">
+                {label}
+              </span>
+
+            </label>
+
+          ))}
+
+        </div>
+
+      </div>
+
+
+      {/* Add Button */}
+      <div className="mt-6">
+
+        <Btn
+          variant="primary"
+          onClick={handleAddPlan}
+          disabled={savingPlan}
+          icon={
+            savingPlan ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )
+          }
+        >
+          {savingPlan
+            ? "Creating Plan..."
+            : "Create Subscription Plan"}
+        </Btn>
+
+      </div>
+
+    </Card>
+
+  </div>
+)}
 
       {/* TAB 6: ADMIN USERS */}
       {activeTab === "users" && (
