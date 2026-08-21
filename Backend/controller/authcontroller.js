@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import Verification from "../models/verifiy.js";
 import SystemSettings from "../models/SystemSettings.js";
 import { notifySuperAdmins } from "../services/notificationService.js";
+import { sendWelcomeEmail, sendPasswordResetEmail } from "../utils/emailService.js";
 
 // ======================================================
 // HELPER: BUILD AUTH RESPONSE
@@ -236,6 +237,17 @@ export const register = async (req, res) => {
       }
     } catch (notifErr) {
       console.error("SuperAdmin registration notification error:", notifErr.message);
+    }
+
+    // Dispatch Welcome Email (checks SuperAdmin active/inactive setting in MongoDB)
+    try {
+      await sendWelcomeEmail({
+        toEmail: user.email,
+        userName: `${user.firstName} ${user.lastName}`.trim(),
+        businessName: user.businessName || "Smart Bill",
+      });
+    } catch (welcomeErr) {
+      console.error("Welcome email dispatch error:", welcomeErr.message);
     }
 
     return res.status(201).json(buildAuthPayload(user));
@@ -842,10 +854,22 @@ export const forgotPassword = async (req, res) => {
       });
     }
 
-    // In a real application, you would generate a secure token here,
-    // save it to the database with an expiration time, and send an email
-    // containing a link with that token.
-    // For this dashboard, we just return success to indicate the email is valid.
+    const resetLink = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password?email=${encodeURIComponent(user.email)}`;
+
+    // Dispatch Password Reset Email (checks SuperAdmin active/inactive setting in MongoDB)
+    const emailResult = await sendPasswordResetEmail({
+      toEmail: user.email,
+      userName: `${user.firstName} ${user.lastName}`.trim(),
+      resetLink,
+      businessName: user.businessName || "Smart Bill",
+    });
+
+    if (emailResult?.skipped) {
+      return res.status(200).json({
+        message: "Password reset requested, but Password Reset Email is disabled in SuperAdmin settings.",
+        skipped: true,
+      });
+    }
 
     return res.status(200).json({
       message: "Password reset link sent successfully.",

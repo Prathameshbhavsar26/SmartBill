@@ -883,26 +883,6 @@ export default function POSScreen() {
       transactionRef: transactionRef.trim() || undefined,
     };
 
-    if (partySettings.trackBalance && selectedCustomer) {
-      const creditLimit = Number(selectedCustomer.creditLimit || 0);
-      if (creditLimit > 0) {
-        const orderTotal = Math.round(total);
-        const paidAmount = Math.round(effectivePaid);
-        const newUnpaidBalance = Math.max(0, orderTotal - paidAmount);
-        const currentBalance = Number(selectedCustomer.balance || 0);
-        const projectedBalance = currentBalance + newUnpaidBalance;
-
-        if (projectedBalance > creditLimit) {
-          const confirmProceed = window.confirm(
-            `⚠️ Credit Limit Warning!\n\nCustomer ${selectedCustomer.name}'s credit limit is ₹${creditLimit}.\nCurrent Balance: ₹${currentBalance}\nProjected Balance after this order: ₹${projectedBalance}\n\nDo you still want to proceed with this order?`
-          );
-          if (!confirmProceed) {
-            return;
-          }
-        }
-      }
-    }
-
     setSaving(true);
     try {
       const res = await createOrder(payload);

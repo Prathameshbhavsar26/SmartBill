@@ -7,6 +7,7 @@ import {
   Plus,
   Lock,
   Loader2,
+  X,
 } from "lucide-react";
 
 import { Btn, Badge, Card, Toast } from "../../components/common/ui";
@@ -31,10 +32,11 @@ export default function SuperAdminSettingsScreen() {
 
   const [systemLoading, setSystemLoading] = useState(true);
   const [systemSaving, setSystemSaving] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [emailSaving, setEmailSaving] = useState(false);
 
   // Email Template states
-  const [emailTemplates] = useState([
+  const [emailTemplates, setEmailTemplates] = useState([
     {
       id: 1,
       name: "Welcome Email",
@@ -61,8 +63,6 @@ export default function SuperAdminSettingsScreen() {
     },
   ]);
 
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-
   // Subscription Plans states
   const [plans, setPlans] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
@@ -82,6 +82,8 @@ export default function SuperAdminSettingsScreen() {
   const [liveChat, setLiveChat] = useState(true);
   const [knowledgeBase, setKnowledgeBase] = useState(true);
 
+  const [toast, setToast] = useState(null);
+
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
@@ -96,23 +98,17 @@ export default function SuperAdminSettingsScreen() {
         const res = await adminAPI.getSystemSettings();
 
         if (res?.systemSettings) {
-          setMaintenanceMode(
-            Boolean(res.systemSettings.maintenanceMode)
-          );
+          setMaintenanceMode(Boolean(res.systemSettings.maintenanceMode));
           setAutoBackup(Boolean(res.systemSettings.autoBackup));
           setDebugMode(Boolean(res.systemSettings.debugMode));
-          setBackupFrequency(
-            res.systemSettings.backupFrequency || "daily"
-          );
-          setMaxLoginAttempts(
-            String(res.systemSettings.maxLoginAttempts ?? 5)
-          );
+          setBackupFrequency(res.systemSettings.backupFrequency || "daily");
+          setMaxLoginAttempts(String(res.systemSettings.maxLoginAttempts ?? 5));
+          if (Array.isArray(res.systemSettings.emailTemplates) && res.systemSettings.emailTemplates.length > 0) {
+            setEmailTemplates(res.systemSettings.emailTemplates);
+          }
         }
       } catch (err) {
-        console.error(
-          "Failed to load system settings from MongoDB:",
-          err
-        );
+        console.error("Failed to load system settings from MongoDB:", err);
       } finally {
         setSystemLoading(false);
       }
@@ -193,14 +189,56 @@ export default function SuperAdminSettingsScreen() {
     }
   };
 
-  // Save Email Settings
-  const handleSaveEmailSettings = () => {
-    localStorage.setItem(
-      "superAdminEmailSettings",
-      JSON.stringify({ emailTemplates })
-    );
+  const handleSaveEmailSettings = async (templatesToSave = emailTemplates) => {
+    try {
+      setEmailSaving(true);
+      const res = await adminAPI.updateSystemSettings({ emailTemplates: templatesToSave });
+      if (res?.systemSettings?.emailTemplates) {
+        setEmailTemplates(res.systemSettings.emailTemplates);
+      }
+      showToast("✓ Email templates saved to MongoDB successfully!", "success");
+    } catch (err) {
+      console.error("Failed to save email templates:", err);
+      showToast(err.message || "Failed to save email templates to MongoDB.", "error");
+    } finally {
+      setEmailSaving(false);
+    }
+  };
 
-    alert("✓ Email templates updated successfully!");
+  const handleToggleTemplateStatus = async (templateId) => {
+    const updatedTemplates = emailTemplates.map((template) => {
+      if (template.id === templateId) {
+        const newStatus = template.status === "active" ? "inactive" : "active";
+        return { ...template, status: newStatus };
+      }
+      return template;
+    });
+
+    setEmailTemplates(updatedTemplates);
+
+    try {
+      const res = await adminAPI.updateSystemSettings({ emailTemplates: updatedTemplates });
+      if (res?.systemSettings?.emailTemplates) {
+        setEmailTemplates(res.systemSettings.emailTemplates);
+      }
+      const updatedItem = updatedTemplates.find((t) => t.id === templateId);
+      showToast(
+        `✓ Email template "${updatedItem?.name}" status updated to ${updatedItem?.status}!`,
+        "success"
+      );
+    } catch (err) {
+      console.error("Failed to update template status:", err);
+      showToast("Failed to update template status in MongoDB.", "error");
+    }
+  };
+
+  const handleSaveModalTemplate = async (editedTemplate) => {
+    const updatedTemplates = emailTemplates.map((t) =>
+      t.id === editedTemplate.id ? editedTemplate : t
+    );
+    setEmailTemplates(updatedTemplates);
+    setSelectedTemplate(null);
+    await handleSaveEmailSettings(updatedTemplates);
   };
 
   // Subscription Plans Functions
@@ -833,62 +871,295 @@ export default function SuperAdminSettingsScreen() {
       {/* EMAIL TEMPLATES */}
       {activeTab === "email" && (
         <Card className="p-6">
-          <h3 className="font-semibold text-slate-900 mb-5">
-            Email Templates
-          </h3>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-semibold text-slate-900 text-lg">Email Templates</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Manage automated system emails, subjects, body content, and active status.
+              </p>
+            </div>
+            <Btn
+              variant="primary"
+              onClick={() => handleSaveEmailSettings()}
+              icon={emailSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+              disabled={emailSaving}
+            >
+              {emailSaving ? "Saving..." : "Save Email Templates"}
+            </Btn>
+          </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {emailTemplates.map((template) => (
               <div
                 key={template.id}
-                className="border border-slate-200 rounded-lg p-3 flex items-center justify-between"
+                className="border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white hover:border-blue-200 transition-all shadow-sm"
               >
-                <div>
-                  <p className="font-medium text-slate-900">
-                    {template.name}
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-slate-900">{template.name}</p>
+                    <Badge
+                      label={template.status === "active" ? "Active" : "Inactive"}
+                      variant={template.status === "active" ? "green" : "gray"}
+                    />
+                  </div>
+                  <p className="text-xs font-mono text-slate-600 bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-md inline-block">
+                    <span className="font-semibold text-slate-400">Subject:</span> {template.subject}
                   </p>
-
-                  <p className="text-xs text-slate-500">
-                    {template.subject}
-                  </p>
+                  {template.body && (
+                    <p className="text-xs text-slate-500 line-clamp-1 italic">
+                      "{template.body.replace(/\n/g, " ")}"
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Badge
-                    label={template.status}
-                    variant={
-                      template.status === "active"
-                        ? "green"
-                        : "gray"
-                    }
-                  />
+                <div className="flex items-center gap-4 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 justify-between md:justify-end">
+                  {/* Functional Toggle Switch */}
+                  <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <span className="text-xs font-medium text-slate-600">
+                      {template.status === "active" ? "Enabled" : "Disabled"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleTemplateStatus(template.id)}
+                      className={`w-11 h-6 rounded-full relative transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        template.status === "active" ? "bg-blue-600" : "bg-slate-300"
+                      }`}
+                      title={`Click to ${template.status === "active" ? "disable" : "enable"} ${template.name}`}
+                    >
+                      <span
+                        className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${
+                          template.status === "active" ? "right-1" : "left-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
 
                   <Btn
                     variant="outline"
                     size="sm"
-                    onClick={() =>
-                      setSelectedTemplate(template)
-                    }
+                    onClick={() => setSelectedTemplate({ ...template })}
                   >
-                    Edit
+                    Edit Template
                   </Btn>
                 </div>
               </div>
             ))}
           </div>
-
-          <Btn
-            variant="primary"
-            onClick={handleSaveEmailSettings}
-            icon={<Mail className="w-4 h-4" />}
-            className="mt-5"
-          >
-            Save Email Templates
-          </Btn>
         </Card>
       )}
 
-      {/* SUPPORT SETTINGS */}
+      {/* EDIT TEMPLATE MODAL */}
+      {selectedTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-blue-600" />
+                Edit Email Template
+              </h4>
+              <button
+                type="button"
+                onClick={() => setSelectedTemplate(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/50 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveModalTemplate(selectedTemplate);
+              }}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Template Name
+                </label>
+                <input
+                  type="text"
+                  value={selectedTemplate.name}
+                  onChange={(e) =>
+                    setSelectedTemplate({ ...selectedTemplate, name: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Email Subject Line
+                </label>
+                <input
+                  type="text"
+                  value={selectedTemplate.subject}
+                  onChange={(e) =>
+                    setSelectedTemplate({ ...selectedTemplate, subject: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Email Body Content
+                </label>
+                <textarea
+                  rows={5}
+                  value={selectedTemplate.body || ""}
+                  onChange={(e) =>
+                    setSelectedTemplate({ ...selectedTemplate, body: e.target.value })
+                  }
+                  placeholder="Enter template body text..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-slate-800"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Available placeholders: <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-mono">&#123;user_name&#125;</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-mono">&#123;invoice_no&#125;</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-mono">&#123;amount&#125;</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-mono">&#123;reset_link&#125;</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-blue-600 font-mono">&#123;expiry_date&#125;</code>
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">Template Status</p>
+                  <p className="text-xs text-slate-500">Enable or disable this notification email</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-slate-600">
+                    {selectedTemplate.status === "active" ? "Active" : "Inactive"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTemplate({
+                        ...selectedTemplate,
+                        status: selectedTemplate.status === "active" ? "inactive" : "active",
+                      })
+                    }
+                    className={`w-11 h-6 rounded-full relative transition-colors ${
+                      selectedTemplate.status === "active" ? "bg-blue-600" : "bg-slate-300"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        selectedTemplate.status === "active" ? "right-1" : "left-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <Btn
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelectedTemplate(null)}
+                >
+                  Cancel
+                </Btn>
+                <Btn type="submit" variant="primary" icon={<Mail className="w-4 h-4" />}>
+                  Save Template
+                </Btn>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 6: ADMIN USERS */}
+      {activeTab === "users" && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900 mb-5">Admin Users</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  {[
+                    "Name",
+                    "Email",
+                    "Role",
+                    "Status",
+                    "Last Login",
+                    "Action",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {adminUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {user.name}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{user.email}</td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        label={
+                          user.role === "super-admin" ? "Super Admin" : "Admin"
+                        }
+                        variant="blue"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge label={user.status} variant="green" />
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">
+                      {user.lastLogin}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Btn
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRemoveAdmin(user.id)}
+                      >
+                        Remove
+                      </Btn>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 7: AUDIT LOGS */}
+      {activeTab === "logs" && (
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-900 mb-5">Audit Logs</h3>
+          <div className="space-y-2">
+            {auditLogs.map((log) => (
+              <div
+                key={log.id}
+                className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    {log.action}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    by {log.user} • {log.timestamp}
+                  </p>
+                </div>
+                <Badge
+                  label={log.status}
+                  variant={log.status === "success" ? "green" : "yellow"}
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 8: SUPPORT SETTINGS */}
       {activeTab === "support" && (
         <Card className="p-6">
           <h3 className="font-semibold text-slate-900 mb-5">
