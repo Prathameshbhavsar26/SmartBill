@@ -32,7 +32,6 @@ export const getNotifications = async (req, res) => {
 
     const notifications = await Notification.find({ ownerId })
       .sort({ createdAt: -1 })
-      .limit(100)
       .lean();
 
     const unreadCount = await Notification.countDocuments({

@@ -6,9 +6,13 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
-import { fetchSuppliers } from "../../api/supplierAPI";
+import {
+  createPurchase,
+  fetchPurchases,
+  markPurchaseAsPaid,
+} from "../../api/purchaseAPI";
 import { getProducts } from "../../api/productAPI";
-import { createPurchase, fetchPurchases } from "../../api/purchaseAPI";
+import { fetchSuppliers } from "../../api/supplierAPI";
 import { fmt } from "../../utils/format";
 import { Toast } from "../../components/common/ui";
 
@@ -295,6 +299,47 @@ export default function PurchaseScreen() {
       },
     ]);
   };
+
+
+const handleMarkAsPaid = async (purchaseId) => {
+  if (!purchaseId) return;
+
+  const confirmed = window.confirm(
+    "Are you sure you want to mark this purchase as paid?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const response = await markPurchaseAsPaid(purchaseId);
+
+    const updatedPurchase = response?.purchase;
+
+    setPurchaseList((prev) =>
+      prev.map((purchase) =>
+        (purchase._id || purchase.id) === purchaseId
+          ? updatedPurchase || {
+              ...purchase,
+              paymentStatus: "Paid",
+              amountPaid: purchase.totalAmount || 0,
+              remainingAmount: 0,
+            }
+          : purchase
+      )
+    );
+
+    showToast("Purchase marked as paid successfully!", "success");
+  } catch (err) {
+    console.error("MARK PURCHASE AS PAID ERROR:", err);
+    showToast(
+      err.response?.data?.message ||
+        err.message ||
+        "Failed to mark purchase as paid",
+      "error"
+    );
+  }
+};
+
 
   const handleSavePurchase = async () => {
     if (!supplier) {
@@ -911,6 +956,7 @@ export default function PurchaseScreen() {
                     <th className="px-4 py-3 text-right">Total Amount</th>
                     <th className="px-4 py-3 text-center">Status</th>
                     <th className="px-4 py-3 text-right">Remaining Due</th>
+                    <th className="px-4 py-3 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -991,6 +1037,23 @@ export default function PurchaseScreen() {
                             </span>
                           )}
                         </td>
+                        <td className="px-4 py-3 text-center">
+  {purchase.paymentStatus !== "Paid" ? (
+    <button
+      type="button"
+      onClick={() => handleMarkAsPaid(purchase._id || purchase.id)}
+      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold transition-colors cursor-pointer"
+      title="Mark purchase as paid"
+    >
+      <Check className="w-3 h-3" />
+      Mark as Paid
+    </button>
+  ) : (
+    <span className="text-xs text-slate-400 dark:text-slate-500">
+      —
+    </span>
+  )}
+</td>
                       </tr>
                     );
                   })}

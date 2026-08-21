@@ -142,5 +142,13 @@ export function hasPermission(user, pageKey) {
   }
 
   const permissions = getUserPermissions(user);
+  if (
+    pageKey === "pos" ||
+    pageKey === "sales" ||
+    pageKey === "billing" ||
+    pageKey === "sales-billing"
+  ) {
+    return Boolean(permissions.pos);
+  }
   return Boolean(permissions[pageKey]);
 }

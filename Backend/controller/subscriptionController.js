@@ -4,7 +4,7 @@ import { PLAN_LIMITS } from "../config/plans.js";
 import { getOrUpdateSubscriptionState } from "../middleware/checkPlanLimits.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
-import { createNotification } from "../services/notificationService.js";
+import { createNotification, notifySuperAdmins } from "../services/notificationService.js";
 
 /* ─────────────────────────────────────────────────────────────
    Helper: days remaining in current period
@@ -281,6 +281,22 @@ export const verifySubscriptionPayment = async (req, res) => {
               isUpgrade: !!isUpgrade,
             },
           });
+
+          // Notify SuperAdmins about revenue / plan upgrade
+          const bName = user.businessName || `${user.firstName} ${user.lastName}`;
+          await notifySuperAdmins({
+            title: `Subscription Payment: ${planConfig.name} Plan`,
+            message: `${bName} (${user.email}) has ${isUpgrade ? "upgraded to" : "activated"} the ${planConfig.name} plan.`,
+            type: "success",
+            category: "subscription",
+            link: "revenue",
+            metadata: {
+              businessId: user._id.toString(),
+              businessName: bName,
+              plan: planKey,
+              razorpayOrderId: razorpay_order_id,
+            },
+          });
         } catch (notifErr) {
           console.error("Subscription notification error:", notifErr.message);
         }
@@ -293,6 +309,24 @@ export const verifySubscriptionPayment = async (req, res) => {
         });
       }
     } else {
+      // Guest payment on landing page prior to registration
+      try {
+        await notifySuperAdmins({
+          title: `Subscription Payment Received: ${planConfig.name} Plan`,
+          message: `A payment of ₹${planConfig.price} was verified for the ${planConfig.name} plan (Order: ${razorpay_order_id}).`,
+          type: "success",
+          category: "subscription",
+          link: "revenue",
+          metadata: {
+            plan: planKey,
+            razorpayOrderId: razorpay_order_id,
+            razorpayPaymentId: razorpay_payment_id,
+          },
+        });
+      } catch (notifErr) {
+        console.error("Guest subscription notification error:", notifErr.message);
+      }
+
       res.json({
         success: true,
         message: `Payment successful for ${planName || planKey} plan.`,

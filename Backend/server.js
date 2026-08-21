@@ -23,6 +23,7 @@ import accountingSettingsRoutes from "./routes/accountingSettingsRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import paymentSettingsRoutes from "./routes/paymentSettingsRoutes.js";
+import subscriptionPlanRoutes from "./routes/subscriptionPlanRoutes.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -98,8 +99,10 @@ app.use("/api/settings/transaction", transactionSettingsRoutes);
 app.use("/api/settings/payment", paymentSettingsRoutes);
 app.use("/api/settings/accounting", accountingSettingsRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/admin/businesses", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin/subscription-plans", subscriptionPlanRoutes);
 
 app.get("/", (req, res) => {
   res.send("API working");

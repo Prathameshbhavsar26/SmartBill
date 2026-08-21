@@ -177,13 +177,14 @@ export function NotificationProvider({ children, onNav }) {
                 const newNotif = data.notification;
                 if (!newNotif) break;
 
+                const notifIdStr = String(newNotif._id || newNotif.id || "");
+
                 // Prepend new notification to live state
                 setNotifications((prev) => {
-                  const exists = prev.some(
-                    (item) =>
-                      (item._id && item._id === newNotif._id) ||
-                      (item.id && item.id === newNotif._id)
-                  );
+                  const exists = prev.some((item) => {
+                    const id = String(item._id || item.id || "");
+                    return id && id === notifIdStr;
+                  });
                   if (exists) return prev;
                   return [newNotif, ...prev];
                 });
@@ -206,7 +207,7 @@ export function NotificationProvider({ children, onNav }) {
 
                 toastFn(newNotif.title, {
                   description: newNotif.message,
-                  duration: 5000,
+                  duration: 6000,
                   action:
                     newNotif.link && onNav
                       ? {
@@ -221,7 +222,7 @@ export function NotificationProvider({ children, onNav }) {
               case "NOTIFICATION_READ":
                 setNotifications((prev) =>
                   prev.map((n) =>
-                    n._id === data.notificationId || n.id === data.notificationId
+                    String(n._id || n.id) === String(data.notificationId)
                       ? { ...n, read: true }
                       : n
                   )
@@ -242,7 +243,7 @@ export function NotificationProvider({ children, onNav }) {
                 setNotifications((prev) =>
                   prev.filter(
                     (n) =>
-                      n._id !== data.notificationId && n.id !== data.notificationId
+                      String(n._id || n.id) !== String(data.notificationId)
                   )
                 );
                 if (typeof data.unreadCount === "number") {
@@ -276,13 +277,13 @@ export function NotificationProvider({ children, onNav }) {
             es.close();
           } catch (_) {}
 
-          // Attempt reconnection after 5 seconds
+          // Attempt reconnection after 3 seconds
           if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
           }
           reconnectTimeoutRef.current = setTimeout(() => {
             if (isSubscribed) connectSSE();
-          }, 5000);
+          }, 3000);
         };
       } catch (err) {
         console.error("[SSE] Connection setup error:", err.message);
@@ -293,6 +294,23 @@ export function NotificationProvider({ children, onNav }) {
     refresh();
     connectSSE();
 
+    // Fallback background sync every 8 seconds to ensure zero missed updates
+    const pollInterval = setInterval(() => {
+      if (isSubscribed && localStorage.getItem("smartbill_token")) {
+        fetchNotificationsAPI()
+          .then((res) => {
+            if (res && res.notifications) {
+              setNotifications(res.notifications);
+              setUnreadCount(
+                res.unreadCount ??
+                  res.notifications.filter((n) => !n.read).length
+              );
+            }
+          })
+          .catch(() => {});
+      }
+    }, 8000);
+
     const handleAuthChange = () => {
       refresh();
       connectSSE();
@@ -300,9 +318,11 @@ export function NotificationProvider({ children, onNav }) {
 
     window.addEventListener("userUpdated", handleAuthChange);
     window.addEventListener("storage", handleAuthChange);
+    window.addEventListener("focus", refresh);
 
     return () => {
       isSubscribed = false;
+      clearInterval(pollInterval);
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -313,6 +333,7 @@ export function NotificationProvider({ children, onNav }) {
       }
       window.removeEventListener("userUpdated", handleAuthChange);
       window.removeEventListener("storage", handleAuthChange);
+      window.removeEventListener("focus", refresh);
     };
   }, [refresh, onNav]);
 

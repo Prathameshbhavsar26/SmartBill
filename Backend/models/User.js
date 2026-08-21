@@ -72,6 +72,16 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    lockoutUntil: {
+      type: Date,
+      default: null,
+    },
+
     // Business Profile & Invoice Customization Fields
     tagline: { type: String, default: "" },
     address: { type: String, default: "" },

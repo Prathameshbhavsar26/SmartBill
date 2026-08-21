@@ -9,6 +9,11 @@ import User from "../models/User.js";
 const sseClients = new Map();
 
 /**
+ * Dedicated registry of active Super Admin SSE connections for instant system alerts.
+ */
+const superAdminSockets = new Set();
+
+/**
  * Registers an active client connection for real-time Server-Sent Events.
  */
 export const registerSSEClient = async (ownerId, req, res) => {
@@ -33,6 +38,24 @@ export const registerSSEClient = async (ownerId, req, res) => {
   }
   sseClients.get(ownerKey).add(res);
 
+  // Check if this connection belongs to a Super Admin
+  try {
+    const user = await User.findById(ownerId).select("role email").lean();
+    if (
+      user?.role === "superadmin" ||
+      user?.role === "super-admin" ||
+      user?.role === "admin" ||
+      user?.email === "gawaliomkar2005@gmail.com"
+    ) {
+      superAdminSockets.add(res);
+      console.log(`[NotificationService] SuperAdmin connected to live SSE stream (Owner ID: ${ownerKey})`);
+    } else {
+      console.log(`[NotificationService] Business Owner connected to live SSE stream (Owner ID: ${ownerKey})`);
+    }
+  } catch (err) {
+    console.warn("[NotificationService] Role lookup warning on SSE register:", err.message);
+  }
+
   // Run live sync for low stock / trial alerts on initial connection
   try {
     await syncRealtimeAlerts(ownerId);
@@ -55,11 +78,13 @@ export const registerSSEClient = async (ownerId, req, res) => {
       timestamp: new Date().toISOString(),
     })}\n\n`
   );
+  if (typeof res.flush === "function") res.flush();
 
   // Heartbeat ping interval every 25 seconds to keep proxies & browser sockets alive
   const pingInterval = setInterval(() => {
     try {
       res.write(`: ping ${Date.now()}\n\n`);
+      if (typeof res.flush === "function") res.flush();
     } catch (_) {
       clearInterval(pingInterval);
     }
@@ -68,6 +93,7 @@ export const registerSSEClient = async (ownerId, req, res) => {
   // Clean up on client disconnect
   const cleanup = () => {
     clearInterval(pingInterval);
+    superAdminSockets.delete(res);
     const clientSet = sseClients.get(ownerKey);
     if (clientSet) {
       clientSet.delete(res);
@@ -75,6 +101,7 @@ export const registerSSEClient = async (ownerId, req, res) => {
         sseClients.delete(ownerKey);
       }
     }
+    console.log(`[NotificationService] SSE client disconnected (Owner ID: ${ownerKey})`);
   };
 
   req.on("close", cleanup);
@@ -92,12 +119,15 @@ export const broadcastToOwner = (ownerId, payload) => {
 
   if (clientSet && clientSet.size > 0) {
     const dataStr = `data: ${JSON.stringify(payload)}\n\n`;
-    for (const clientRes of clientSet) {
+    for (const clientRes of Array.from(clientSet)) {
       try {
         clientRes.write(dataStr);
+        if (typeof clientRes.flushHeaders === "function") clientRes.flushHeaders();
+        if (typeof clientRes.flush === "function") clientRes.flush();
       } catch (err) {
         console.warn("[NotificationService] SSE write failed, cleaning up socket:", err.message);
         clientSet.delete(clientRes);
+        superAdminSockets.delete(clientRes);
       }
     }
   }
@@ -140,6 +170,14 @@ export const createNotification = async ({
   try {
     if (!ownerId || !title || !message) return null;
 
+    // SuperAdmin should never receive store stock/inventory alerts
+    if (category === "stock") {
+      const recipient = await User.findById(ownerId).select("role").lean();
+      if (recipient?.role === "superadmin") {
+        return null;
+      }
+    }
+
     const notification = await Notification.create({
       ownerId,
       userId: userId || ownerId,
@@ -173,14 +211,146 @@ export const createNotification = async ({
 };
 
 /**
- * Scans real-time live business data (products, trial status) and generates
- * persistent alerts if not already generated.
+ * Broadcasts a notification to all active Super Admin accounts on the platform
+ * and immediately delivers it live to all open Super Admin browser tabs.
+ */
+export const notifySuperAdmins = async ({
+  title,
+  message,
+  type = "info",
+  category = "system",
+  link = "super-dashboard",
+  metadata = {},
+}) => {
+  try {
+    const superAdmins = await User.find({
+      $or: [
+        { role: { $in: ["superadmin", "super-admin", "admin"] } },
+        { email: "gawaliomkar2005@gmail.com" },
+      ],
+    }).lean();
+
+    console.log(`[NotificationService] notifySuperAdmins: broadcasting "${title}" to ${superAdmins.length} admin account(s) and ${superAdminSockets.size} open admin live socket(s).`);
+
+    for (const admin of superAdmins) {
+      await createNotification({
+        ownerId: admin._id,
+        userId: admin._id,
+        title,
+        message,
+        type,
+        category,
+        link,
+        metadata,
+      });
+    }
+
+    // Direct live broadcast to all connected Super Admin SSE sockets
+    if (superAdminSockets.size > 0) {
+      const payload = {
+        type: "NEW_NOTIFICATION",
+        notification: {
+          title: String(title).trim(),
+          message: String(message).trim(),
+          type,
+          category,
+          link,
+          metadata,
+          read: false,
+          createdAt: new Date().toISOString(),
+        },
+        timestamp: new Date().toISOString(),
+      };
+      const dataStr = `data: ${JSON.stringify(payload)}\n\n`;
+      for (const socket of Array.from(superAdminSockets)) {
+        try {
+          socket.write(dataStr);
+          if (typeof socket.flushHeaders === "function") socket.flushHeaders();
+          if (typeof socket.flush === "function") socket.flush();
+        } catch (err) {
+          superAdminSockets.delete(socket);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[NotificationService] notifySuperAdmins error:", err.message);
+  }
+};
+
+/**
+ * Scans real-time live data and generates alerts if not already generated.
+ * Separates SuperAdmin alerts (platform monitoring, businesses, subscriptions)
+ * from Business Owner alerts (stock levels, invoices, personal trial).
  */
 export const syncRealtimeAlerts = async (ownerId) => {
   try {
     if (!ownerId) return;
 
-    // 1. Sync Low Stock & Out of Stock Alerts
+    const user = await User.findById(ownerId).lean();
+    if (!user) return;
+
+    // ── SUPER ADMIN NOTIFICATION SYNC ──
+    if (user.role === "superadmin") {
+      // 1. Remove any legacy/stale stock notifications on the superadmin account
+      await Notification.deleteMany({
+        ownerId,
+        category: "stock",
+      });
+
+      // 2. Alert SuperAdmin on businesses with expiring trials (within 24h)
+      const now = new Date();
+      const next24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const expiringBusinesses = await User.find({
+        role: "owner",
+        $or: [
+          { "subscription.status": "trialing", "subscription.trialEndsAt": { $gte: now, $lte: next24h } },
+          { subscriptionStatus: "trial", trialEndsAt: { $gte: now, $lte: next24h } },
+        ],
+      }).lean();
+
+      for (const b of expiringBusinesses) {
+        const bIdStr = b._id.toString();
+        const existingAlert = await Notification.findOne({
+          ownerId,
+          category: "businesses",
+          "metadata.expiringBusinessId": bIdStr,
+          createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        }).lean();
+
+        if (!existingAlert) {
+          const bName = b.businessName || `${b.firstName} ${b.lastName}`;
+          await createNotification({
+            ownerId,
+            title: `Trial Expiring Soon: ${bName}`,
+            message: `${bName} (${b.email}) trial will expire within 24 hours. Consider following up for subscription renewal.`,
+            type: "warning",
+            category: "businesses",
+            link: "businesses",
+            metadata: { expiringBusinessId: bIdStr, email: b.email },
+          });
+        }
+      }
+
+      // 3. Ensure SuperAdmin has an initial operational status notification if empty
+      const notifCount = await Notification.countDocuments({ ownerId });
+      if (notifCount === 0) {
+        await createNotification({
+          ownerId,
+          title: "Admin System Active",
+          message: "Welcome to Super Admin. Business registrations, plan subscriptions, and platform alerts will appear in this feed.",
+          type: "info",
+          category: "system",
+          link: "super-dashboard",
+          metadata: { systemNotice: true },
+        });
+      }
+
+      return; // Stop here for SuperAdmin — no inventory low stock checks!
+    }
+
+    // ── BUSINESS OWNER / USER NOTIFICATION SYNC ──
+
+    // 1. Sync Low Stock & Out of Stock Alerts for the owner's inventory
     const products = await Product.find({
       $or: [{ userId: ownerId }, { ownerId: ownerId }],
       status: { $ne: "Inactive" },
@@ -234,11 +404,12 @@ export const syncRealtimeAlerts = async (ownerId) => {
       }
     }
 
-    // 2. Sync Trial / Subscription Expiry Alerts
-    const user = await User.findById(ownerId).lean();
-    if (user && user.subscriptionStatus === "trial" && user.trialEndsAt) {
+    // 2. Sync Trial / Subscription Expiry Alerts for this business owner
+    const trialEnd = user.subscription?.trialEndsAt || user.trialEndsAt;
+    const isTrial = user.subscription?.status === "trialing" || user.subscriptionStatus === "trial";
+    if (isTrial && trialEnd) {
       const now = new Date();
-      const trialEnds = new Date(user.trialEndsAt);
+      const trialEnds = new Date(trialEnd);
       const msLeft = trialEnds.getTime() - now.getTime();
       const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
 

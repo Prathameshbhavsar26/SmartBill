@@ -260,3 +260,106 @@ export const createPurchase = async (req, res) => {
     return res.status(500).json({ message: error.message || "Failed to save purchase." });
   }
 };
+
+// ================= MARK PURCHASE AS PAID =================
+export const markPurchaseAsPaid = async (req, res) => {
+  try {
+    const purchase = await Purchase.findOne({
+      _id: req.params.id,
+      ownerId: req.user._id,
+    });
+
+    if (!purchase) {
+      return res.status(404).json({
+        message: "Purchase record not found.",
+      });
+    }
+
+    // If already paid, no update is required
+    if (purchase.paymentStatus === "Paid") {
+      return res.status(200).json({
+        message: "Purchase is already marked as paid.",
+        purchase,
+      });
+    }
+
+    const previousRemainingAmount = Number(purchase.remainingAmount) || 0;
+
+    // Update purchase payment details
+    purchase.paymentStatus = "Paid";
+    purchase.amountPaid = Number(purchase.totalAmount) || 0;
+    purchase.remainingAmount = 0;
+
+    await purchase.save();
+
+    // Find the supplier
+    let supplierDoc = null;
+
+    if (purchase.supplierId) {
+      supplierDoc = await Supplier.findOne({
+        _id: purchase.supplierId,
+        ownerId: req.user._id,
+      });
+    }
+
+    if (!supplierDoc && purchase.supplierName) {
+      supplierDoc = await Supplier.findOne({
+        name: String(purchase.supplierName).trim(),
+        ownerId: req.user._id,
+      });
+    }
+
+    // Reduce supplier payable balance by the amount that was previously due
+    if (supplierDoc && previousRemainingAmount > 0) {
+      supplierDoc.balance = Math.max(
+        0,
+        (Number(supplierDoc.balance) || 0) - previousRemainingAmount
+      );
+
+      await supplierDoc.save();
+    }
+
+    // Create notification
+    try {
+      await createNotification({
+        ownerId: req.user._id,
+        userId: req.user.actualUserId || req.user._id,
+        title: `Purchase Paid: #${
+          purchase.supplierInvoiceNo ||
+          purchase.purchaseOrderNo ||
+          "Bill"
+        }`,
+        message: `Payment of ₹${Number(
+          purchase.totalAmount || 0
+        ).toLocaleString("en-IN")} to ${
+          purchase.supplierName
+        } has been marked as paid.`,
+        type: "success",
+        category: "purchase",
+        link: "purchase",
+        metadata: {
+          purchaseId: purchase._id,
+          totalAmount: purchase.totalAmount,
+          supplierName: purchase.supplierName,
+          paymentStatus: "Paid",
+        },
+      });
+    } catch (notifErr) {
+      console.error(
+        "Purchase payment notification error:",
+        notifErr.message
+      );
+    }
+
+    return res.status(200).json({
+      message: "Purchase marked as paid successfully.",
+      purchase,
+    });
+  } catch (error) {
+    console.error("MARK PURCHASE AS PAID ERROR:", error.message);
+
+    return res.status(500).json({
+      message: error.message || "Failed to mark purchase as paid.",
+    });
+  }
+};

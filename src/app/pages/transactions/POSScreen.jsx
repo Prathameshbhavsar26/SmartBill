@@ -23,12 +23,12 @@ import {
   ShieldCheck,
   Smartphone,
   Wallet,
-  Clock,
   Eye,
   EyeOff,
   Lock,
+  Camera,
+  Share2,
 } from "lucide-react";
-import { posProducts } from "../../data/mockData";
 import { fmt } from "../../utils/format";
 import { Badge, Btn, Card, Input, Select, Modal } from "../../components/common/ui";
 import { fetchCustomers, createCustomer } from "../../api/customerAPI";
@@ -37,14 +37,17 @@ import { getProducts } from "../../api/productAPI";
 import { getInvoiceSettings } from "../../api/invoiceSettingsAPI";
 import { fetchPartySettings } from "../../api/partySettingsAPI";
 import { useTransactionSettings } from "../../hooks/useTransactionSettings";
+import CameraBarcodeScannerModal from "../../components/pos/CameraBarcodeScannerModal";
+import { shareInvoiceOnWhatsApp, shareInvoiceNative } from "../../utils/whatsappInvoice";
 
 export default function POSScreen() {
   const { settings: txSettings } = useTransactionSettings();
 
   const [cart, setCart] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [productList, setProductList] = useState(posProducts);
+  const [productList, setProductList] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
   const [customer, setCustomer] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerCity, setCustomerCity] = useState("");
@@ -124,29 +127,6 @@ export default function POSScreen() {
     shippingAddress: true,
   });
 
-  useEffect(() => {
-    getInvoiceSettings().then(res => {
-      if(res?.settings) setInvSettings(res.settings);
-    }).catch(console.warn);
-
-    fetchPartySettings().then(res => {
-      if (res?.partySettings) setPartySettings(res.partySettings);
-    }).catch(console.warn);
-
-    const handleSettingsUpdated = (e) => {
-      if (e.detail) setPartySettings(e.detail);
-    };
-    window.addEventListener("partySettingsUpdated", handleSettingsUpdated);
-    return () => window.removeEventListener("partySettingsUpdated", handleSettingsUpdated);
-  }, []);
-
-  // Sync default payment mode from transaction settings
-  useEffect(() => {
-    if (txSettings?.defaultPaymentMode) {
-      setPaymentMode(txSettings.defaultPaymentMode);
-    }
-  }, [txSettings?.defaultPaymentMode]);
-
   // Global Invoice Discount state (for Entire Invoice mode)
   const [globalDiscount, setGlobalDiscount] = useState(0);
 
@@ -218,29 +198,14 @@ export default function POSScreen() {
         setProductList(res.products.filter((p) => p && (p.status === "Active" || !p.status)));
       }
     } catch {
-      // Fallback to posProducts mock data if backend fails
+      // Fallback
     } finally {
       setLoadingProducts(false);
     }
   }, []);
 
-  // Load customers and products on mount.
-  useEffect(() => {
-    fetchCustomers()
-      .then((res) => {
-        if (res && Array.isArray(res.customers)) {
-          setCustomers(res.customers);
-        } else {
-          setCustomers([]);
-        }
-      })
-      .catch(() => setCustomers([]));
-
-    loadProductsList();
-  }, [loadProductsList]);
-
   // Load past orders for sales returns
-  const loadPastOrders = async () => {
+  const loadPastOrders = useCallback(async () => {
     try {
       const res = await fetchOrders();
       if (res && Array.isArray(res.orders)) {
@@ -249,7 +214,41 @@ export default function POSScreen() {
     } catch (err) {
       console.warn("Failed to load past orders for return:", err);
     }
-  };
+  }, []);
+
+  // Load initial data on mount
+  useEffect(() => {
+    // Load invoice settings
+    getInvoiceSettings().then(res => {
+      if(res?.settings) setInvSettings(res.settings);
+    }).catch(console.warn);
+
+    // Load party settings
+    fetchPartySettings().then(res => {
+      if (res?.partySettings) setPartySettings(res.partySettings);
+    }).catch(console.warn);
+
+    const handleSettingsUpdated = (e) => {
+      if (e.detail) setPartySettings(e.detail);
+    };
+    window.addEventListener("partySettingsUpdated", handleSettingsUpdated);
+
+    // Load real customers from MongoDB
+    fetchCustomers()
+      .then((res) => {
+        const list = Array.isArray(res?.customers) ? res.customers : Array.isArray(res) ? res : [];
+        setCustomers(list);
+      })
+      .catch(console.warn);
+
+    // Load past orders
+    loadPastOrders();
+
+    // Load products
+    loadProductsList();
+
+    return () => window.removeEventListener("partySettingsUpdated", handleSettingsUpdated);
+  }, [loadProductsList, loadPastOrders]);
 
   const handleOpenReturnModal = () => {
     setShowReturnModal(true);
@@ -275,7 +274,7 @@ export default function POSScreen() {
   const discountType = txSettings?.discountType || "Percentage";
   const maxDiscountLimit = Number(txSettings?.maximumDiscount || 100);
 
-  const addToCart = (p) => {
+  const addToCart = useCallback((p) => {
     const targetId = getProductId(p);
     const inStock = Number(p.stock) || 0;
 
@@ -307,7 +306,28 @@ export default function POSScreen() {
         },
       ];
     });
-  };
+  }, [allowNegativeStock, getProductDefaultPrice]);
+
+  const handleScanBarcode = useCallback(
+    (code) => {
+      if (!code) return;
+      const clean = String(code).trim().toLowerCase();
+      const matched = productList.find(
+        (p) =>
+          (p.sku && String(p.sku).trim().toLowerCase() === clean) ||
+          (p.barcode && String(p.barcode).trim().toLowerCase() === clean) ||
+          (p.name && String(p.name).trim().toLowerCase() === clean) ||
+          (p._id && String(p._id).toLowerCase() === clean)
+      );
+      if (matched) {
+        addToCart(matched);
+        showToast(`✓ Added "${matched.name}" via scan`);
+      } else {
+        setError(`No product found with barcode / SKU: "${code}"`);
+      }
+    },
+    [productList, addToCart]
+  );
 
   const updateQty = (id, delta) => {
     setError("");
@@ -1228,7 +1248,7 @@ export default function POSScreen() {
             </p>
           </div>
 
-          <div className="mt-8 pt-5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 no-print">
+          <div className="mt-8 pt-5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-3 no-print">
             <Btn
               variant="primary"
               onClick={() => handlePrintInvoice(order)}
@@ -1243,6 +1263,15 @@ export default function POSScreen() {
             >
               Download PDF
             </Btn>
+            <button
+              type="button"
+              onClick={() => shareInvoiceOnWhatsApp(order, activeBiz, order?.customerPhone || customerPhone)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white transition shadow-sm"
+              title="Share digital bill on WhatsApp"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              Share on WhatsApp
+            </button>
             <Btn
               variant="ghost"
               onClick={() => {
@@ -1273,13 +1302,22 @@ export default function POSScreen() {
 
       {/* Left: Products List */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <Input
             value={search}
             onChange={setSearch}
             icon={<ScanLine className="w-4 h-4" />}
             className="flex-1"
           />
+          <button
+            type="button"
+            onClick={() => setCameraScannerOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition shadow-sm cursor-pointer"
+            title="Scan barcode with device camera"
+          >
+            <Camera className="w-4 h-4" />
+            <span>Camera Scan</span>
+          </button>
           <Btn
             variant="outline"
             size="md"
@@ -2385,6 +2423,13 @@ export default function POSScreen() {
           </div>
         </Modal>
       )}
+
+      {/* Camera Barcode & QR Scanner Modal */}
+      <CameraBarcodeScannerModal
+        isOpen={cameraScannerOpen}
+        onClose={() => setCameraScannerOpen(false)}
+        onScanProduct={handleScanBarcode}
+      />
     </div>
   );
 }

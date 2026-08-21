@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import SystemSettings from "../models/SystemSettings.js";
 
 /**
  * Authentication middleware — verifies the JWT from the Authorization header
@@ -41,6 +42,13 @@ export const protect = async (req, res, next) => {
     }
 
     if (user.role !== "superadmin") {
+      const systemSettings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
+      if (systemSettings?.maintenanceMode) {
+        return res.status(403).json({
+          message: "The system is currently undergoing scheduled maintenance. Please try again later.",
+        });
+      }
+
       let ownerUser = null;
       if (user.ownerId) {
         ownerUser = await User.findById(user.ownerId);
