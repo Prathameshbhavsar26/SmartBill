@@ -274,7 +274,6 @@ export default function TransactionSettingsTab() {
                     type="number"
                     min={0}
                     max={100}
-                    placeholder="e.g. 20"
                     value={settings.maximumDiscount}
                     onChange={(v) => handleChange("maximumDiscount", v)}
                   />
@@ -327,7 +326,6 @@ export default function TransactionSettingsTab() {
                   type="number"
                   min={0}
                   max={100}
-                  placeholder="e.g. 2"
                   value={settings.cashDiscountPercent}
                   onChange={(v) => handleChange("cashDiscountPercent", v)}
                 />

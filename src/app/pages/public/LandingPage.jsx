@@ -1,4 +1,6 @@
 import { useState } from "react";
+import Footer from "../../components/common/Footer";
+import PublicNavbar from "../../components/common/PublicNavbar";
 import {
   ArrowRight,
   BarChart2,
@@ -101,74 +103,7 @@ export default function LandingPage({ onNav }) {
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
       {/* Navbar */}
-      <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-8">
-          <div className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <BarChart2 className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-slate-900">Smart Bill</span>
-          </div>
-          <div className="hidden md:flex items-center gap-6 flex-1">
-            {["Features", "Pricing", "Contact"].map((l) => (
-              <a
-                key={l}
-                href={`#${l.toLowerCase()}`}
-                className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
-              >
-                {l}
-              </a>
-            ))}
-          </div>
-          <div className="hidden md:flex items-center gap-3 flex-shrink-0">
-            <Btn variant="ghost" onClick={() => onNav("login")}>
-              Sign In
-            </Btn>
-            <Btn variant="primary" onClick={() => onNav("register")}>
-              Start Free Trial
-            </Btn>
-          </div>
-          <button
-            onClick={() => setMobileMenu((v) => !v)}
-            className="md:hidden ml-auto text-slate-600"
-          >
-            {mobileMenu ? (
-              <X className="w-5 h-5" />
-            ) : (
-              <Menu className="w-5 h-5" />
-            )}
-          </button>
-        </div>
-        {mobileMenu && (
-          <div className="md:hidden border-t border-slate-100 px-6 py-4 space-y-3 bg-white">
-            {["Features", "Pricing", "Contact"].map((l) => (
-              <a
-                key={l}
-                href={`#${l.toLowerCase()}`}
-                className="block text-sm text-slate-700 py-1.5"
-              >
-                {l}
-              </a>
-            ))}
-            <div className="flex gap-3 pt-2">
-              <Btn
-                variant="outline"
-                onClick={() => onNav("login")}
-                className="flex-1"
-              >
-                Sign In
-              </Btn>
-              <Btn
-                variant="primary"
-                onClick={() => onNav("register")}
-                className="flex-1"
-              >
-                Try Free
-              </Btn>
-            </div>
-          </div>
-        )}
-      </nav>
+      <PublicNavbar />
 
       {/* Hero */}
       <section className="bg-gradient-to-b from-slate-50 to-white pt-20 pb-16 px-6">
@@ -373,44 +308,7 @@ export default function LandingPage({ onNav }) {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer id="contact" className="bg-slate-900 text-slate-400 py-12 px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-                <BarChart2 className="w-3.5 h-3.5 text-white" />
-              </div>
-              <span className="font-bold text-white text-sm">Smart Bill</span>
-            </div>
-            <p className="text-xs leading-relaxed">
-              India's most trusted billing and inventory management platform.
-            </p>
-          </div>
-          {[
-            ["Product", ["Features", "Pricing", "Changelog", "Roadmap"]],
-            ["Company", ["About", "Blog", "Careers", "Press"]],
-            ["Support", ["Help Center", "API Docs", "Status", "Contact"]],
-          ].map(([t, links]) => (
-            <div key={t}>
-              <p className="font-semibold text-white text-sm mb-2">{t}</p>
-              <ul className="space-y-2">
-                {links.map((l) => (
-                  <li key={l}>
-                    <a
-                      href="#"
-                      className="text-xs text-slate-400 hover:text-white transition-colors"
-                    >
-                      {l}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2"></div>
-      </footer>
+      <Footer />
     </div>
   );
 }

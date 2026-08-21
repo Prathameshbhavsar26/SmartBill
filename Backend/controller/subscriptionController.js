@@ -5,6 +5,7 @@ import { getOrUpdateSubscriptionState } from "../middleware/checkPlanLimits.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import { createNotification, notifySuperAdmins } from "../services/notificationService.js";
+import { sendSubscriptionReminderEmail } from "../utils/emailService.js";
 
 /* ─────────────────────────────────────────────────────────────
    Helper: days remaining in current period
@@ -299,6 +300,20 @@ export const verifySubscriptionPayment = async (req, res) => {
           });
         } catch (notifErr) {
           console.error("Subscription notification error:", notifErr.message);
+        }
+
+        // Dispatch Subscription Email (checks SuperAdmin active/inactive setting in MongoDB)
+        try {
+          sendSubscriptionReminderEmail({
+            toEmail: user.email,
+            userName: `${user.firstName} ${user.lastName}`.trim(),
+            expiryDate: user.subscription.currentPeriodEnd
+              ? new Date(user.subscription.currentPeriodEnd).toLocaleDateString("en-IN")
+              : "30 days",
+            businessName: user.businessName || "Smart Bill",
+          }).catch((err) => console.error("Subscription email trigger error:", err.message));
+        } catch (subEmailErr) {
+          console.error("Subscription email dispatch error:", subEmailErr.message);
         }
 
         res.json({

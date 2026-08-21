@@ -185,20 +185,17 @@ const filtered = supplierList.filter((s) =>
           <div className="space-y-4">
             <Input
               label="Company Name"
-              placeholder="TechVision Pvt Ltd"
               value={editForm.name}
               onChange={(v) => setEditForm((f) => ({ ...f, name: v }))}
             />
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Contact Person"
-                placeholder="Arun Verma"
                 value={editForm.contact}
                 onChange={(v) => setEditForm((f) => ({ ...f, contact: v }))}
               />
               <Input
                 label="Phone"
-                placeholder="+91"
                 icon={<Phone className="w-4 h-4" />}
                 value={editForm.phone}
                 onChange={(v) => setEditForm((f) => ({ ...f, phone: v }))}
@@ -206,7 +203,6 @@ const filtered = supplierList.filter((s) =>
             </div>
             <Input
               label="Email"
-              placeholder="arun@techvision.in"
               icon={<Mail className="w-4 h-4" />}
               value={editForm.email}
               onChange={(v) => setEditForm((f) => ({ ...f, email: v }))}
@@ -214,13 +210,11 @@ const filtered = supplierList.filter((s) =>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="City"
-                placeholder="Bangalore"
                 value={editForm.city}
                 onChange={(v) => setEditForm((f) => ({ ...f, city: v }))}
               />
               <Input
                 label="GST Number"
-                placeholder="29ABCDE1234F1Z5"
                 value={editForm.gst}
                 onChange={(v) => setEditForm((f) => ({ ...f, gst: v }))}
               />
@@ -274,20 +268,17 @@ const filtered = supplierList.filter((s) =>
           <div className="space-y-4">
             <Input
               label="Company Name"
-              placeholder=""
               value={form.name}
               onChange={(v) => setForm((f) => ({ ...f, name: v }))}
             />
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Contact Person"
-                placeholder=""
                 value={form.contact}
                 onChange={(v) => setForm((f) => ({ ...f, contact: v }))}
               />
               <Input
                 label="Phone"
-                placeholder="+91 "
                 icon={<Phone className="w-4 h-4" />}
                 value={form.phone}
                 onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
@@ -295,7 +286,6 @@ const filtered = supplierList.filter((s) =>
             </div>
             <Input
               label="Email"
-              placeholder=""
               icon={<Mail className="w-4 h-4" />}
               value={form.email}
               onChange={(v) => setForm((f) => ({ ...f, email: v }))}
@@ -303,20 +293,17 @@ const filtered = supplierList.filter((s) =>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="City"
-                placeholder=""
                 value={form.city}
                 onChange={(v) => setForm((f) => ({ ...f, city: v }))}
               />
               <Input
                 label="GST Number"
-                placeholder=""
                 value={form.gst}
                 onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
               />
             </div>
             <Input
               label="Balance Due (₹)"
-              placeholder=""
               value={form.balanceDue}
               onChange={(v) => setForm((f) => ({ ...f, balanceDue: v }))}
             />
@@ -374,7 +361,6 @@ const filtered = supplierList.filter((s) =>
         <Input
           value={search}
           onChange={setSearch}
-          placeholder="Search suppliers..."
           icon={<Search className="w-4 h-4" />}
         />
         <Btn

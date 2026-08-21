@@ -574,7 +574,6 @@ export default function PaymentMethodSettings() {
                       upiSettings: { ...prev.upiSettings, upiId: e.target.value.toLowerCase().trim() },
                     }))
                   }
-                  placeholder="e.g. yourbusiness@okicici"
                   className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-md text-slate-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -596,7 +595,6 @@ export default function PaymentMethodSettings() {
                     upiSettings: { ...prev.upiSettings, payeeName: e.target.value },
                   }))
                 }
-                placeholder="e.g. Acme Enterprises Pvt Ltd"
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md text-slate-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -697,7 +695,6 @@ export default function PaymentMethodSettings() {
                   bankSettings: { ...prev.bankSettings, bankName: e.target.value },
                 }))
               }
-              placeholder="e.g. HDFC Bank, SBI, ICICI"
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md text-slate-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -713,7 +710,6 @@ export default function PaymentMethodSettings() {
                   bankSettings: { ...prev.bankSettings, accountHolderName: e.target.value },
                 }))
               }
-              placeholder="e.g. SmartBill Enterprises"
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md text-slate-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -747,7 +743,6 @@ export default function PaymentMethodSettings() {
                   bankSettings: { ...prev.bankSettings, accountNumber: e.target.value.trim() },
                 }))
               }
-              placeholder="e.g. 50200012345678"
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md text-slate-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono"
             />
           </div>
@@ -763,7 +758,6 @@ export default function PaymentMethodSettings() {
                   bankSettings: { ...prev.bankSettings, ifscCode: e.target.value.toUpperCase().trim() },
                 }))
               }
-              placeholder="e.g. HDFC0001234"
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md text-slate-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono"
             />
           </div>
@@ -779,7 +773,6 @@ export default function PaymentMethodSettings() {
                   bankSettings: { ...prev.bankSettings, branchName: e.target.value },
                 }))
               }
-              placeholder="e.g. MG Road Branch"
               className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md text-slate-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -885,7 +878,6 @@ export default function PaymentMethodSettings() {
                 type="text"
                 value={customMethodForm.name}
                 onChange={(e) => setCustomMethodForm({ ...customMethodForm, name: e.target.value })}
-                placeholder="e.g. Sodexo / Meal Card, EMI, Gift Voucher"
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md text-slate-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
@@ -899,7 +891,6 @@ export default function PaymentMethodSettings() {
                 type="text"
                 value={customMethodForm.description}
                 onChange={(e) => setCustomMethodForm({ ...customMethodForm, description: e.target.value })}
-                placeholder="e.g. Card payment via Sodexo terminal"
                 className="w-full px-3 py-2 text-xs border border-gray-300 rounded-md text-slate-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>

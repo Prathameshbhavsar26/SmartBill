@@ -637,9 +637,7 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
     { key: "gst", label: "GST & Tax", icon: Percent },
     { key: "transaction", label: "Transaction Settings", icon: FileText },
     { key: "invoice", label: "Invoice Settings", icon: Receipt },
-    { key: "party", label: "Party Management", icon: Users },
     { key: "item", label: "Item & Inventory", icon: Package2 },
-    { key: "accounting", label: "Accounting & Books", icon: Landmark },
     { key: "customization", label: "Customization", icon: Settings },
     { key: "stockalert", label: "Low Stock Alert Numbers", icon: AlertCircle },
     { key: "permissions", label: "Users Permissions", icon: Shield },
@@ -957,7 +955,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                     onChange={(value) =>
                       handleBusinessChange("businessName", value)
                     }
-                    placeholder="e.g. Sharma Traders Pvt Ltd"
                   />
                   <Input
                     label="Business Tagline / Subtitle"
@@ -965,7 +962,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                     onChange={(value) =>
                       handleBusinessChange("tagline", value)
                     }
-                    placeholder="e.g. Quality Wholesale Electronics"
                   />
                   <Input
                     label="Owner / Contact Person Name"
@@ -973,7 +969,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                     onChange={(value) =>
                       handleBusinessChange("ownerName", value)
                     }
-                    placeholder="e.g. Vikram Sharma"
                   />
                   <Select
                     label="Business Category / Type"
@@ -1021,14 +1016,12 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                   value={businessInfo.phone}
                   icon={<Phone className="w-4 h-4" />}
                   onChange={(value) => handleBusinessChange("phone", value)}
-                  placeholder="+91 9876543210"
                 />
                 <Input
                   label="Official Email Address"
                   value={businessInfo.email}
                   icon={<Mail className="w-4 h-4" />}
                   onChange={(value) => handleBusinessChange("email", value)}
-                  placeholder="contact@sharmatraders.in"
                 />
                 <div className="md:col-span-2">
                   <Input
@@ -1036,14 +1029,12 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                     value={businessInfo.address}
                     icon={<MapPin className="w-4 h-4" />}
                     onChange={(value) => handleBusinessChange("address", value)}
-                    placeholder="e.g. Shop No. 14, Sadar Main Market"
                   />
                 </div>
                 <Input
                   label="City / District"
                   value={businessInfo.city}
                   onChange={(value) => handleBusinessChange("city", value)}
-                  placeholder="Nagpur"
                 />
                 <Select
                   label="State (India)"
@@ -1055,7 +1046,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                   label="Pincode"
                   value={businessInfo.pincode}
                   onChange={(value) => handleBusinessChange("pincode", value)}
-                  placeholder="440001"
                 />
                 <Select
                   label="Country"
@@ -1080,7 +1070,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                   onChange={(value) =>
                     handleBusinessChange("gstin", value.toUpperCase())
                   }
-                  placeholder="e.g. 27AAPCS0510Q1Z6"
                 />
                 <Select
                   label="GST Registration Type"
@@ -1096,7 +1085,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                   onChange={(value) =>
                     handleBusinessChange("panNumber", value.toUpperCase())
                   }
-                  placeholder="e.g. ABCDE1234F"
                 />
                 <Input
                   label="MSME / Udyam Reg. No. (Optional)"
@@ -1104,7 +1092,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                   onChange={(value) =>
                     handleBusinessChange("msmeNumber", value)
                   }
-                  placeholder="e.g. UDYAM-MH-00-1234567"
                 />
               </div>
             </div>
@@ -1121,13 +1108,11 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                   label="Bank Name"
                   value={businessInfo.bankName}
                   onChange={(value) => handleBusinessChange("bankName", value)}
-                  placeholder="e.g. HDFC Bank"
                 />
                 <Input
                   label="Account Holder Name"
                   value={businessInfo.ownerName}
                   onChange={(value) => handleBusinessChange("ownerName", value)}
-                  placeholder="e.g. Sharma Traders"
                 />
                 <Input
                   label="Account Number"
@@ -1135,7 +1120,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                   onChange={(value) =>
                     handleBusinessChange("accountNumber", value)
                   }
-                  placeholder="e.g. 50100234567890"
                 />
                 <Input
                   label="IFSC Code"
@@ -1143,7 +1127,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                   onChange={(value) =>
                     handleBusinessChange("ifscCode", value.toUpperCase())
                   }
-                  placeholder="e.g. HDFC0001234"
                 />
                 <Input
                   label="Bank Branch"
@@ -1151,14 +1134,12 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                   onChange={(value) =>
                     handleBusinessChange("branchName", value)
                   }
-                  placeholder="e.g. Sadar Bazaar Branch"
                 />
                 <Input
                   label="UPI ID / VPA for Billing QR"
                   value={businessInfo.upiId}
                   icon={<QrCode className="w-4 h-4" />}
                   onChange={(value) => handleBusinessChange("upiId", value)}
-                  placeholder="e.g. sharmatraders@upi"
                 />
               </div>
             </div>
@@ -1181,7 +1162,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                     onChange={(e) =>
                       handleBusinessChange("invoiceTerms", e.target.value)
                     }
-                    placeholder="Enter invoice terms..."
                     className="w-full p-3 text-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
@@ -1196,7 +1176,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                     onChange={(e) =>
                       handleBusinessChange("invoiceFooter", e.target.value)
                     }
-                    placeholder="e.g. Thank you for your business!"
                     className="w-full p-3 text-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-4"
                   />
 
@@ -1254,99 +1233,135 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
         )}
 
         {/* TAB 2: GST & TAX SETTINGS */}
+        {/* TAB 2: GST & TAX SETTINGS */}
         {activeTab === "gst" && (
-          <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              GST & Tax Settings
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="GSTIN"
-                value={businessInfo.gstin}
-                onChange={(value) => handleBusinessChange("gstin", value)}
-              />
-              <Select
-                label="GST Registration Type"
-                value={gstSettings.registrationType}
-                onChange={(value) => handleGstChange("registrationType", value)}
-                options={["Regular", "Composition", "Unregistered"]}
-              />
-              <Input
-                label="PAN Number"
-                value={businessInfo.panNumber}
-                onChange={(value) => handleBusinessChange("panNumber", value)}
-              />
-              <Select
-                label="Default GST Rate %"
-                value={gstSettings.defaultRate}
-                onChange={(value) => handleGstChange("defaultRate", value)}
-                options={["0", "5", "12", "18", "28"]}
-              />
+          <div className="max-w-4xl animate-in fade-in duration-300">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <Receipt className="w-6 h-6 text-blue-600" />
+                GST & Tax Configurations
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 mt-1.5 text-sm">
+                Ensure compliance by maintaining accurate tax identifiers and rules.
+              </p>
             </div>
-            <div className="mt-4 space-y-3">
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Enable IGST
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Apply IGST for inter-state transactions
-                  </p>
+
+            <div className="space-y-6">
+              {/* Primary Settings Card */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+                  <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-slate-400" />
+                    Tax Identification Details
+                  </h3>
                 </div>
-                <button
-                  onClick={() => setEnableIgst(!enableIgst)}
-                  className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableIgst ? "bg-blue-600" : "bg-slate-200"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableIgst ? "right-1" : "left-1"}`}
-                  />
-                </button>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <Input
+                      label="GSTIN Number"
+                      value={businessInfo.gstin}
+                      onChange={(value) => handleBusinessChange("gstin", value.toUpperCase())}
+                    />
+                    <Select
+                      label="GST Registration Type"
+                      value={gstSettings.registrationType}
+                      onChange={(value) => handleGstChange("registrationType", value)}
+                      options={["Regular", "Composition", "Unregistered"]}
+                    />
+                    <Input
+                      label="PAN Number"
+                      value={businessInfo.panNumber}
+                      onChange={(value) => handleBusinessChange("panNumber", value.toUpperCase())}
+                    />
+                    <Select
+                      label="Default GST Rate (%)"
+                      value={gstSettings.defaultRate}
+                      onChange={(value) => handleGstChange("defaultRate", value)}
+                      options={["0", "5", "12", "18", "28"]}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Enable Cess
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Apply additional cess on specific products
-                  </p>
+
+              {/* Advanced Settings Card */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+                  <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <Percent className="w-4 h-4 text-slate-400" />
+                    Advanced Tax Computation Rules
+                  </h3>
                 </div>
-                <button
-                  onClick={() => setEnableCess(!enableCess)}
-                  className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableCess ? "bg-blue-600" : "bg-slate-200"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableCess ? "right-1" : "left-1"}`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-start justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Reverse Charge Mechanism (RCM)
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Enable reverse charge options in purchase invoices
-                  </p>
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <div className="flex items-center justify-between px-6 py-5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        Enable IGST (Inter-State Tax)
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Automatically apply IGST instead of CGST/SGST for customers outside your state.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setEnableIgst(!enableIgst)}
+                      className={`w-11 h-6 rounded-full relative flex-shrink-0 transition-colors duration-200 ${enableIgst ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"}`}
+                    >
+                      <span
+                        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${enableIgst ? "translate-x-5" : "translate-x-0"}`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between px-6 py-5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        Enable Compensation Cess
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Allow additional cess charges for specific goods like vehicles or tobacco.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setEnableCess(!enableCess)}
+                      className={`w-11 h-6 rounded-full relative flex-shrink-0 transition-colors duration-200 ${enableCess ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"}`}
+                    >
+                      <span
+                        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${enableCess ? "translate-x-5" : "translate-x-0"}`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between px-6 py-5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        Reverse Charge Mechanism (RCM)
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Enable features to handle tax liability for purchases from unregistered vendors.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setEnableRcm(!enableRcm)}
+                      className={`w-11 h-6 rounded-full relative flex-shrink-0 transition-colors duration-200 ${enableRcm ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"}`}
+                    >
+                      <span
+                        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${enableRcm ? "translate-x-5" : "translate-x-0"}`}
+                      />
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setEnableRcm(!enableRcm)}
-                  className={`w-10 h-6 rounded-full relative flex-shrink-0 ml-4 transition-colors ${enableRcm ? "bg-blue-600" : "bg-slate-200"}`}
-                >
-                  <span
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${enableRcm ? "right-1" : "left-1"}`}
-                  />
-                </button>
               </div>
             </div>
-            <Btn
-              variant="primary"
-              className="mt-5"
-              onClick={handleSaveGstSettings}
-              icon={<Check className="w-4 h-4" />}
-            >
-              Save GST Settings
-            </Btn>
+
+            <div className="flex justify-start mt-8">
+              <Btn
+                variant="primary"
+                onClick={handleSaveGstSettings}
+                icon={<Check className="w-4 h-4" />}
+                className="px-8 shadow-sm hover:shadow-md transition-all rounded-lg h-11"
+              >
+                Save Configurations
+              </Btn>
+            </div>
           </div>
         )}
 
@@ -1736,7 +1751,6 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                         updateTempSettings({ accentColor: e.target.value })
                       }
                       className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg text-sm font-mono"
-                      placeholder="#3b82f6"
                     />
                     <div
                       className="w-6 h-6 rounded-full border border-slate-300 shadow-inner flex-shrink-0"
@@ -1910,9 +1924,13 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                       type="number"
                       value={lowStockThreshold}
                       onChange={(e) => setLowStockThreshold(e.target.value)}
+<<<<<<< HEAD
                       className="w-40 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
                       placeholder="e.g. 10"
                       min="0"
+=======
+                      className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm"
+>>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
                     />
                     <span className="text-sm font-medium text-slate-600">
                       Units Remaining

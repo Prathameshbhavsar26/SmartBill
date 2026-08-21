@@ -23,7 +23,7 @@ import { useCustomization } from "./hooks/useCustomization";
 import { useLowStock } from "./hooks/useLowStock";
 import { useNotifications } from "./hooks/useNotifications";
 import { Toaster } from "sonner";
-import { AlertTriangle, X, ShoppingCart, TrendingDown, ShieldAlert } from "lucide-react";
+import { AlertTriangle, X, ShoppingCart, TrendingDown, ShieldAlert, Info } from "lucide-react";
 import { hasPermission } from "./utils/permissions";
 
 function LowStockAlert({ lowStockItems, outOfStockItems, globalThreshold, onClose, onNav }) {
@@ -146,6 +146,8 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
       return <AccessDenied pageKey={page} onNav={onNav} />;
     }
 
+
+
     switch (page) {
       case "super-dashboard":
         return <SuperAdminDashboard />;
@@ -215,7 +217,11 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
           user={user}
           notifCount={bellCount}
         />
-        <main className="flex-1 overflow-y-auto p-6">{renderPage()}</main>
+        <main className="flex-1 overflow-y-auto p-6 flex flex-col">
+          <div className="flex-1">
+            {renderPage()}
+          </div>
+        </main>
       </div>
 
       {/* Low Stock Floating Alert (Disabled for Super Admin) */}

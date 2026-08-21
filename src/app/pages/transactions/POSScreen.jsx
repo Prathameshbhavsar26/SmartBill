@@ -28,7 +28,7 @@ import {
   Lock,
 } from "lucide-react";
 import { fmt } from "../../utils/format";
-import { Badge, Btn, Card, Input, Select, Modal } from "../../components/common/ui";
+import { Badge, Btn, Card, Input, Select, Modal, StepperInput } from "../../components/common/ui";
 import { fetchCustomers, createCustomer } from "../../api/customerAPI";
 import { createOrder, createOrderReturn, fetchOrders } from "../../api/orderAPI";
 import { getProducts } from "../../api/productAPI";
@@ -375,6 +375,26 @@ export default function POSScreen() {
           return i;
         })
         .filter((i) => i.qty > 0)
+    );
+  };
+
+  const updateExactQty = (id, val) => {
+    setError("");
+    setCart((c) =>
+      c.map((i) => {
+        const itemPId = getProductId(i.product);
+        if (itemPId === id) {
+          let nextQty = val === "" ? "" : Number(val);
+          if (nextQty !== "" && nextQty < 1) nextQty = 1;
+          const inStock = Number(i.product?.stock) || 0;
+          if (!allowNegativeStock && nextQty !== "" && nextQty > inStock) {
+            setError(`Cannot exceed available stock (${inStock}) for ${i.product?.name}.`);
+            nextQty = Math.max(1, inStock);
+          }
+          return { ...i, qty: nextQty || 1 };
+        }
+        return i;
+      })
     );
   };
 
@@ -767,34 +787,6 @@ export default function POSScreen() {
               </div>
             </div>
 
-            ${(showBank || showUpiQr || bBankName || bUpiId || bnk || upi) ? `
-              <div class="bank-info" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11px;">
-                <div>
-                  <strong style="color: #0f172a; font-size: 12px; display: block; margin-bottom: 4px;">Payment Remittance Info:</strong>
-                  ${bBankName ? `
-                    <div><strong>Bank:</strong> ${bBankName} (${bAccType || "Current"})</div>
-                    <div><strong>Account No:</strong> ${bAccNo} | <strong>IFSC:</strong> ${bIfsc}</div>
-                    ${bBranch ? `<div><strong>Branch:</strong> ${bBranch}</div>` : ""}
-                  ` : ""}
-                  ${resolvedUpiId ? `
-                    <div style="margin-top: 4px;"><strong>UPI VPA:</strong> <span style="color: #2563eb; font-weight: 600;">${resolvedUpiId}</span> (${resolvedPayee})</div>
-                  ` : ""}
-                  ${order?.transactionRef ? `
-                    <div style="margin-top: 2px;"><strong>Transaction / UTR Ref:</strong> ${order.transactionRef}</div>
-                  ` : ""}
-                  ${order?.paymentMode ? `
-                    <div style="margin-top: 2px;"><strong>Payment Mode:</strong> ${order.paymentMode}</div>
-                  ` : ""}
-                </div>
-
-                ${showUpiQr && dynamicQrUrl ? `
-                  <div style="text-align: center; margin-left: 16px;">
-                    <img src="${dynamicQrUrl}" alt="Scan to Pay" style="width: 100px; height: 100px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px; background: #fff;" />
-                    <div style="font-size: 9px; font-weight: 700; color: #16a34a; margin-top: 2px;">Scan & Pay ₹${invoiceTotal}</div>
-                  </div>
-                ` : ""}
-              </div>
-            ` : ""}
 
             <div style="display: flex; justify-content: space-between; margin-top: 20px;">
               <div>
@@ -960,26 +952,6 @@ export default function POSScreen() {
       splitPayments: splitPaymentsPayload,
       transactionRef: transactionRef.trim() || undefined,
     };
-
-    if (partySettings.trackBalance && selectedCustomer) {
-      const creditLimit = Number(selectedCustomer.creditLimit || 0);
-      if (creditLimit > 0) {
-        const orderTotal = Math.round(total);
-        const paidAmount = Math.round(effectivePaid);
-        const newUnpaidBalance = Math.max(0, orderTotal - paidAmount);
-        const currentBalance = Number(selectedCustomer.balance || 0);
-        const projectedBalance = currentBalance + newUnpaidBalance;
-
-        if (projectedBalance > creditLimit) {
-          const confirmProceed = window.confirm(
-            `⚠️ Credit Limit Warning!\n\nCustomer ${selectedCustomer.name}'s credit limit is ₹${creditLimit}.\nCurrent Balance: ₹${currentBalance}\nProjected Balance after this order: ₹${projectedBalance}\n\nDo you still want to proceed with this order?`
-          );
-          if (!confirmProceed) {
-            return;
-          }
-        }
-      }
-    }
 
     setSaving(true);
     try {
@@ -1415,10 +1387,13 @@ export default function POSScreen() {
           <Input
             value={search}
             onChange={setSearch}
-            placeholder="Search product or scan barcode..."
             icon={<ScanLine className="w-4 h-4" />}
             className="flex-1"
           />
+<<<<<<< HEAD
+=======
+
+>>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
           <Btn
             variant="outline"
             size="md"
@@ -1590,7 +1565,6 @@ export default function POSScreen() {
                   type="text"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="Phone"
                   className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1602,7 +1576,6 @@ export default function POSScreen() {
                   type="text"
                   value={customerCity}
                   onChange={(e) => setCustomerCity(e.target.value)}
-                  placeholder="City"
                   className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1614,7 +1587,6 @@ export default function POSScreen() {
                   type="email"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="Email"
                   className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1706,25 +1678,12 @@ export default function POSScreen() {
 
                   <div className="flex items-center justify-between gap-2 pt-0.5">
                     {/* Qty Counter */}
-                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-1 shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => updateQty(itemId, -1)}
-                        className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[24px] text-center font-mono">
-                        {item.qty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => updateQty(itemId, 1)}
-                        className="w-6 h-6 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white transition-colors cursor-pointer shadow-xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <StepperInput
+                      min={1}
+                      value={item.qty}
+                      onChange={(val) => updateExactQty(itemId, val)}
+                      inputClassName="w-10 py-1"
+                    />
 
                     {/* Unit Price (Editable if allowPriceEditing is true) */}
                     <div className="flex items-center gap-1">
@@ -1761,7 +1720,6 @@ export default function POSScreen() {
                             updateItemDiscount(itemId, e.target.value)
                           }
                           className="w-12 text-xs font-mono font-bold text-amber-800 bg-transparent outline-none text-right"
-                          placeholder="Disc"
                         />
                       </div>
                     )}
@@ -1903,6 +1861,7 @@ export default function POSScreen() {
           )}
 
           {isSplitMode ? (
+<<<<<<< HEAD
             <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/70 rounded-xl space-y-2.5 text-xs shadow-2xs">
               <div className="flex items-center justify-between pb-1.5 border-b border-blue-200/60 dark:border-blue-800/60">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-900 dark:text-blue-200">
@@ -1996,6 +1955,43 @@ export default function POSScreen() {
                     </div>
                   </div>
                 ))}
+=======
+            <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
+                  Cash Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={splitCash}
+                  onChange={(e) => {
+                    const c = e.target.value;
+                    setSplitCash(c);
+                    const remaining = Math.max(0, roundedTotal - (Number(c) || 0));
+                    setSplitDigital(remaining > 0 ? String(remaining) : "");
+                  }}
+                  className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <select
+                  value={splitDigitalMode}
+                  onChange={(e) => setSplitDigitalMode(e.target.value)}
+                  className="text-[10px] font-bold bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-1.5 py-1 text-slate-800 dark:text-slate-200 outline-none"
+                >
+                  <option value="UPI & QR Code">UPI</option>
+                  <option value="Credit / Debit Card">Card</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                </select>
+                <input
+                  type="number"
+                  min={0}
+                  value={splitDigital}
+                  onChange={(e) => setSplitDigital(e.target.value)}
+                  className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
+                />
+>>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
               </div>
 
               {/* Add Split Row Button */}
@@ -2112,7 +2108,6 @@ export default function POSScreen() {
                     type="text"
                     value={transactionRef}
                     onChange={(e) => setTransactionRef(e.target.value)}
-                    placeholder="Enter UPI / Card Transaction Ref"
                     className="w-full border border-amber-300 dark:border-amber-700 rounded-xl bg-amber-50/40 dark:bg-amber-950/20 text-xs font-mono text-slate-900 dark:text-white px-3 py-1.5 outline-none focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
@@ -2245,7 +2240,6 @@ export default function POSScreen() {
                   type="text"
                   value={returnInvoiceNo}
                   onChange={(e) => setReturnInvoiceNo(e.target.value)}
-                  placeholder="e.g. INV-2026-0001"
                   className="flex-1 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <Btn
@@ -2427,7 +2421,6 @@ export default function POSScreen() {
                     type={showReturnPasscode ? "text" : "password"}
                     value={returnPasscode}
                     onChange={(e) => setReturnPasscode(e.target.value)}
-                    placeholder="Enter your account password or PIN..."
                     className="w-full border border-amber-300 bg-amber-50/40 rounded-lg px-3 py-2 pr-10 text-xs outline-none focus:ring-2 focus:ring-amber-500 font-mono"
                   />
                   <button
@@ -2749,8 +2742,19 @@ export default function POSScreen() {
                     />
                   </div>
                 )}
+<<<<<<< HEAD
               </>
             )}
+=======
+              </label>
+              <input
+                type="text"
+                value={transactionRef}
+                onChange={(e) => setTransactionRef(e.target.value)}
+                className="w-full border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900 outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+>>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
 
             {/* Action Buttons */}
             <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
@@ -2777,6 +2781,11 @@ export default function POSScreen() {
           </div>
         </Modal>
       )}
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
     </div>
   );
 }

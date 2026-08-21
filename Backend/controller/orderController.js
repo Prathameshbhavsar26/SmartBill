@@ -9,6 +9,7 @@ import { getCashBalance } from "../utils/accountingUtils.js";
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import { createNotification } from "../services/notificationService.js";
+import { sendInvoiceEmail } from "../utils/emailService.js";
 
 // ================= HELPERS =================
 // Generate a collision-safe invoice number for the given owner.
@@ -410,6 +411,22 @@ export const createOrder = async (req, res) => {
       }
     } catch (notifErr) {
       console.error("Order notification creation error:", notifErr.message);
+    }
+
+    // Dispatch Invoice Email (checks SuperAdmin active/inactive setting in MongoDB)
+    try {
+      const recipientEmail = targetCustomer?.email || req.user?.email;
+      if (recipientEmail) {
+        sendInvoiceEmail({
+          toEmail: recipientEmail,
+          invoiceNo: newOrder.invoiceNo,
+          amount: `₹${total.toLocaleString("en-IN")}`,
+          userName: customerName,
+          businessName: req.user.businessName || "Smart Bill",
+        }).catch((err) => console.error("Invoice email trigger error:", err.message));
+      }
+    } catch (invErr) {
+      console.error("Invoice email dispatch error:", invErr.message);
     }
 
     return res.status(201).json({

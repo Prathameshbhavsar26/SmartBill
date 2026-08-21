@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { getAccountingSettings } from "../api/accountingSettingsAPI";
 
+
 const AccountingContext = createContext();
 
 export const useAccounting = () => {

@@ -49,7 +49,6 @@ export default function BusinessesScreen({ onOpenBusiness }) {
           <Input
             value={search}
             onChange={setSearch}
-            placeholder="Search business, owner, plan..."
             icon={<Search className="w-4 h-4" />}
           />
         </div>

@@ -185,7 +185,6 @@ export default function SecuritySettings() {
             <div className="relative">
               <input
                 type={showCurrentPassword ? "text" : "password"}
-                placeholder="Enter current password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 pr-9 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
@@ -213,7 +212,6 @@ export default function SecuritySettings() {
               <div className="relative">
                 <input
                   type={showNewPassword ? "text" : "password"}
-                  placeholder="Min. 6 characters"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 pr-9 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
@@ -240,7 +238,6 @@ export default function SecuritySettings() {
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Re-enter new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 pr-9 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"

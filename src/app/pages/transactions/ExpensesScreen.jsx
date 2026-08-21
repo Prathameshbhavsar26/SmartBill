@@ -241,7 +241,6 @@ export default function ExpensesScreen() {
             {/* Description */}
             <Input
               label="Description"
-              placeholder="August rent payment"
               value={form.description}
               onChange={(v) =>
                 setForm((f) => ({
@@ -256,7 +255,6 @@ export default function ExpensesScreen() {
 
               <Input
                 label="Amount"
-                placeholder="45000"
                 value={form.amount}
                 onChange={(v) =>
                   setForm((f) => ({
@@ -315,7 +313,6 @@ export default function ExpensesScreen() {
             {/* Reference */}
             <Input
               label="Reference / Receipt No."
-              placeholder="REF-001"
               value={form.reference}
               onChange={(v) =>
                 setForm((f) => ({

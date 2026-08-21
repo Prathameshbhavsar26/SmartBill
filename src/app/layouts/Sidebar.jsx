@@ -34,7 +34,7 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user }
         {!collapsed && (
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-white truncate">
-              {user?.businessName || "Smart Bill"}
+              {role === "superadmin" ? "Prathamesh" : (user?.businessName || "Smart Bill")}
             </p>
             <p className="text-[10px] text-slate-500 capitalize">
               {role.replace("-", " ")}

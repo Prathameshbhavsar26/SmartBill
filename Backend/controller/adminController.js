@@ -226,6 +226,7 @@ export const updateSystemSettings = async (req, res) => {
       debugMode,
       backupFrequency,
       maxLoginAttempts,
+      emailTemplates,
     } = req.body;
 
     const payload = {};
@@ -240,6 +241,15 @@ export const updateSystemSettings = async (req, res) => {
       if (!isNaN(parsedAttempts) && parsedAttempts >= 1) {
         payload.maxLoginAttempts = parsedAttempts;
       }
+    }
+    if (Array.isArray(emailTemplates)) {
+      payload.emailTemplates = emailTemplates.map((t) => ({
+        id: Number(t.id),
+        name: String(t.name || "").trim(),
+        subject: String(t.subject || "").trim(),
+        body: String(t.body || "").trim(),
+        status: t.status === "inactive" ? "inactive" : "active",
+      }));
     }
 
     const settings = await SystemSettings.findOneAndUpdate(
