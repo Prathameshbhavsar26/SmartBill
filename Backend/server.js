@@ -104,6 +104,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server started on port ${port} (0.0.0.0:${port})`);
+app.listen(port, () => {
+  console.log(`Server started on port ${port} (http://localhost:${port} and http://127.0.0.1:${port})`);
 });

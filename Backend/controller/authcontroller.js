@@ -310,7 +310,8 @@ export const login = async (req, res) => {
   try {
     const { email, phone, password } = req.body;
 
-    const identifier = detectIdentifier(email ?? phone);
+    const rawIdentifier = (email && String(email).trim()) ? email : phone;
+    const identifier = detectIdentifier(rawIdentifier);
 
     if (identifier.type === "none" || !password) {
       return res.status(400).json({

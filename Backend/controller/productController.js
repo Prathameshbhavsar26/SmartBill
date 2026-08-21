@@ -5,8 +5,13 @@ import { createNotification } from "../services/notificationService.js";
 // Add Product
 export const addProduct = async (req, res) => {
   try {
+    const rawSku = req.body.sku && String(req.body.sku).trim()
+      ? String(req.body.sku).trim()
+      : `SKU-${Date.now().toString(36).toUpperCase()}`;
+
     const product = new Product({
       ...req.body,
+      sku: rawSku,
       userId: req.user._id,
     });
 
