@@ -1,4 +1,12 @@
 import mongoose from "mongoose";
+import dns from "dns";
+
+// Fix Windows Node.js DNS SRV resolution issue for MongoDB Atlas cluster
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
+} catch (dnsErr) {
+  console.warn("[DB] Custom DNS server config notice:", dnsErr.message);
+}
 
 const dropLegacyIndexes = async () => {
   try {
@@ -19,7 +27,7 @@ const dropLegacyIndexes = async () => {
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
