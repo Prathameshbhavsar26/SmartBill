@@ -687,34 +687,6 @@ export default function POSScreen() {
               </div>
             </div>
 
-            ${(showBank || showUpiQr || bBankName || bUpiId || bnk || upi) ? `
-              <div class="bank-info" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 11px;">
-                <div>
-                  <strong style="color: #0f172a; font-size: 12px; display: block; margin-bottom: 4px;">Payment Remittance Info:</strong>
-                  ${bBankName ? `
-                    <div><strong>Bank:</strong> ${bBankName} (${bAccType || "Current"})</div>
-                    <div><strong>Account No:</strong> ${bAccNo} | <strong>IFSC:</strong> ${bIfsc}</div>
-                    ${bBranch ? `<div><strong>Branch:</strong> ${bBranch}</div>` : ""}
-                  ` : ""}
-                  ${resolvedUpiId ? `
-                    <div style="margin-top: 4px;"><strong>UPI VPA:</strong> <span style="color: #2563eb; font-weight: 600;">${resolvedUpiId}</span> (${resolvedPayee})</div>
-                  ` : ""}
-                  ${order?.transactionRef ? `
-                    <div style="margin-top: 2px;"><strong>Transaction / UTR Ref:</strong> ${order.transactionRef}</div>
-                  ` : ""}
-                  ${order?.paymentMode ? `
-                    <div style="margin-top: 2px;"><strong>Payment Mode:</strong> ${order.paymentMode}</div>
-                  ` : ""}
-                </div>
-
-                ${showUpiQr && dynamicQrUrl ? `
-                  <div style="text-align: center; margin-left: 16px;">
-                    <img src="${dynamicQrUrl}" alt="Scan to Pay" style="width: 100px; height: 100px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px; background: #fff;" />
-                    <div style="font-size: 9px; font-weight: 700; color: #16a34a; margin-top: 2px;">Scan & Pay ₹${invoiceTotal}</div>
-                  </div>
-                ` : ""}
-              </div>
-            ` : ""}
 
             <div style="display: flex; justify-content: space-between; margin-top: 20px;">
               <div>
@@ -1305,7 +1277,6 @@ export default function POSScreen() {
           <Input
             value={search}
             onChange={setSearch}
-            placeholder="Search product or scan barcode..."
             icon={<ScanLine className="w-4 h-4" />}
             className="flex-1"
           />
@@ -1480,7 +1451,6 @@ export default function POSScreen() {
                   type="text"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="Phone"
                   className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1492,7 +1462,6 @@ export default function POSScreen() {
                   type="text"
                   value={customerCity}
                   onChange={(e) => setCustomerCity(e.target.value)}
-                  placeholder="City"
                   className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1504,7 +1473,6 @@ export default function POSScreen() {
                   type="email"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="Email"
                   className="w-full border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1651,7 +1619,6 @@ export default function POSScreen() {
                             updateItemDiscount(itemId, e.target.value)
                           }
                           className="w-12 text-xs font-mono font-bold text-amber-800 bg-transparent outline-none text-right"
-                          placeholder="Disc"
                         />
                       </div>
                     )}
@@ -1796,7 +1763,6 @@ export default function POSScreen() {
                     const remaining = Math.max(0, roundedTotal - (Number(c) || 0));
                     setSplitDigital(remaining > 0 ? String(remaining) : "");
                   }}
-                  placeholder="e.g. 500"
                   className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
                 />
               </div>
@@ -1815,7 +1781,6 @@ export default function POSScreen() {
                   min={0}
                   value={splitDigital}
                   onChange={(e) => setSplitDigital(e.target.value)}
-                  placeholder="e.g. 500"
                   className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
                 />
               </div>
@@ -1908,7 +1873,6 @@ export default function POSScreen() {
                     type="text"
                     value={transactionRef}
                     onChange={(e) => setTransactionRef(e.target.value)}
-                    placeholder="Enter UPI / Card Transaction Ref"
                     className="w-full border border-amber-300 dark:border-amber-700 rounded-xl bg-amber-50/40 dark:bg-amber-950/20 text-xs font-mono text-slate-900 dark:text-white px-3 py-1.5 outline-none focus:ring-1 focus:ring-amber-500"
                   />
                 </div>
@@ -2012,7 +1976,6 @@ export default function POSScreen() {
                   type="text"
                   value={returnInvoiceNo}
                   onChange={(e) => setReturnInvoiceNo(e.target.value)}
-                  placeholder="e.g. INV-2026-0001"
                   className="flex-1 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <Btn
@@ -2194,7 +2157,6 @@ export default function POSScreen() {
                     type={showReturnPasscode ? "text" : "password"}
                     value={returnPasscode}
                     onChange={(e) => setReturnPasscode(e.target.value)}
-                    placeholder="Enter your account password or PIN..."
                     className="w-full border border-amber-300 bg-amber-50/40 rounded-lg px-3 py-2 pr-10 text-xs outline-none focus:ring-2 focus:ring-amber-500 font-mono"
                   />
                   <button
@@ -2394,7 +2356,6 @@ export default function POSScreen() {
                 type="text"
                 value={transactionRef}
                 onChange={(e) => setTransactionRef(e.target.value)}
-                placeholder="e.g. UPI Ref / Approval Code / UTR"
                 className="w-full border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900 outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>

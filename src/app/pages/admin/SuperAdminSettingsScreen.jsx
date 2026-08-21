@@ -369,7 +369,6 @@ export default function SuperAdminSettingsScreen() {
                 value={maxLoginAttempts}
                 onChange={(e) => setMaxLoginAttempts(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="5"
               />
             </div>
 
@@ -383,7 +382,6 @@ export default function SuperAdminSettingsScreen() {
                 value={sessionTimeout}
                 onChange={(e) => setSessionTimeout(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="30"
               />
             </div>
 
@@ -439,14 +437,12 @@ export default function SuperAdminSettingsScreen() {
                   type="text"
                   value={newPlanName}
                   onChange={(e) => setNewPlanName(e.target.value)}
-                  placeholder="Plan Name"
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
                 <input
                   type="text"
                   value={newPlanPrice}
                   onChange={(e) => setNewPlanPrice(e.target.value)}
-                  placeholder="Price (e.g., ₹499/month)"
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
                 <Btn

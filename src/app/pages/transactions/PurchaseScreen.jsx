@@ -517,7 +517,6 @@ export default function PurchaseScreen() {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. INV-001"
                     value={supplierInvoiceNo}
                     onChange={(e) => setSupplierInvoiceNo(e.target.value)}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -531,7 +530,6 @@ export default function PurchaseScreen() {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. PO-001"
                     value={purchaseOrderNo}
                     onChange={(e) => setPurchaseOrderNo(e.target.value)}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -649,7 +647,6 @@ export default function PurchaseScreen() {
                             onChange={(e) =>
                               updateItem(i, "unit", e.target.value)
                             }
-                            placeholder="pcs"
                             className="w-full text-center bg-slate-50 dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 rounded-md py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none"
                           />
                         </td>
@@ -669,7 +666,6 @@ export default function PurchaseScreen() {
                                   : Number(e.target.value)
                               )
                             }
-                            placeholder="0"
                             className="w-full text-right bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
                           />
                         </td>
@@ -706,7 +702,6 @@ export default function PurchaseScreen() {
                                   : Number(e.target.value)
                               )
                             }
-                            placeholder="0"
                             className="w-full text-right bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
                           />
                         </td>
@@ -834,7 +829,6 @@ export default function PurchaseScreen() {
                     </label>
                     <input
                       type="number"
-                      placeholder="0"
                       value={amountPaidInput}
                       onChange={(e) => setAmountPaidInput(e.target.value)}
                       className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2.5 py-1.5 text-xs text-slate-900 dark:text-white font-mono outline-none focus:border-blue-500"
@@ -855,7 +849,6 @@ export default function PurchaseScreen() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Optional notes"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500"
@@ -895,7 +888,6 @@ export default function PurchaseScreen() {
               <input
                 value={searchHistory}
                 onChange={(e) => setSearchHistory(e.target.value)}
-                placeholder="Search by supplier, invoice or PO no..."
                 className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500"
               />
             </div>

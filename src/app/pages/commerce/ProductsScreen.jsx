@@ -366,7 +366,6 @@ export default function ProductsScreen() {
                           setNewCategory("");
                         }
                       }}
-                      placeholder="Category name (press Enter)"
                       className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
@@ -416,7 +415,6 @@ export default function ProductsScreen() {
           <div className="space-y-4">
             <Input
               label="Product Name"
-              placeholder="Samsung Galaxy Buds Pro"
               value={editForm.name}
               onChange={(v) => setEditForm((f) => ({ ...f, name: v }))}
             />
@@ -424,7 +422,6 @@ export default function ProductsScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="SKU / Barcode"
-                placeholder="EL-SGB-001"
                 value={editForm.sku}
                 onChange={(v) => setEditForm((f) => ({ ...f, sku: v }))}
               />
@@ -450,7 +447,6 @@ export default function ProductsScreen() {
                   label="New Category"
                   value={newCategory}
                   onChange={setNewCategory}
-                  placeholder="Enter category name"
                 />
                 <Btn
                   variant="primary"
@@ -479,19 +475,16 @@ export default function ProductsScreen() {
             <div className="grid grid-cols-3 gap-3">
               <Input
                 label="Cost Price (₹)"
-                placeholder="4200"
                 value={editForm.cost}
                 onChange={(v) => setEditForm((f) => ({ ...f, cost: v }))}
               />
               <Input
                 label="Selling Price (₹)"
-                placeholder="6999"
                 value={editForm.price}
                 onChange={(v) => setEditForm((f) => ({ ...f, price: v }))}
               />
               <Input
                 label="GST %"
-                placeholder="18"
                 value={editForm.gst}
                 onChange={(v) => setEditForm((f) => ({ ...f, gst: v }))}
               />
@@ -500,13 +493,11 @@ export default function ProductsScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Opening Stock"
-                placeholder="0"
                 value={editForm.stock}
                 onChange={(v) => setEditForm((f) => ({ ...f, stock: v }))}
               />
               <Input
                 label="Min. Stock Level"
-                placeholder="10"
                 value={editForm.minStock}
                 onChange={(v) => setEditForm((f) => ({ ...f, minStock: v }))}
               />
@@ -532,7 +523,6 @@ export default function ProductsScreen() {
                   label="New Unit Name"
                   value={newUnit}
                   onChange={setNewUnit}
-                  placeholder="e.g. Packet, Gram, Set, Bundle"
                 />
                 <Btn
                   variant="primary"
@@ -620,7 +610,6 @@ export default function ProductsScreen() {
           <div className="space-y-4">
             <Input
               label="Product Name"
-              placeholder="Samsung Galaxy Buds Pro"
               value={form.name}
               onChange={(v) => setForm((f) => ({ ...f, name: v }))}
             />
@@ -628,7 +617,6 @@ export default function ProductsScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="SKU / Barcode"
-                placeholder="EL-SGB-001"
                 value={form.sku}
                 onChange={(v) => setForm((f) => ({ ...f, sku: v }))}
               />
@@ -654,7 +642,6 @@ export default function ProductsScreen() {
                   label="New Category"
                   value={newCategory}
                   onChange={setNewCategory}
-                  placeholder="Enter category name"
                 />
                 <Btn
                   variant="primary"
@@ -682,19 +669,16 @@ export default function ProductsScreen() {
             <div className="grid grid-cols-3 gap-3">
               <Input
                 label="Cost Price (₹)"
-                placeholder="4200"
                 value={form.cost}
                 onChange={(v) => setForm((f) => ({ ...f, cost: v }))}
               />
               <Input
                 label="Selling Price (₹)"
-                placeholder="6999"
                 value={form.price}
                 onChange={(v) => setForm((f) => ({ ...f, price: v }))}
               />
               <Input
                 label="GST %"
-                placeholder="18"
                 value={form.gst}
                 onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
               />
@@ -702,13 +686,11 @@ export default function ProductsScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Opening Stock"
-                placeholder="0"
                 value={form.stock}
                 onChange={(v) => setForm((f) => ({ ...f, stock: v }))}
               />
               <Input
                 label="Min. Stock Level"
-                placeholder="10"
                 value={form.minStock}
                 onChange={(v) => setForm((f) => ({ ...f, minStock: v }))}
               />
@@ -733,7 +715,6 @@ export default function ProductsScreen() {
                   label="New Unit Name"
                   value={newUnit}
                   onChange={setNewUnit}
-                  placeholder="e.g. Packet, Gram, Set, Bundle"
                 />
                 <Btn
                   variant="primary"
@@ -831,7 +812,6 @@ export default function ProductsScreen() {
             <Input
               value={search}
               onChange={setSearch}
-              placeholder="Search by name, SKU..."
               icon={<Search className="w-4 h-4" />}
             />
           </div>

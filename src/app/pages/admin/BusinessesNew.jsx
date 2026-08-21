@@ -207,7 +207,6 @@ export default function BusinessesNew() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search business, owner, plan..."
               className="pl-9 pr-4 py-2 w-72 text-sm bg-white border border-slate-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
             />
           </div>
@@ -350,7 +349,6 @@ export default function BusinessesNew() {
                     ? "border-red-500 focus:ring-red-500 focus:border-red-500"
                     : "border-slate-200"
                 }`}
-                placeholder="e.g. repeated policy violations / billing issues / verification failed"
               />
               {suspendReasonError && (
                 <p className="text-xs text-red-600">{suspendReasonError}</p>

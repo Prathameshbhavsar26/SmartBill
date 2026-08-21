@@ -269,7 +269,6 @@ export default function NotificationsScreen({ onNav }) {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>

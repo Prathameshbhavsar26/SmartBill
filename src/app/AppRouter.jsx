@@ -14,6 +14,10 @@ import {
   applyDOMCustomization,
 } from "./context/CustomizationContext";
 import { NotificationProvider } from "./context/NotificationContext";
+import {
+  FeaturesPage, PricingPage, AboutPage, BlogPage, 
+  CareersPage, HelpCenterPage, StatusPage, ContactPage
+} from "./pages/public/FooterPages";
 import { useCustomization } from "./hooks/useCustomization";
 import { setUserToStorage } from "./utils/userUtils";
 import { AccountingProvider } from "./context/AccountingContext";
@@ -185,6 +189,14 @@ function AppRoutes() {
           path="/forgot"
           element={<AuthScreen view="forgot" onNav={navAuth} />}
         />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/careers" element={<CareersPage />} />
+        <Route path="/help-center" element={<HelpCenterPage />} />
+        <Route path="/status" element={<StatusPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route
           path="/app"
           element={

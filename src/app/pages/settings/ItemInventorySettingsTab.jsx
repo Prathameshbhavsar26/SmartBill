@@ -196,7 +196,6 @@ export default function ItemInventorySettingsTab() {
               <div className="flex items-center gap-3">
                 <Input
                   type="number"
-                  placeholder="e.g. 10"
                   value={settings.lowStockAlert}
                   onChange={(v) => handleChange("lowStockAlert", v)}
                 />

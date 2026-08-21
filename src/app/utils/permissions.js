@@ -135,7 +135,8 @@ export function hasPermission(user, pageKey) {
     !pageKey ||
     pageKey === "profile" ||
     pageKey === "notifications" ||
-    pageKey === "dashboard"
+    pageKey === "dashboard" ||
+    ["features", "pricing", "changelog", "roadmap", "about", "blog", "careers", "press", "help-center", "api-docs", "status", "contact"].includes(pageKey)
   ) {
     return true;
   }

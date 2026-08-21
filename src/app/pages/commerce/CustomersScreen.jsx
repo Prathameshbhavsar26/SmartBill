@@ -808,7 +808,6 @@ export default function CustomersScreen() {
           <div className="space-y-4">
             <Input
               label={isWholesale ? "Business Name" : "Customer Name"}
-              placeholder={isWholesale ? "Raj Enterprises" : "Rahul Sharma"}
               value={editForm.name}
               onChange={(value) =>
                 setEditForm((f) => ({ ...f, name: value }))
@@ -839,7 +838,6 @@ export default function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Phone"
-                placeholder="+91 98765 43210"
                 icon={<Phone className="w-4 h-4" />}
                 value={editForm.phone}
                 onChange={(value) =>
@@ -848,7 +846,6 @@ export default function CustomersScreen() {
               />
               <Input
                 label="Email"
-                placeholder="rahul@example.com"
                 icon={<Mail className="w-4 h-4" />}
                 value={editForm.email}
                 onChange={(value) =>
@@ -860,7 +857,6 @@ export default function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="City"
-                placeholder="Mumbai"
                 icon={<MapPin className="w-4 h-4" />}
                 value={editForm.city}
                 onChange={(value) =>
@@ -869,7 +865,6 @@ export default function CustomersScreen() {
               />
               <Input
                 label="Billing Address"
-                placeholder="123 Main Street, Area"
                 value={editForm.address}
                 onChange={(value) =>
                   setEditForm((f) => ({ ...f, address: value }))
@@ -880,7 +875,6 @@ export default function CustomersScreen() {
             {partySettings.shippingAddress && (
               <Input
                 label="Shipping Address"
-                placeholder="Warehouse 4, Industrial Area"
                 value={editForm.shippingAddress}
                 onChange={(value) =>
                   setEditForm((f) => ({ ...f, shippingAddress: value }))
@@ -891,7 +885,6 @@ export default function CustomersScreen() {
             {partySettings.trackBalance && (
               <Input
                 label="Credit Limit Threshold (₹)"
-                placeholder="50000"
                 type="number"
                 value={editForm.creditLimit}
                 onChange={(value) =>
@@ -903,7 +896,6 @@ export default function CustomersScreen() {
             {isWholesale && (
               <Input
                 label="GST Number"
-                placeholder="27AAPCS0510Q1Z6"
                 value={editForm.gst}
                 onChange={(value) =>
                   setEditForm((f) => ({ ...f, gst: value }))
@@ -939,7 +931,6 @@ export default function CustomersScreen() {
           <div className="space-y-4">
             <Input
               label={isWholesale ? "Business Name" : "Customer Name"}
-              placeholder={isWholesale ? "Raj Enterprises" : "Rahul Sharma"}
               value={form.name}
               onChange={(value) =>
                 setForm((f) => ({ ...f, name: value }))
@@ -968,7 +959,6 @@ export default function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Phone"
-                placeholder="+91 98765 43210"
                 icon={<Phone className="w-4 h-4" />}
                 value={form.phone}
                 onChange={(value) =>
@@ -977,7 +967,6 @@ export default function CustomersScreen() {
               />
               <Input
                 label="Email"
-                placeholder="rahul@example.com"
                 icon={<Mail className="w-4 h-4" />}
                 value={form.email}
                 onChange={(value) =>
@@ -989,7 +978,6 @@ export default function CustomersScreen() {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="City"
-                placeholder="Mumbai"
                 icon={<MapPin className="w-4 h-4" />}
                 value={form.city}
                 onChange={(value) =>
@@ -998,7 +986,6 @@ export default function CustomersScreen() {
               />
               <Input
                 label="Billing Address"
-                placeholder="123 Main Street, Area"
                 value={form.address}
                 onChange={(value) =>
                   setForm((f) => ({ ...f, address: value }))
@@ -1009,7 +996,6 @@ export default function CustomersScreen() {
             {partySettings.shippingAddress && (
               <Input
                 label="Shipping Address"
-                placeholder="Warehouse 4, Industrial Area"
                 value={form.shippingAddress}
                 onChange={(value) =>
                   setForm((f) => ({ ...f, shippingAddress: value }))
@@ -1020,7 +1006,6 @@ export default function CustomersScreen() {
             {partySettings.trackBalance && (
               <Input
                 label="Credit Limit Threshold (₹)"
-                placeholder="50000"
                 type="number"
                 value={form.creditLimit}
                 onChange={(value) =>
@@ -1033,7 +1018,6 @@ export default function CustomersScreen() {
               <>
                 <Input
                   label="GST Number"
-                  placeholder="27AAPCS0510Q1Z6"
                   value={form.gst}
                   onChange={(value) =>
                     setForm((f) => ({ ...f, gst: value }))
@@ -1041,7 +1025,6 @@ export default function CustomersScreen() {
                 />
                 <Input
                   label="Opening Balance (₹)"
-                  placeholder="0"
                   value={form.openingBalance}
                   onChange={(value) =>
                     setForm((f) => ({ ...f, openingBalance: value }))
@@ -1089,7 +1072,6 @@ export default function CustomersScreen() {
           <Input
             value={search}
             onChange={setSearch}
-            placeholder="Search customers by name, city, phone, email..."
             icon={<Search className="w-4 h-4" />}
           />
 

@@ -25,7 +25,8 @@ import { useNotifications } from "./hooks/useNotifications";
 import { Toaster } from "sonner";
 import { AlertTriangle, X, ShoppingCart, TrendingDown, ShieldAlert } from "lucide-react";
 import { hasPermission } from "./utils/permissions";
-
+import Footer from "./components/common/Footer";
+import { Info } from "lucide-react";
 function LowStockAlert({ lowStockItems, outOfStockItems, onClose, onNav }) {
   const total = lowStockItems.length + outOfStockItems.length;
   if (total === 0) return null;
@@ -135,6 +136,8 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
       return <AccessDenied pageKey={page} onNav={onNav} />;
     }
 
+
+
     switch (page) {
       case "super-dashboard":
         return <SuperAdminDashboard />;
@@ -201,7 +204,14 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
           user={user}
           notifCount={bellCount}
         />
-        <main className="flex-1 overflow-y-auto p-6">{renderPage()}</main>
+        <main className="flex-1 overflow-y-auto p-6 flex flex-col">
+          <div className="flex-1">
+            {renderPage()}
+          </div>
+          <div className="mt-8 -mx-6 -mb-6">
+            <Footer onNav={onNav} />
+          </div>
+        </main>
       </div>
 
       {/* Low Stock Floating Alert */}

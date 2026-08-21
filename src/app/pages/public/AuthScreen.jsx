@@ -567,7 +567,6 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                           setLoginEmailError("");
                         else setLoginEmailError(getLoginEmailError(trimmed));
                       }}
-                      placeholder=""
                       icon={<Mail className="w-4 h-4" />}
                       error={loginEmailError}
                     />
@@ -577,7 +576,6 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                         Mobile Number
                       </label>
                       <FixedPhoneInput
-                        placeholder="+91"
                         icon={<Phone className="w-4 h-4" />}
                         value={loginPhone}
                         onChange={(value) => {
@@ -598,7 +596,6 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                       if (!err) setLoginPasswordError("");
                       else setLoginPasswordError(err);
                     }}
-                    placeholder="••••••••"
                     icon={<Lock className="w-4 h-4" />}
                     error={loginPasswordError}
                   />
@@ -692,7 +689,6 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                   label="Business Name"
                   value={biz}
                   onChange={setBiz}
-                  placeholder=""
                   icon={<Building2 className="w-4 h-4" />}
                 />
                 <Input
@@ -704,7 +700,6 @@ export default function AuthScreen({ view, onNav, onLogin }) {
                     if (!err) setRegisterEmailError("");
                     else setRegisterEmailError(err);
                   }}
-                  placeholder=""
                   icon={<Mail className="w-4 h-4" />}
                   error={registerEmailError}
                 />

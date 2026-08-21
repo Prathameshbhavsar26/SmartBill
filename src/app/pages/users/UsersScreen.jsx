@@ -266,13 +266,11 @@ export default function UsersScreen({ user }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Full Name"
-                  placeholder="e.g. Priya Sharma"
                   value={name}
                   onChange={setName}
                 />
                 <Input
                   label="Email Address"
-                  placeholder="e.g. priya@business.in"
                   value={email}
                   onChange={(val) => {
                     setEmail(val);
@@ -283,7 +281,6 @@ export default function UsersScreen({ user }) {
                 />
                 <Input
                   label="Mobile Number"
-                  placeholder="10-digit number"
                   value={phone}
                   onChange={(value) => {
                     const digits = value.replace(/\D/g, "");
@@ -297,7 +294,6 @@ export default function UsersScreen({ user }) {
                 />
                 <Input
                   label="Department"
-                  placeholder="e.g. Sales, Accounting"
                   value={department}
                   onChange={setDepartment}
                 />
@@ -331,7 +327,6 @@ export default function UsersScreen({ user }) {
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
-                      placeholder={editingId ? "Leave empty to keep current" : "Min. 4 characters"}
                       value={password}
                       onChange={(e) => {
                         setPassword(e.target.value);
