@@ -12,7 +12,6 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import { suppliers as initialSuppliers } from "../../data/mockData";
 import { fmt, fmtK } from "../../utils/format";
 import {
   Btn,

@@ -125,9 +125,12 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
   const [alertDismissed, setAlertDismissed] = useState(false);
   const { unreadCount } = useNotifications();
 
-  const { lowStockItems, outOfStockItems, alertCount } = useLowStock(60_000);
+  const { lowStockItems, outOfStockItems, alertCount } = useLowStock(
+    60_000,
+    role !== "superadmin"
+  );
 
-  const totalAlerts = alertCount;
+  const totalAlerts = role === "superadmin" ? 0 : alertCount;
   const bellCount = unreadCount;
 
   const renderPage = () => {
@@ -151,6 +154,9 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
       case "revenue":
         return <Revenue />;
       case "pos":
+      case "sales":
+      case "billing":
+      case "sales-billing":
         return <POSScreen />;
       case "purchase":
         return <PurchaseScreen />;
@@ -169,7 +175,7 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
           <SettingsScreen user={user} />
         );
       case "notifications":
-        return <NotificationsScreen onNav={onNav} />;
+        return <NotificationsScreen onNav={onNav} user={user} role={role} />;
       case "profile":
         return <ProfileScreen user={user} />;
       default:
@@ -204,8 +210,8 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
         <main className="flex-1 overflow-y-auto p-6">{renderPage()}</main>
       </div>
 
-      {/* Low Stock Floating Alert */}
-      {!alertDismissed && totalAlerts > 0 && (
+      {/* Low Stock Floating Alert (Disabled for Super Admin) */}
+      {!alertDismissed && role !== "superadmin" && totalAlerts > 0 && (
         <LowStockAlert
           lowStockItems={lowStockItems}
           outOfStockItems={outOfStockItems}

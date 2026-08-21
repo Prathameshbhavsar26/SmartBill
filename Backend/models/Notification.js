@@ -39,6 +39,8 @@ const notificationSchema = new mongoose.Schema(
         "purchase",
         "customer",
         "system",
+        "businesses",
+        "security",
       ],
       default: "system",
     },

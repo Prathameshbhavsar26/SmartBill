@@ -47,7 +47,15 @@ function formatRelativeTime(dateString) {
   });
 }
 
-const CATEGORY_OPTIONS = [
+const SUPER_ADMIN_CATEGORIES = [
+  { value: "all", label: "All Categories" },
+  { value: "businesses", label: "Businesses & Registrations" },
+  { value: "subscription", label: "Subscriptions & Revenue" },
+  { value: "security", label: "Security & Access" },
+  { value: "system", label: "System & Platform" },
+];
+
+const OWNER_CATEGORIES = [
   { value: "all", label: "All Categories" },
   { value: "stock", label: "Stock & Inventory" },
   { value: "sale", label: "Sales & Invoices" },
@@ -58,7 +66,10 @@ const CATEGORY_OPTIONS = [
   { value: "system", label: "System" },
 ];
 
-export default function NotificationsScreen({ onNav }) {
+export default function NotificationsScreen({ onNav, user, role }) {
+  const isSuperAdmin = role === "superadmin" || user?.role === "superadmin";
+  const categoryOptions = isSuperAdmin ? SUPER_ADMIN_CATEGORIES : OWNER_CATEGORIES;
+
   const {
     notifications,
     unreadCount,
@@ -84,6 +95,9 @@ export default function NotificationsScreen({ onNav }) {
 
   const filteredNotifications = useMemo(() => {
     return notifications.filter((notif) => {
+      // If superadmin, completely filter out any stock notifications that might exist in memory
+      if (isSuperAdmin && notif.category === "stock") return false;
+
       if (activeTab === "unread" && notif.read) return false;
       if (selectedCategory !== "all" && notif.category !== selectedCategory) {
         return false;
@@ -96,7 +110,7 @@ export default function NotificationsScreen({ onNav }) {
       }
       return true;
     });
-  }, [notifications, activeTab, selectedCategory, searchQuery]);
+  }, [notifications, activeTab, selectedCategory, searchQuery, isSuperAdmin]);
 
   const getTypeIcon = (type) => {
     switch (type) {
@@ -128,6 +142,10 @@ export default function NotificationsScreen({ onNav }) {
 
   const getCategoryBadgeVariant = (category) => {
     switch (category) {
+      case "businesses":
+        return "blue";
+      case "security":
+        return "red";
       case "stock":
         return "yellow";
       case "sale":
@@ -137,6 +155,8 @@ export default function NotificationsScreen({ onNav }) {
       case "expense":
         return "red";
       case "subscription":
+        return "indigo";
+      case "customer":
         return "blue";
       default:
         return "gray";
@@ -145,6 +165,12 @@ export default function NotificationsScreen({ onNav }) {
 
   const getLinkDestinationLabel = (link) => {
     switch (link) {
+      case "super-dashboard":
+        return "View Overview";
+      case "businesses":
+        return "View Businesses";
+      case "revenue":
+        return "View Revenue";
       case "inventory":
         return "View Inventory";
       case "pos":
@@ -159,6 +185,8 @@ export default function NotificationsScreen({ onNav }) {
         return "View Suppliers";
       case "settings":
         return "View Settings";
+      case "profile":
+        return "View Profile";
       default:
         return "View Details";
     }
@@ -256,7 +284,7 @@ export default function NotificationsScreen({ onNav }) {
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="border border-gray-300 rounded-md bg-white text-xs text-gray-700 px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
           >
-            {CATEGORY_OPTIONS.map((opt) => (
+            {categoryOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
@@ -291,6 +319,8 @@ export default function NotificationsScreen({ onNav }) {
               sub={
                 searchQuery || selectedCategory !== "all" || activeTab === "unread"
                   ? "No notifications match your filter criteria."
+                  : isSuperAdmin
+                  ? "You're all caught up! New business registrations, subscription updates, and platform alerts will appear here."
                   : "You're all caught up! New sales, inventory alerts, and updates will appear here."
               }
               action={

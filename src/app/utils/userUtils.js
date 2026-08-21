@@ -84,6 +84,9 @@ export const setUserToStorage = (user) => {
       throw e;
     }
   }
+  try {
+    window.dispatchEvent(new Event("userUpdated"));
+  } catch (_) {}
 };
 
 /**

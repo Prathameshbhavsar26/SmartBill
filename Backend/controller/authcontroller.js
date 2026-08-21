@@ -3,8 +3,8 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import User from "../models/User.js";
 import Verification from "../models/verifiy.js";
-import BusinessSettings from "../models/BusinessSettings.js";
 import SystemSettings from "../models/SystemSettings.js";
+import { notifySuperAdmins } from "../services/notificationService.js";
 
 // ======================================================
 // HELPER: BUILD AUTH RESPONSE
@@ -201,6 +201,42 @@ export const register = async (req, res) => {
       password: hashedPassword,
       ...(subscriptionData ? { subscription: subscriptionData } : {}),
     });
+
+    // Notify SuperAdmins about new business registration
+    try {
+      const bName = user.businessName || `${user.firstName} ${user.lastName}`;
+      await notifySuperAdmins({
+        title: `New Business Registered: ${bName}`,
+        message: `${user.firstName} ${user.lastName} (${user.email}, ${user.phone}) registered a new ${user.businessType || "Retail"} business.`,
+        type: "info",
+        category: "businesses",
+        link: "businesses",
+        metadata: {
+          newUserId: user._id.toString(),
+          email: user.email,
+          businessName: bName,
+          businessType: user.businessType,
+        },
+      });
+
+      // If user registered with an activated plan, also broadcast the subscription notification
+      if (planToActivate) {
+        await notifySuperAdmins({
+          title: `Subscription Payment: ${planToActivate.toUpperCase()} Plan`,
+          message: `${bName} (${user.email}) activated the ${planToActivate.toUpperCase()} plan.`,
+          type: "success",
+          category: "subscription",
+          link: "revenue",
+          metadata: {
+            businessId: user._id.toString(),
+            businessName: bName,
+            plan: planToActivate,
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.error("SuperAdmin registration notification error:", notifErr.message);
+    }
 
     return res.status(201).json(buildAuthPayload(user));
   } catch (error) {

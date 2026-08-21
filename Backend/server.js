@@ -99,6 +99,7 @@ app.use("/api/settings/transaction", transactionSettingsRoutes);
 app.use("/api/settings/payment", paymentSettingsRoutes);
 app.use("/api/settings/accounting", accountingSettingsRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/admin/businesses", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin/subscription-plans", subscriptionPlanRoutes);

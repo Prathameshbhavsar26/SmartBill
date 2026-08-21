@@ -27,6 +27,9 @@ const APP_PAGES = [
   "suppliers",
   "products",
   "pos",
+  "sales",
+  "billing",
+  "sales-billing",
   "purchase",
   "inventory",
   "reports",
@@ -41,6 +44,9 @@ function getPageFromPath(pathname) {
   const segments = pathname.split("/").filter(Boolean);
   if (segments[0] !== "app") return null;
   const pageKey = segments[1];
+  if (pageKey === "sales" || pageKey === "billing" || pageKey === "sales-billing") {
+    return "pos";
+  }
   return APP_PAGES.includes(pageKey) ? pageKey : "dashboard";
 }
 
@@ -157,9 +163,14 @@ function AppRoutes() {
 
   const navApp = useCallback(
     (p) => {
-      setPage(p);
-      if (p === "dashboard" || p === "super-dashboard") navigate("/app");
-      else navigate(`/app/${p}`);
+      const targetPage =
+        p === "sales" || p === "billing" || p === "sales-billing" ? "pos" : p;
+      setPage(targetPage);
+      if (targetPage === "dashboard" || targetPage === "super-dashboard") {
+        navigate("/app");
+      } else {
+        navigate(`/app/${targetPage}`);
+      }
     },
     [navigate],
   );
