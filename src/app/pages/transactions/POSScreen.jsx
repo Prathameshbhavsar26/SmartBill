@@ -1390,10 +1390,6 @@ export default function POSScreen() {
             icon={<ScanLine className="w-4 h-4" />}
             className="flex-1"
           />
-<<<<<<< HEAD
-=======
-
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
           <Btn
             variant="outline"
             size="md"
@@ -1861,7 +1857,6 @@ export default function POSScreen() {
           )}
 
           {isSplitMode ? (
-<<<<<<< HEAD
             <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/70 rounded-xl space-y-2.5 text-xs shadow-2xs">
               <div className="flex items-center justify-between pb-1.5 border-b border-blue-200/60 dark:border-blue-800/60">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-900 dark:text-blue-200">
@@ -1955,43 +1950,6 @@ export default function POSScreen() {
                     </div>
                   </div>
                 ))}
-=======
-            <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
-                  Cash Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={splitCash}
-                  onChange={(e) => {
-                    const c = e.target.value;
-                    setSplitCash(c);
-                    const remaining = Math.max(0, roundedTotal - (Number(c) || 0));
-                    setSplitDigital(remaining > 0 ? String(remaining) : "");
-                  }}
-                  className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
-                />
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <select
-                  value={splitDigitalMode}
-                  onChange={(e) => setSplitDigitalMode(e.target.value)}
-                  className="text-[10px] font-bold bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-1.5 py-1 text-slate-800 dark:text-slate-200 outline-none"
-                >
-                  <option value="UPI & QR Code">UPI</option>
-                  <option value="Credit / Debit Card">Card</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                </select>
-                <input
-                  type="number"
-                  min={0}
-                  value={splitDigital}
-                  onChange={(e) => setSplitDigital(e.target.value)}
-                  className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
-                />
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
               </div>
 
               {/* Add Split Row Button */}
@@ -2742,19 +2700,8 @@ export default function POSScreen() {
                     />
                   </div>
                 )}
-<<<<<<< HEAD
               </>
             )}
-=======
-              </label>
-              <input
-                type="text"
-                value={transactionRef}
-                onChange={(e) => setTransactionRef(e.target.value)}
-                className="w-full border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900 outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
 
             {/* Action Buttons */}
             <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
@@ -2781,11 +2728,6 @@ export default function POSScreen() {
           </div>
         </Modal>
       )}
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
     </div>
   );
 }

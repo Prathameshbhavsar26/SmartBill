@@ -673,52 +673,34 @@ export default function ProductsScreen() {
             <div className="grid grid-cols-3 gap-3">
               <Input
                 label="Cost Price (₹)"
-<<<<<<< HEAD
                 type="number"
-=======
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
                 value={form.cost}
                 onChange={(v) => setForm((f) => ({ ...f, cost: v }))}
               />
               <Input
                 label="Selling Price (₹)"
-<<<<<<< HEAD
                 type="number"
-=======
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
                 value={form.price}
                 onChange={(v) => setForm((f) => ({ ...f, price: v }))}
               />
               <Input
-<<<<<<< HEAD
-                label="GST Rate (%)"
-                placeholder="e.g. 18"
-                type="number"
-=======
                 label="GST %"
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
+                type="number"
+                placeholder="e.g. 18"
                 value={form.gst}
                 onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Input
-<<<<<<< HEAD
-                label="Opening Stock Quantity"
-                type="number"
-=======
                 label="Opening Stock"
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
+                type="number"
                 value={form.stock}
                 onChange={(v) => setForm((f) => ({ ...f, stock: v }))}
               />
               <Input
-<<<<<<< HEAD
-                label="Minimum Stock Threshold"
-                type="number"
-=======
                 label="Min. Stock Level"
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
+                type="number"
                 value={form.minStock}
                 onChange={(v) => setForm((f) => ({ ...f, minStock: v }))}
               />

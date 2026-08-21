@@ -1924,13 +1924,9 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                       type="number"
                       value={lowStockThreshold}
                       onChange={(e) => setLowStockThreshold(e.target.value)}
-<<<<<<< HEAD
                       className="w-40 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
                       placeholder="e.g. 10"
                       min="0"
-=======
-                      className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm"
->>>>>>> 63364d7e8a95db0ab34ff42a928468c2d6bd4a0a
                     />
                     <span className="text-sm font-medium text-slate-600">
                       Units Remaining

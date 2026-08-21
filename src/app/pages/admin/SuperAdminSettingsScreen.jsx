@@ -363,7 +363,6 @@ export default function SuperAdminSettingsScreen() {
       {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {[
-<<<<<<< HEAD
           { key: "system", label: "System Settings", icon: Settings },
           { key: "customization", label: "Customization", icon: Palette },
           { key: "plans", label: "Subscription Plans", icon: Package },
@@ -595,7 +594,6 @@ export default function SuperAdminSettingsScreen() {
         </Card>
       )}
 
-<<<<<<< HEAD
       {/* TAB: CUSTOMIZATION SETTINGS */}
       {activeTab === "customization" && (
         <Card className="p-6 space-y-6">
@@ -826,6 +824,7 @@ export default function SuperAdminSettingsScreen() {
             </button>
           </div>
         </Card>
+      )}
 
       {/* SUBSCRIPTION PLANS */}
       {activeTab === "plans" && (
