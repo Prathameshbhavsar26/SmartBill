@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Settings,
   Package,
@@ -10,8 +10,16 @@ import {
   Lock,
   Loader2,
 } from "lucide-react";
+
 import { Btn, Badge, Card, Toast } from "../../components/common/ui";
 import adminAPI from "../../api/adminAPI";
+
+import {
+  getSubscriptionPlans,
+  createSubscriptionPlan,
+  updateSubscriptionPlan,
+  deleteSubscriptionPlan,
+} from "../../api/subscriptionPlanApi";
 
 export default function SuperAdminSettingsScreen() {
   const [activeTab, setActiveTab] = useState("system");
@@ -55,6 +63,13 @@ export default function SuperAdminSettingsScreen() {
   }, []);
 
 
+
+  useEffect(() => {
+  if (activeTab === "plans") {
+    loadSubscriptionPlans();
+  }
+}, [activeTab]);
+
   // Email Template states
   const [emailTemplates, setEmailTemplates] = useState([
     {
@@ -85,34 +100,16 @@ export default function SuperAdminSettingsScreen() {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
   // Subscription Plans states
-  const [plans, setPlans] = useState([
-    {
-      id: 1,
-      name: "Starter",
-      price: "₹499/month",
-      users: 5,
-      features: "Basic accounting, GST ready",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "Professional",
-      price: "₹999/month",
-      users: 15,
-      features: "Advanced reports, multi-user",
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "Enterprise",
-      price: "Custom",
-      users: "Unlimited",
-      features: "API access, custom domain",
-      status: "active",
-    },
-  ]);
-  const [newPlanName, setNewPlanName] = useState("");
-  const [newPlanPrice, setNewPlanPrice] = useState("");
+  const [plans, setPlans] = useState([]);
+const [loadingPlans, setLoadingPlans] = useState(false);
+const [planError, setPlanError] = useState("");
+
+const [newPlanName, setNewPlanName] = useState("");
+const [newPlanPrice, setNewPlanPrice] = useState("");
+
+const [editingPlan, setEditingPlan] = useState(null);
+const [savingPlan, setSavingPlan] = useState(false);
+const [deletingPlanId, setDeletingPlanId] = useState(null);
 
   // User Management states
   const [adminUsers, setAdminUsers] = useState([
@@ -224,27 +221,146 @@ export default function SuperAdminSettingsScreen() {
     alert("✓ API settings saved successfully!");
   };
 
-  const handleAddPlan = () => {
-    if (newPlanName && newPlanPrice) {
-      const newPlan = {
-        id: plans.length + 1,
-        name: newPlanName,
-        price: newPlanPrice,
-        users: "10",
-        features: "Standard features",
-        status: "active",
-      };
-      setPlans([...plans, newPlan]);
-      setNewPlanName("");
-      setNewPlanPrice("");
-      alert("✓ New plan added successfully!");
-    }
-  };
 
-  const handleDeletePlan = (id) => {
-    setPlans(plans.filter((p) => p.id !== id));
-    alert("✓ Plan deleted successfully!");
-  };
+  const loadSubscriptionPlans = async () => {
+  try {
+    setLoadingPlans(true);
+    setPlanError("");
+
+    const response = await getSubscriptionPlans();
+
+    setPlans(response.data || []);
+  } catch (error) {
+    console.error("Failed to load subscription plans:", error);
+
+    setPlanError(
+      error.response?.data?.message ||
+        "Failed to load subscription plans."
+    );
+  } finally {
+    setLoadingPlans(false);
+  }
+};
+
+  const handleAddPlan = async () => {
+  if (!newPlanName.trim() || !newPlanPrice) {
+    alert("Please enter plan name and price.");
+    return;
+  }
+
+  try {
+    setSavingPlan(true);
+
+    const payload = {
+      key: newPlanName.toLowerCase().trim().replace(/\s+/g, "-"),
+      name: newPlanName.trim(),
+      price: Number(newPlanPrice),
+      billingCycle: "monthly",
+      maxBusinesses: 1,
+      maxUsers: 10,
+      maxInvoicesPerMonth: 500,
+      features: {
+        basicReports: true,
+        emailSupport: true,
+        advancedReports: false,
+        gstFiling: false,
+        prioritySupport: false,
+        barcodeScanner: false,
+        apiAccess: false,
+        customIntegrations: false,
+        dedicatedManager: false,
+      },
+      status: "active",
+    };
+
+    await createSubscriptionPlan(payload);
+
+    setNewPlanName("");
+    setNewPlanPrice("");
+
+    await loadSubscriptionPlans();
+
+    alert("✓ Subscription plan added successfully!");
+  } catch (error) {
+    console.error("Failed to create subscription plan:", error);
+
+    alert(
+      error.response?.data?.message ||
+        "Failed to create subscription plan."
+    );
+  } finally {
+    setSavingPlan(false);
+  }
+};
+
+  const handleDeletePlan = async (id) => {
+  const confirmed = window.confirm(
+    "Are you sure you want to delete this subscription plan?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setDeletingPlanId(id);
+
+    await deleteSubscriptionPlan(id);
+
+    await loadSubscriptionPlans();
+
+    alert("✓ Subscription plan deleted successfully!");
+  } catch (error) {
+    console.error("Failed to delete subscription plan:", error);
+
+    alert(
+      error.response?.data?.message ||
+        "Failed to delete subscription plan."
+    );
+  } finally {
+    setDeletingPlanId(null);
+  }
+};
+
+const handleEditPlan = async (plan) => {
+  const name = window.prompt("Enter plan name:", plan.name);
+
+  if (name === null) return;
+
+  const price = window.prompt(
+    "Enter monthly price:",
+    plan.price
+  );
+
+  if (price === null) return;
+
+  if (!name.trim() || !price || Number(price) < 0) {
+    alert("Please enter valid plan details.");
+    return;
+  }
+
+  try {
+    setSavingPlan(true);
+    setEditingPlan(plan._id);
+
+    await updateSubscriptionPlan(plan._id, {
+      name: name.trim(),
+      price: Number(price),
+    });
+
+    await loadSubscriptionPlans();
+
+    alert("✓ Subscription plan updated successfully!");
+  } catch (error) {
+    console.error("Failed to update subscription plan:", error);
+
+    alert(
+      error.response?.data?.message ||
+        "Failed to update subscription plan."
+    );
+  } finally {
+    setSavingPlan(false);
+    setEditingPlan(null);
+  }
+};
 
   const handleSavePaymentSettings = () => {
     localStorage.setItem(
@@ -450,67 +566,193 @@ export default function SuperAdminSettingsScreen() {
 
       {/* TAB 2: SUBSCRIPTION PLANS */}
       {activeTab === "plans" && (
-        <div className="space-y-4">
-          <Card className="p-6">
-            <h3 className="font-semibold text-slate-900 mb-5">
-              Manage Subscription Plans
-            </h3>
-            <div className="grid grid-cols-3 gap-4 mb-5">
-              {plans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="border border-slate-200 rounded-lg p-4"
-                >
-                  <h4 className="font-semibold text-slate-900">{plan.name}</h4>
-                  <p className="text-lg font-bold text-blue-600 mt-2">
-                    {plan.price}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Users: {plan.users}
-                  </p>
-                  <p className="text-xs text-slate-600 mt-2">{plan.features}</p>
-                  <div className="flex gap-2 mt-3">
-                    <Btn
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeletePlan(plan.id)}
-                    >
-                      Delete
-                    </Btn>
-                  </div>
-                </div>
-              ))}
-            </div>
+  <div className="space-y-4">
+    <Card className="p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="font-semibold text-slate-900">
+            Manage Subscription Plans
+          </h3>
 
-            <div className="border-t border-slate-100 pt-5">
-              <h4 className="font-medium text-slate-900 mb-3">Add New Plan</h4>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={newPlanName}
-                  onChange={(e) => setNewPlanName(e.target.value)}
-                  placeholder="Plan Name"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+          <p className="text-xs text-slate-500 mt-1">
+            Create, update and manage SmartBill subscription plans.
+          </p>
+        </div>
+
+        {loadingPlans && (
+          <span className="text-sm text-slate-500">
+            Loading...
+          </span>
+        )}
+      </div>
+
+      {/* Error */}
+      {planError && (
+        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          {planError}
+        </div>
+      )}
+
+      {/* Plans */}
+      {loadingPlans ? (
+        <div className="py-10 text-center text-slate-500">
+          Loading subscription plans...
+        </div>
+      ) : plans.length === 0 ? (
+        <div className="py-10 text-center text-slate-500">
+          No subscription plans found.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {plans.map((plan) => (
+            <div
+              key={plan._id}
+              className="border border-slate-200 rounded-lg p-4"
+            >
+              {/* Plan Name */}
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-slate-900">
+                  {plan.name}
+                </h4>
+
+                <Badge
+                  label={plan.status}
+                  variant={
+                    plan.status === "active"
+                      ? "green"
+                      : "gray"
+                  }
                 />
-                <input
-                  type="text"
-                  value={newPlanPrice}
-                  onChange={(e) => setNewPlanPrice(e.target.value)}
-                  placeholder="Price (e.g., ₹499/month)"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
+              </div>
+
+              {/* Price */}
+              <p className="text-2xl font-bold text-blue-600 mt-3">
+                ₹{Number(plan.price).toLocaleString("en-IN")}
+              </p>
+
+              <p className="text-xs text-slate-500">
+                per {plan.billingCycle || "month"}
+              </p>
+
+              {/* Limits */}
+              <div className="mt-4 space-y-1">
+                <p className="text-xs text-slate-600">
+                  Businesses:{" "}
+                  {plan.maxBusinesses === Infinity ||
+                  plan.maxBusinesses === "Infinity"
+                    ? "Unlimited"
+                    : plan.maxBusinesses}
+                </p>
+
+                <p className="text-xs text-slate-600">
+                  Users:{" "}
+                  {plan.maxUsers === Infinity ||
+                  plan.maxUsers === "Infinity"
+                    ? "Unlimited"
+                    : plan.maxUsers}
+                </p>
+
+                <p className="text-xs text-slate-600">
+                  Invoices/month:{" "}
+                  {plan.maxInvoicesPerMonth === Infinity ||
+                  plan.maxInvoicesPerMonth === "Infinity"
+                    ? "Unlimited"
+                    : plan.maxInvoicesPerMonth}
+                </p>
+              </div>
+
+              {/* Features */}
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-slate-700 mb-2">
+                  Features
+                </p>
+
+                <div className="space-y-1">
+                  {plan.features &&
+                    Object.entries(plan.features)
+                      .filter(([, enabled]) => enabled)
+                      .map(([feature]) => (
+                        <p
+                          key={feature}
+                          className="text-xs text-slate-500"
+                        >
+                          ✓{" "}
+                          {feature
+                            .replace(/([A-Z])/g, " $1")
+                            .replace(/^./, (str) =>
+                              str.toUpperCase()
+                            )}
+                        </p>
+                      ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 mt-5">
                 <Btn
-                  variant="primary"
-                  onClick={handleAddPlan}
-                  icon={<Plus className="w-4 h-4" />}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEditPlan(plan)}
+                  disabled={savingPlan}
                 >
-                  Add Plan
+                  {editingPlan === plan._id
+                    ? "Updating..."
+                    : "Edit"}
+                </Btn>
+
+                <Btn
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeletePlan(plan._id)}
+                  disabled={deletingPlanId === plan._id}
+                >
+                  {deletingPlanId === plan._id
+                    ? "Deleting..."
+                    : "Delete"}
                 </Btn>
               </div>
             </div>
-          </Card>
+          ))}
         </div>
       )}
+
+      {/* Add Plan */}
+      <div className="border-t border-slate-100 pt-5">
+        <h4 className="font-medium text-slate-900 mb-3">
+          Add New Plan
+        </h4>
+
+        <div className="space-y-3">
+          <input
+            type="text"
+            value={newPlanName}
+            onChange={(e) => setNewPlanName(e.target.value)}
+            placeholder="Plan Name"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+
+          <input
+            type="number"
+            value={newPlanPrice}
+            onChange={(e) => setNewPlanPrice(e.target.value)}
+            placeholder="Price (e.g. 999)"
+            min="0"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+
+          <Btn
+            variant="primary"
+            onClick={handleAddPlan}
+            disabled={savingPlan}
+            icon={<Plus className="w-4 h-4" />}
+          >
+            {savingPlan ? "Adding Plan..." : "Add Plan"}
+          </Btn>
+        </div>
+      </div>
+    </Card>
+  </div>
+)}
 
       {/* TAB 3: EMAIL TEMPLATES */}
       {activeTab === "email" && (
