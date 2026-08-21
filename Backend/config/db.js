@@ -10,13 +10,23 @@ try {
 
 const dropLegacyIndexes = async () => {
   try {
-    const collections = await mongoose.connection.db.listCollections({ name: "users" }).toArray();
-    if (collections.length > 0) {
-      const indexes = await mongoose.connection.db.collection("users").indexes();
-      const hasPhoneIndex = indexes.some((idx) => idx.name === "phone_1");
-      if (hasPhoneIndex) {
-        await mongoose.connection.db.collection("users").dropIndex("phone_1");
-        console.log("[DB] Successfully dropped legacy phone_1 unique index from users collection.");
+    const db = mongoose.connection.db;
+    const collections = await db.listCollections().toArray();
+    const names = collections.map((c) => c.name);
+
+    if (names.includes("users")) {
+      const indexes = await db.collection("users").indexes();
+      if (indexes.some((idx) => idx.name === "phone_1")) {
+        await db.collection("users").dropIndex("phone_1");
+        console.log("[DB] Successfully dropped legacy phone_1 index from users.");
+      }
+    }
+
+    if (names.includes("accountingsettings")) {
+      const indexes = await db.collection("accountingsettings").indexes();
+      if (indexes.some((idx) => idx.name === "ownerId_1")) {
+        await db.collection("accountingsettings").dropIndex("ownerId_1");
+        console.log("[DB] Successfully dropped legacy ownerId_1 index from accountingsettings.");
       }
     }
   } catch (err) {

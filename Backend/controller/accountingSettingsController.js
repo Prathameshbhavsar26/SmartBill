@@ -5,15 +5,28 @@ import AccountingSettings from "../models/AccountingSettings.js";
 // @access  Private
 export const getAccountingSettings = async (req, res) => {
   try {
-    let settings = await AccountingSettings.findOne({ userId: req.user._id });
+    const uId = req.user._id;
+    let settings = await AccountingSettings.findOne({
+      $or: [{ userId: uId }, { ownerId: uId }],
+    });
 
     if (!settings) {
-      settings = await AccountingSettings.create({
-        userId: req.user._id,
-      });
+      try {
+        settings = await AccountingSettings.create({
+          userId: uId,
+        });
+      } catch (createErr) {
+        if (createErr.code === 11000) {
+          settings = await AccountingSettings.findOne({
+            $or: [{ userId: uId }, { ownerId: uId }],
+          });
+        } else {
+          throw createErr;
+        }
+      }
     }
 
-    res.status(200).json(settings);
+    res.status(200).json(settings || {});
   } catch (error) {
     console.error("Error getting accounting settings:", error);
     res.status(500).json({ message: "Server Error" });
@@ -25,20 +38,12 @@ export const getAccountingSettings = async (req, res) => {
 // @access  Private
 export const updateAccountingSettings = async (req, res) => {
   try {
-    let settings = await AccountingSettings.findOne({ userId: req.user._id });
-
-    if (settings) {
-      settings = await AccountingSettings.findOneAndUpdate(
-        { userId: req.user._id },
-        req.body,
-        { new: true, runValidators: true }
-      );
-    } else {
-      settings = await AccountingSettings.create({
-        userId: req.user._id,
-        ...req.body,
-      });
-    }
+    const uId = req.user._id;
+    const settings = await AccountingSettings.findOneAndUpdate(
+      { $or: [{ userId: uId }, { ownerId: uId }] },
+      { ...req.body, userId: uId },
+      { returnDocument: "after", upsert: true, runValidators: true }
+    );
 
     res.status(200).json(settings);
   } catch (error) {

@@ -1,8 +1,8 @@
 import axios from "axios";
 
 // Base URL resolution order:
-// 1. VITE_API_URL (if set) e.g. http://localhost:5000/api
-// 2. Fall back to same-origin proxy /api (Vite dev server proxies to backend)
+// 1. VITE_API_URL (if set) e.g. /api or http://127.0.0.1:5000/api
+// 2. Fall back to same-origin proxy /api
 const BASE_URL = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
 
 const axiosClient = axios.create({
@@ -25,11 +25,37 @@ axiosClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: normalize errors so every caller gets a readable
-// `message` regardless of whether the backend is reachable.
+// Response interceptor with auto-fallback between proxy and direct host
 axiosClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If network error occurred and we haven't tried the alternate fallback URL yet
+    if (!error.response && originalRequest && !originalRequest._retryFallback) {
+      originalRequest._retryFallback = true;
+      try {
+        const fallbackBase =
+          originalRequest.baseURL === "/api" || !originalRequest.baseURL
+            ? "http://127.0.0.1:5000/api"
+            : "/api";
+        originalRequest.baseURL = fallbackBase;
+        return await axios(originalRequest);
+      } catch (fallbackError) {
+        if (fallbackError.response) {
+          const status = fallbackError.response.status;
+          const data = fallbackError.response.data || {};
+          return Promise.reject({
+            message: data.message || `Request failed with status ${status}`,
+            status,
+            field: data.field || null,
+            errors: data.errors || null,
+            raw: fallbackError,
+          });
+        }
+      }
+    }
+
     let message = "Network error. Please check your connection and try again.";
     let status = null;
     let field = null;
