@@ -48,35 +48,13 @@ await seedAdmin();
 // Migrate existing user accounts to 14-day trial status (idempotent)
 await migrateExistingUserTrials();
 
-// CORS - allow local development origins and configured client origins
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:3000",
-  "http://127.0.0.1:5173",
-  "http://127.0.0.1:5174",
-  ...(process.env.CLIENT_URL
-    ? process.env.CLIENT_URL.split(",").map((o) => o.trim())
-    : []),
-];
-
+// CORS - allow all localhost origins, 127.0.0.1, and client origins
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. Postman, curl, mobile apps, same-origin)
-      if (!origin) return callback(null, true);
-
-      // Allow any localhost / 127.0.0.1 origin or explicitly listed client origins
-      const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-
-      if (isLocalhost || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      console.warn(`[CORS Blocked] Request from origin: ${origin}`);
-      return callback(new Error("Not allowed by CORS"));
-    },
+    origin: true, // Seamlessly accept all local dev origins (5173, 5174, 127.0.0.1, localhost)
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
@@ -126,6 +104,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Server started on port ${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server started on port ${port} (0.0.0.0:${port})`);
 });
