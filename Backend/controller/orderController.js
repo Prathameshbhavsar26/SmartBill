@@ -308,6 +308,7 @@ export const createOrder = async (req, res) => {
           amountPaid: paid,
           balanceDue,
           paymentMode,
+          splitPayments: Array.isArray(req.body.splitPayments) ? req.body.splitPayments : [],
           status,
           totalCogs: trackCogs ? calculatedTotalCogs : 0,
         },

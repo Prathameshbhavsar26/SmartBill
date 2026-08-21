@@ -1,6 +1,7 @@
 import Notification from "../models/Notification.js";
 import Product from "../models/productModel.js";
 import User from "../models/User.js";
+import InventorySettings from "../models/InventorySettings.js";
 
 /**
  * In-memory registry of active Server-Sent Events (SSE) connections.
@@ -351,6 +352,9 @@ export const syncRealtimeAlerts = async (ownerId) => {
     // ── BUSINESS OWNER / USER NOTIFICATION SYNC ──
 
     // 1. Sync Low Stock & Out of Stock Alerts for the owner's inventory
+    const invSettings = await InventorySettings.findOne({ userId: ownerId }).lean();
+    const globalThreshold = Number(invSettings?.lowStockAlert || 10);
+
     const products = await Product.find({
       $or: [{ userId: ownerId }, { ownerId: ownerId }],
       status: { $ne: "Inactive" },
@@ -372,7 +376,10 @@ export const syncRealtimeAlerts = async (ownerId) => {
 
     for (const prod of products) {
       const stock = Number(prod.stock || 0);
-      const minStock = Number(prod.minStock ?? 10);
+      const minStock =
+        prod.minStock !== undefined && prod.minStock !== null && prod.minStock !== ""
+          ? Number(prod.minStock)
+          : globalThreshold;
       const prodIdStr = prod._id.toString();
 
       if (stock <= 0) {

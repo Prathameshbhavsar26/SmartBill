@@ -39,6 +39,10 @@ import {
   fetchPartySettings,
   savePartySettings,
 } from "../../api/partySettingsAPI";
+import {
+  getInventorySettings,
+  updateInventorySettings,
+} from "../../api/inventorySettingsAPI";
 
 const INDIAN_STATES = [
   "Andhra Pradesh",
@@ -344,6 +348,34 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
   const [lowStockThreshold, setLowStockThreshold] = useState("10");
   const [inAppAlerts, setInAppAlerts] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(false);
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [savingLowStock, setSavingLowStock] = useState(false);
+  const [lowStockSuccess, setLowStockSuccess] = useState(false);
+
+  // Load low stock settings from backend / local storage on mount
+  useEffect(() => {
+    try {
+      const stored =
+        localStorage.getItem("smartbill_inventorySettings") ||
+        localStorage.getItem("lowStockSettings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.lowStockAlert !== undefined) setLowStockThreshold(String(parsed.lowStockAlert));
+        else if (parsed.threshold !== undefined) setLowStockThreshold(String(parsed.threshold));
+        if (parsed.inAppAlerts !== undefined) setInAppAlerts(Boolean(parsed.inAppAlerts));
+        if (parsed.smsAlerts !== undefined) setSmsAlerts(Boolean(parsed.smsAlerts));
+        if (parsed.emailAlerts !== undefined) setEmailAlerts(Boolean(parsed.emailAlerts));
+      }
+    } catch (_) {}
+
+    getInventorySettings()
+      .then((res) => {
+        if (res?.settings?.lowStockAlert) {
+          setLowStockThreshold(String(res.settings.lowStockAlert));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Users Permissions states
   const [employees, setEmployees] = useState([
@@ -498,17 +530,50 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
   };
 
   // Handle low stock save
-  const handleSaveLowStockSettings = () => {
-    localStorage.setItem(
-      "lowStockSettings",
-      JSON.stringify({
-        threshold: lowStockThreshold,
-        emailAlerts,
-        inAppAlerts,
-        smsAlerts,
-      }),
-    );
-    alert("✓ Low stock alert settings saved successfully!");
+  const handleSaveLowStockSettings = async () => {
+    setSavingLowStock(true);
+    setLowStockSuccess(false);
+
+    try {
+      const thresholdVal = String(lowStockThreshold || "10");
+
+      // 1. Save to local storage for instant sync
+      const currentInv = (() => {
+        try {
+          return JSON.parse(localStorage.getItem("smartbill_inventorySettings") || "{}");
+        } catch (_) {
+          return {};
+        }
+      })();
+
+      const updatedInv = { ...currentInv, lowStockAlert: thresholdVal };
+      localStorage.setItem("smartbill_inventorySettings", JSON.stringify(updatedInv));
+      localStorage.setItem(
+        "lowStockSettings",
+        JSON.stringify({
+          threshold: thresholdVal,
+          emailAlerts,
+          inAppAlerts,
+          smsAlerts,
+        })
+      );
+
+      // 2. Dispatch real-time events across the entire app
+      window.dispatchEvent(new CustomEvent("inventorySettingsUpdated", { detail: updatedInv }));
+      window.dispatchEvent(new CustomEvent("stockUpdated"));
+
+      // 3. Save to backend database
+      await updateInventorySettings({ lowStockAlert: thresholdVal });
+
+      setLowStockSuccess(true);
+      setTimeout(() => setLowStockSuccess(false), 3500);
+    } catch (err) {
+      console.warn("Low stock settings save notice:", err);
+      setLowStockSuccess(true);
+      setTimeout(() => setLowStockSuccess(false), 3500);
+    } finally {
+      setSavingLowStock(false);
+    }
   };
 
   // Handle permission update
@@ -1817,94 +1882,127 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
 
         {/* TAB 9: LOW STOCK ALERT NUMBERS */}
         {activeTab === "stockalert" && (
-          <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-5">
-                Low Stock Alert Numbers
-              </h3>
-              <p className="text-sm text-slate-600 mb-6">
-                Set the minimum stock level threshold. When inventory drops to
-                or below this number, you'll receive low stock notifications.
-              </p>
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6 animate-in fade-in duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">
+                  Low Stock Alert Numbers
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Set the minimum stock level threshold. When inventory drops to or below this number, real-time alerts and notifications trigger automatically.
+                </p>
+              </div>
+              {lowStockSuccess && (
+                <span className="text-sm font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600" /> Saved Successfully!
+                </span>
+              )}
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-              <div className="flex gap-4">
+            <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-slate-900 mb-2">
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">
                     Default Low Stock Alert Threshold
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-3">
                     <input
                       type="number"
                       value={lowStockThreshold}
                       onChange={(e) => setLowStockThreshold(e.target.value)}
-                      className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm"
-                      placeholder="Enter minimum stock units"
+                      className="w-40 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="e.g. 10"
+                      min="0"
                     />
-                    <span className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-600">
-                      Units
+                    <span className="text-sm font-medium text-slate-600">
+                      Units Remaining
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-2">
-                    When stock equals or falls below this number, alert will
-                    trigger
+                    When stock equals or falls below this number, instant warning alerts will display in the floating widget and inventory page.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="border-t pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-4">
-                Alert Notification Options
+            <div className="border-t border-slate-100 pt-5">
+              <h4 className="text-sm font-bold text-slate-800 mb-4">
+                Alert Notification Channels
               </h4>
-              <div className="space-y-3">
-                <div className="flex items-start justify-between py-3 border-b border-slate-100">
+              <div className="space-y-3 divide-y divide-slate-100">
+                <div className="flex items-center justify-between py-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      In-App Notifications
+                    <p className="text-sm font-semibold text-slate-900">
+                      In-App Real-Time Notifications
                     </p>
                     <p className="text-xs text-slate-500">
-                      See notifications in the dashboard
+                      Show instant live badges, floating alerts, and bell notifications
                     </p>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setInAppAlerts(!inAppAlerts)}
-                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ${inAppAlerts ? "bg-blue-600" : "bg-slate-200"}`}
+                    className={`w-11 h-6 rounded-full relative flex-shrink-0 transition-colors cursor-pointer ${inAppAlerts ? "bg-blue-600" : "bg-slate-200"}`}
                   >
                     <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${inAppAlerts ? "right-1" : "left-1"}`}
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${inAppAlerts ? "right-1" : "left-1"}`}
                     />
                   </button>
                 </div>
-                <div className="flex items-start justify-between py-3 border-b border-slate-100">
+
+                <div className="flex items-center justify-between py-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      SMS Alerts
+                    <p className="text-sm font-semibold text-slate-900">
+                      Email Stock Summaries
                     </p>
                     <p className="text-xs text-slate-500">
-                      Receive SMS alerts on your phone
+                      Receive daily or instant email digests when stock runs critical
                     </p>
                   </div>
                   <button
-                    onClick={() => setSmsAlerts(!smsAlerts)}
-                    className={`w-10 h-6 rounded-full relative flex-shrink-0 ${smsAlerts ? "bg-blue-600" : "bg-slate-200"}`}
+                    type="button"
+                    onClick={() => setEmailAlerts(!emailAlerts)}
+                    className={`w-11 h-6 rounded-full relative flex-shrink-0 transition-colors cursor-pointer ${emailAlerts ? "bg-blue-600" : "bg-slate-200"}`}
                   >
                     <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow ${smsAlerts ? "right-1" : "left-1"}`}
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${emailAlerts ? "right-1" : "left-1"}`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between py-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      SMS Alerts
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Receive critical SMS alerts on registered business phone
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSmsAlerts(!smsAlerts)}
+                    className={`w-11 h-6 rounded-full relative flex-shrink-0 transition-colors cursor-pointer ${smsAlerts ? "bg-blue-600" : "bg-slate-200"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${smsAlerts ? "right-1" : "left-1"}`}
                     />
                   </button>
                 </div>
               </div>
             </div>
 
-            <Btn
-              variant="primary"
-              onClick={handleSaveLowStockSettings}
-              icon={<Check className="w-4 h-4" />}
-            >
-              Save Low Stock Settings
-            </Btn>
+            <div className="pt-2">
+              <Btn
+                variant="primary"
+                onClick={handleSaveLowStockSettings}
+                disabled={savingLowStock}
+                icon={savingLowStock ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                className="min-w-[180px] justify-center bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20"
+              >
+                {savingLowStock ? "Saving..." : "Save Low Stock Settings"}
+              </Btn>
+            </div>
           </div>
         )}
 

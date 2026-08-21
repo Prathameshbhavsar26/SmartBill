@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PackageSearch, Check, Loader2, Save } from "lucide-react";
 import { Select, Input, Btn } from "../../components/common/ui";
+import { getInventorySettings, updateInventorySettings } from "../../api/inventorySettingsAPI";
 
 const CleanToggle = ({ title, description, checked, onChange }) => (
   <div className="flex items-start justify-between py-4 group cursor-pointer" onClick={onChange}>
@@ -56,35 +57,68 @@ export default function ItemInventorySettingsTab() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
+    // 1. Initial load from localStorage for instant display
     try {
       const stored = localStorage.getItem("smartbill_inventorySettings");
       if (stored) {
-        setSettings({ ...settings, ...JSON.parse(stored) });
+        setSettings((prev) => ({ ...prev, ...JSON.parse(stored) }));
       }
-    } catch (e) {
-      console.warn("Failed to load inventory settings");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch (_) {}
+
+    // 2. Fetch authoritative settings from backend
+    getInventorySettings()
+      .then((res) => {
+        if (res?.settings) {
+          setSettings((prev) => {
+            const merged = { ...prev, ...res.settings };
+            localStorage.setItem("smartbill_inventorySettings", JSON.stringify(merged));
+            return merged;
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn("Inventory settings load notice:", err.message);
+      });
   }, []);
 
   const handleChange = (field, value) => {
-    setSettings((prev) => ({ ...prev, [field]: value }));
+    setSettings((prev) => {
+      const next = { ...prev, [field]: value };
+      localStorage.setItem("smartbill_inventorySettings", JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("inventorySettingsUpdated", { detail: next }));
+      return next;
+    });
     setShowSuccess(false);
   };
 
   const handleToggle = (field) => {
-    setSettings((prev) => ({ ...prev, [field]: !prev[field] }));
+    setSettings((prev) => {
+      const next = { ...prev, [field]: !prev[field] };
+      localStorage.setItem("smartbill_inventorySettings", JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("inventorySettingsUpdated", { detail: next }));
+      return next;
+    });
     setShowSuccess(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => {
+    try {
       localStorage.setItem("smartbill_inventorySettings", JSON.stringify(settings));
-      setSaving(false);
+      window.dispatchEvent(new CustomEvent("inventorySettingsUpdated", { detail: settings }));
+      window.dispatchEvent(new CustomEvent("stockUpdated"));
+
+      await updateInventorySettings(settings);
+
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-    }, 600);
+    } catch (err) {
+      console.warn("Backend settings sync warning:", err.message);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

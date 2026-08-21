@@ -22,11 +22,32 @@ export default function InventoryScreen({ onNav }) {
   const [productList, setProductList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [globalThreshold, setGlobalThreshold] = useState(() => {
+    try {
+      const stored = localStorage.getItem("smartbill_inventorySettings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.lowStockAlert) return Number(parsed.lowStockAlert);
+      }
+    } catch (_) {}
+    return 10;
+  });
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
+      // Refresh local threshold
+      try {
+        const stored = localStorage.getItem("smartbill_inventorySettings");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.lowStockAlert !== undefined) {
+            setGlobalThreshold(Number(parsed.lowStockAlert) || 10);
+          }
+        }
+      } catch (_) {}
+
       const res = await getProducts();
       setProductList(res.products || []);
     } catch (err) {
@@ -38,6 +59,27 @@ export default function InventoryScreen({ onNav }) {
 
   useEffect(() => {
     loadProducts();
+
+    const handleUpdate = (e) => {
+      if (e?.detail?.lowStockAlert !== undefined) {
+        setGlobalThreshold(Number(e.detail.lowStockAlert) || 10);
+      }
+      loadProducts();
+    };
+
+    window.addEventListener("inventorySettingsUpdated", handleUpdate);
+    window.addEventListener("stockUpdated", handleUpdate);
+    window.addEventListener("productUpdated", handleUpdate);
+    window.addEventListener("orderCreated", handleUpdate);
+    window.addEventListener("purchaseCreated", handleUpdate);
+
+    return () => {
+      window.removeEventListener("inventorySettingsUpdated", handleUpdate);
+      window.removeEventListener("stockUpdated", handleUpdate);
+      window.removeEventListener("productUpdated", handleUpdate);
+      window.removeEventListener("orderCreated", handleUpdate);
+      window.removeEventListener("purchaseCreated", handleUpdate);
+    };
   }, [loadProducts]);
 
   const totalProducts = productList.length;
@@ -45,14 +87,21 @@ export default function InventoryScreen({ onNav }) {
     (sum, p) => sum + Number(p.price || 0) * Number(p.stock || 0),
     0
   );
+
+  const getEffectiveMinStock = (p) => {
+    return p.minStock !== undefined && p.minStock !== null && p.minStock !== ""
+      ? Number(p.minStock)
+      : globalThreshold;
+  };
+
   const lowStockItems = productList.filter(
-    (p) => Number(p.stock || 0) <= Number(p.minStock || 10) && Number(p.stock || 0) > 0
+    (p) => Number(p.stock || 0) <= getEffectiveMinStock(p) && Number(p.stock || 0) > 0
   );
   const outOfStockItems = productList.filter(
     (p) => Number(p.stock || 0) === 0
   );
   const allAlertItems = productList.filter(
-    (p) => Number(p.stock || 0) <= Number(p.minStock || 10)
+    (p) => Number(p.stock || 0) <= getEffectiveMinStock(p)
   );
 
   const categoriesCount = new Set(productList.map((p) => p.category)).size;
@@ -224,7 +273,7 @@ export default function InventoryScreen({ onNav }) {
                         className={`font-bold font-mono ${
                           p.stock === 0
                             ? "text-red-500"
-                            : p.stock <= (p.minStock || 10)
+                            : p.stock <= getEffectiveMinStock(p)
                             ? "text-amber-600"
                             : "text-slate-900"
                         }`}
@@ -235,11 +284,11 @@ export default function InventoryScreen({ onNav }) {
                         <div
                           className="h-full rounded-full"
                           style={{
-                            width: `${Math.min(100, (p.stock / Math.max(1, (p.minStock || 10) * 3)) * 100)}%`,
+                            width: `${Math.min(100, (p.stock / Math.max(1, getEffectiveMinStock(p) * 3)) * 100)}%`,
                             backgroundColor:
                               p.stock === 0
                                 ? "#EF4444"
-                                : p.stock <= (p.minStock || 10)
+                                : p.stock <= getEffectiveMinStock(p)
                                 ? "#F59E0B"
                                 : "#10B981",
                           }}
@@ -248,7 +297,7 @@ export default function InventoryScreen({ onNav }) {
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-slate-600 font-mono">
-                    {p.minStock ?? 10}
+                    {p.minStock !== undefined && p.minStock !== null && p.minStock !== "" ? p.minStock : `${globalThreshold} (global)`}
                   </td>
                   <td className="px-5 py-3.5 font-medium text-slate-900">
                     {fmt((p.price || 0) * (p.stock || 0))}

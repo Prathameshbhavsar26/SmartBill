@@ -67,6 +67,16 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: "Cash",
     },
+    splitPayments: {
+      type: [
+        {
+          mode: { type: String, default: "Cash" },
+          amount: { type: Number, default: 0 },
+          referenceNo: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
     status: {
       type: String,
       enum: ["Paid", "Partial", "Due"],

@@ -452,6 +452,8 @@ const handleMarkAsPaid = async (purchaseId) => {
     try {
       await createPurchase(payload);
       showToast("Purchase saved successfully!", "success");
+      window.dispatchEvent(new CustomEvent("stockUpdated"));
+      window.dispatchEvent(new CustomEvent("purchaseCreated", { detail: payload }));
       resetForm();
       await loadData();
       setActiveTab("history");

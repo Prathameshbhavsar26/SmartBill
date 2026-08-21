@@ -26,7 +26,7 @@ import { Toaster } from "sonner";
 import { AlertTriangle, X, ShoppingCart, TrendingDown, ShieldAlert } from "lucide-react";
 import { hasPermission } from "./utils/permissions";
 
-function LowStockAlert({ lowStockItems, outOfStockItems, onClose, onNav }) {
+function LowStockAlert({ lowStockItems, outOfStockItems, globalThreshold, onClose, onNav }) {
   const total = lowStockItems.length + outOfStockItems.length;
   if (total === 0) return null;
 
@@ -75,7 +75,9 @@ function LowStockAlert({ lowStockItems, outOfStockItems, onClose, onNav }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-slate-900 truncate">{p.name}</p>
-              <p className="text-[10px] text-amber-600">Min: {p.minStock ?? 10}</p>
+              <p className="text-[10px] text-amber-600">
+                Min: {p.minStock !== undefined && p.minStock !== null && p.minStock !== "" ? p.minStock : globalThreshold || 10}
+              </p>
             </div>
             <span className="text-xs font-bold text-amber-600 font-mono">{p.stock} left</span>
           </div>
@@ -125,10 +127,16 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
   const [alertDismissed, setAlertDismissed] = useState(false);
   const { unreadCount } = useNotifications();
 
-  const { lowStockItems, outOfStockItems, alertCount } = useLowStock(
-    60_000,
+  const { lowStockItems, outOfStockItems, alertCount, globalThreshold } = useLowStock(
+    20_000,
     role !== "superadmin"
   );
+
+  useEffect(() => {
+    if (alertCount > 0) {
+      setAlertDismissed(false);
+    }
+  }, [alertCount]);
 
   const totalAlerts = role === "superadmin" ? 0 : alertCount;
   const bellCount = unreadCount;
@@ -215,6 +223,7 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
         <LowStockAlert
           lowStockItems={lowStockItems}
           outOfStockItems={outOfStockItems}
+          globalThreshold={globalThreshold}
           onClose={() => setAlertDismissed(true)}
           onNav={onNav}
         />

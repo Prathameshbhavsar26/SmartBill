@@ -243,6 +243,8 @@ export default function ProductsScreen() {
               setProductList((prev) => prev.filter((p) => p.id !== deleteId));
               setDeleteId(null);
               setShowEditModal(false);
+              window.dispatchEvent(new CustomEvent("stockUpdated"));
+              window.dispatchEvent(new CustomEvent("productUpdated"));
               showToast("Product deleted successfully", "success");
             } catch (err) {
               setDeleteId(null);
@@ -589,6 +591,8 @@ export default function ProductsScreen() {
                     setShowEditModal(false);
                     setEditId(null);
                     setShowEditCategoryInput(false);
+                    window.dispatchEvent(new CustomEvent("stockUpdated"));
+                    window.dispatchEvent(new CustomEvent("productUpdated"));
                     showToast("Product updated successfully", "success");
                   } catch (err) {
                     showToast(
@@ -682,33 +686,34 @@ export default function ProductsScreen() {
             <div className="grid grid-cols-3 gap-3">
               <Input
                 label="Cost Price (₹)"
-                placeholder="4200"
+                type="number"
                 value={form.cost}
                 onChange={(v) => setForm((f) => ({ ...f, cost: v }))}
               />
               <Input
                 label="Selling Price (₹)"
-                placeholder="6999"
+                type="number"
                 value={form.price}
                 onChange={(v) => setForm((f) => ({ ...f, price: v }))}
               />
               <Input
-                label="GST %"
-                placeholder="18"
+                label="GST Rate (%)"
+                placeholder="e.g. 18"
+                type="number"
                 value={form.gst}
                 onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Opening Stock"
-                placeholder="0"
+                label="Opening Stock Quantity"
+                type="number"
                 value={form.stock}
                 onChange={(v) => setForm((f) => ({ ...f, stock: v }))}
               />
               <Input
-                label="Min. Stock Level"
-                placeholder="10"
+                label="Minimum Stock Threshold"
+                type="number"
                 value={form.minStock}
                 onChange={(v) => setForm((f) => ({ ...f, minStock: v }))}
               />
@@ -793,6 +798,8 @@ export default function ProductsScreen() {
                     await loadProducts();
                     setShowModal(false);
                     setShowCategoryInput(false);
+                    window.dispatchEvent(new CustomEvent("stockUpdated"));
+                    window.dispatchEvent(new CustomEvent("productUpdated"));
                     setForm({
                       name: "",
                       sku: "",

@@ -262,8 +262,21 @@ export function NotificationProvider({ children, onNav }) {
                 }
                 break;
 
+              case "INVENTORY_SETTINGS_UPDATED":
+                if (data.settings) {
+                  try {
+                    localStorage.setItem("smartbill_inventorySettings", JSON.stringify(data.settings));
+                    window.dispatchEvent(new CustomEvent("inventorySettingsUpdated", { detail: data.settings }));
+                  } catch (_) {}
+                }
+                break;
+
               default:
                 break;
+            }
+
+            if (data.type === "NEW_NOTIFICATION" && data.notification?.category === "stock") {
+              window.dispatchEvent(new CustomEvent("stockUpdated"));
             }
           } catch (parseErr) {
             console.debug("[SSE] parse warning:", parseErr.message);

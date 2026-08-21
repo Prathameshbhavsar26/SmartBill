@@ -26,8 +26,6 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Camera,
-  Share2,
 } from "lucide-react";
 import { fmt } from "../../utils/format";
 import { Badge, Btn, Card, Input, Select, Modal } from "../../components/common/ui";
@@ -37,8 +35,6 @@ import { getProducts } from "../../api/productAPI";
 import { getInvoiceSettings } from "../../api/invoiceSettingsAPI";
 import { fetchPartySettings } from "../../api/partySettingsAPI";
 import { useTransactionSettings } from "../../hooks/useTransactionSettings";
-import CameraBarcodeScannerModal from "../../components/pos/CameraBarcodeScannerModal";
-import { shareInvoiceOnWhatsApp, shareInvoiceNative } from "../../utils/whatsappInvoice";
 
 export default function POSScreen() {
   const { settings: txSettings } = useTransactionSettings();
@@ -47,7 +43,6 @@ export default function POSScreen() {
   const [customers, setCustomers] = useState([]);
   const [productList, setProductList] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
-  const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
   const [customer, setCustomer] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerCity, setCustomerCity] = useState("");
@@ -86,9 +81,42 @@ export default function POSScreen() {
 
   const [transactionRef, setTransactionRef] = useState("");
   const [isSplitMode, setIsSplitMode] = useState(false);
-  const [splitCash, setSplitCash] = useState("");
-  const [splitDigital, setSplitDigital] = useState("");
-  const [splitDigitalMode, setSplitDigitalMode] = useState("UPI & QR Code");
+  const [splitRows, setSplitRows] = useState([
+    { id: 1, mode: "Cash", amount: "", ref: "" },
+    { id: 2, mode: "UPI & QR Code", amount: "", ref: "" },
+  ]);
+
+  const handleAddSplitRow = () => {
+    const nextId = splitRows.length > 0 ? Math.max(...splitRows.map((r) => r.id)) + 1 : 1;
+    setSplitRows((prev) => [
+      ...prev,
+      {
+        id: nextId,
+        mode: "Credit / Debit Card",
+        amount: "",
+        ref: "",
+      },
+    ]);
+  };
+
+  const handleRemoveSplitRow = (id) => {
+    if (splitRows.length <= 2) return;
+    setSplitRows((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const handleSplitRowChange = (id, field, value) => {
+    setSplitRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    );
+  };
+
+  const handleAutoFillRemaining = (id, targetTotal) => {
+    const currentOthers = splitRows
+      .filter((r) => r.id !== id)
+      .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    const needed = Math.max(0, targetTotal - currentOthers);
+    handleSplitRowChange(id, "amount", String(needed));
+  };
 
   // Listen to paymentSettingsUpdated events
   useEffect(() => {
@@ -473,6 +501,38 @@ export default function POSScreen() {
   const requireRef = Boolean(paymentSettings?.transactionRules?.requireReferenceNumber && isDigitalMode);
   const allowSplit = Boolean(paymentSettings?.transactionRules?.allowSplitPayment ?? true);
 
+  const totalSplitAllocated = splitRows.reduce(
+    (sum, r) => sum + (Number(r.amount) || 0),
+    0
+  );
+  const remainingSplitToAllocate = Math.max(0, roundedTotal - totalSplitAllocated);
+  const splitChangeToReturn = Math.max(0, totalSplitAllocated - roundedTotal);
+
+  const upiSplitTotal = splitRows
+    .filter((r) => r.mode.toLowerCase().includes("upi") || r.mode.toLowerCase().includes("qr"))
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+  const cardSplitTotal = splitRows
+    .filter((r) => r.mode.toLowerCase().includes("card"))
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+  const bankSplitTotal = splitRows
+    .filter((r) => r.mode.toLowerCase().includes("bank"))
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+  const cashSplitTotal = splitRows
+    .filter((r) => r.mode.toLowerCase().includes("cash"))
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+  const hasAnyDigitalInSplit = splitRows.some(
+    (r) =>
+      r.mode.toLowerCase().includes("upi") ||
+      r.mode.toLowerCase().includes("qr") ||
+      r.mode.toLowerCase().includes("card") ||
+      r.mode.toLowerCase().includes("bank") ||
+      r.mode.toLowerCase().includes("wallet")
+  );
+
   const activeBiz = (() => {
     try {
       const rawUser = localStorage.getItem("smartbill_user");
@@ -824,16 +884,21 @@ export default function POSScreen() {
 
     let finalPaymentMode = paymentMode;
     let effectivePaid = paidValue > 0 ? paidValue : roundedTotal;
+    let splitPaymentsPayload = [];
 
     if (isSplitMode) {
-      const cashAmt = Number(splitCash) || 0;
-      const digAmt = Number(splitDigital) || 0;
-      if (cashAmt + digAmt <= 0) {
-        setError("Please enter split payment amounts.");
+      const validSplits = splitRows.filter((r) => Number(r.amount) > 0);
+      if (validSplits.length === 0) {
+        setError("Please enter payment amounts for at least one split method.");
         return;
       }
-      effectivePaid = cashAmt + digAmt;
-      finalPaymentMode = `Split (Cash: ₹${cashAmt} + ${splitDigitalMode}: ₹${digAmt})`;
+      effectivePaid = validSplits.reduce((sum, r) => sum + Number(r.amount), 0);
+      splitPaymentsPayload = validSplits.map((r) => ({
+        mode: r.mode,
+        amount: Number(r.amount),
+        referenceNo: r.ref || "",
+      }));
+      finalPaymentMode = `Split (${validSplits.map((r) => `${r.mode}: ₹${Number(r.amount).toLocaleString("en-IN")}`).join(", ")})`;
     }
 
     const items = calculatedItems.map((i) => ({
@@ -890,7 +955,9 @@ export default function POSScreen() {
       cashDiscount: cashDiscountAmount,
       totalOrderValue: Math.round(roundedTotal),
       amountPaid: Math.round(effectivePaid),
+      balanceDue: Math.max(0, Math.round(roundedTotal) - Math.round(effectivePaid)),
       paymentMode: finalPaymentMode,
+      splitPayments: splitPaymentsPayload,
       transactionRef: transactionRef.trim() || undefined,
     };
 
@@ -919,6 +986,10 @@ export default function POSScreen() {
       const res = await createOrder(payload);
       setLastOrder(res.order);
       setPaymentModalOpen(false);
+
+      // Trigger real-time low-stock and inventory event dispatch
+      window.dispatchEvent(new CustomEvent("stockUpdated"));
+      window.dispatchEvent(new CustomEvent("orderCreated", { detail: res.order }));
 
       // Behavior: Print After Saving
       if (txSettings?.printAfterSaving) {
@@ -950,15 +1021,17 @@ export default function POSScreen() {
     }
     setError("");
 
-    const isDigital =
-      paymentMode.toLowerCase().includes("upi") ||
-      paymentMode.toLowerCase().includes("qr") ||
-      paymentMode.toLowerCase().includes("card") ||
-      paymentMode.toLowerCase().includes("bank") ||
-      paymentMode.toLowerCase().includes("wallet") ||
-      isSplitMode;
+    if (isSplitMode) {
+      // In split mode: if any digital payment method exists (UPI, QR, Card, Bank, Wallet), open the modal
+      if (hasAnyDigitalInSplit || upiSplitTotal > 0 || cardSplitTotal > 0 || bankSplitTotal > 0) {
+        setPaymentModalOpen(true);
+      } else {
+        handleGenerateInvoice();
+      }
+      return;
+    }
 
-    if (isDigital) {
+    if (isDigitalMode) {
       setPaymentModalOpen(true);
     } else {
       handleGenerateInvoice();
@@ -1276,6 +1349,23 @@ export default function POSScreen() {
             </p>
           </div>
 
+          {/* Payment Method & Split Details */}
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs bg-slate-50/60 dark:bg-slate-800/40 p-3.5 rounded-xl">
+            <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Payment Method: <span className="text-blue-600 dark:text-blue-400 font-semibold">{order?.paymentMode || paymentMode}</span>
+            </p>
+            {Array.isArray(order?.splitPayments) && order.splitPayments.length > 0 && (
+              <div className="mt-2 space-y-1 pl-2 border-l-2 border-blue-500">
+                {order.splitPayments.map((sp, idx) => (
+                  <div key={idx} className="flex justify-between text-[11px] text-slate-600 dark:text-slate-300">
+                    <span>{sp.mode} {sp.referenceNo ? `(Ref: ${sp.referenceNo})` : ""}:</span>
+                    <span className="font-mono font-bold">{fmt(sp.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="mt-8 pt-5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-3 no-print">
             <Btn
               variant="primary"
@@ -1291,15 +1381,6 @@ export default function POSScreen() {
             >
               Download PDF
             </Btn>
-            <button
-              type="button"
-              onClick={() => shareInvoiceOnWhatsApp(order, activeBiz, order?.customerPhone || customerPhone)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white transition shadow-sm"
-              title="Share digital bill on WhatsApp"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              Share on WhatsApp
-            </button>
             <Btn
               variant="ghost"
               onClick={() => {
@@ -1338,15 +1419,6 @@ export default function POSScreen() {
             icon={<ScanLine className="w-4 h-4" />}
             className="flex-1"
           />
-          <button
-            type="button"
-            onClick={() => setCameraScannerOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition shadow-sm cursor-pointer"
-            title="Scan barcode with device camera"
-          >
-            <Camera className="w-4 h-4" />
-            <span>Camera Scan</span>
-          </button>
           <Btn
             variant="outline"
             size="md"
@@ -1808,58 +1880,152 @@ export default function POSScreen() {
               </span>
               <button
                 type="button"
-                onClick={() => setIsSplitMode(!isSplitMode)}
-                className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
-                  isSplitMode ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:bg-slate-300"
+                onClick={() => {
+                  const next = !isSplitMode;
+                  setIsSplitMode(next);
+                  if (next && splitRows.length === 2 && !splitRows[0].amount) {
+                    const half = Math.floor(roundedTotal / 2);
+                    setSplitRows([
+                      { id: 1, mode: "Cash", amount: String(half), ref: "" },
+                      { id: 2, mode: "UPI & QR Code", amount: String(roundedTotal - half), ref: "" },
+                    ]);
+                  }
+                }}
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                  isSplitMode
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:bg-slate-300"
                 }`}
               >
-                {isSplitMode ? "Active" : "Enable"}
+                {isSplitMode ? "✓ Split Active" : "Enable Multi-Split"}
               </button>
             </div>
           )}
 
           {isSplitMode ? (
-            <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
-                  Cash Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={splitCash}
-                  onChange={(e) => {
-                    const c = e.target.value;
-                    setSplitCash(c);
-                    const remaining = Math.max(0, roundedTotal - (Number(c) || 0));
-                    setSplitDigital(remaining > 0 ? String(remaining) : "");
-                  }}
-                  placeholder="e.g. 500"
-                  className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
-                />
+            <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/70 rounded-xl space-y-2.5 text-xs shadow-2xs">
+              <div className="flex items-center justify-between pb-1.5 border-b border-blue-200/60 dark:border-blue-800/60">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-900 dark:text-blue-200">
+                  Multi-Split Allocations
+                </span>
+                <span className="text-[10px] font-bold font-mono text-blue-700 dark:text-blue-300">
+                  ₹{totalSplitAllocated.toLocaleString("en-IN")} / ₹{roundedTotal.toLocaleString("en-IN")}
+                </span>
               </div>
-              <div className="flex items-center justify-between gap-2">
-                <select
-                  value={splitDigitalMode}
-                  onChange={(e) => setSplitDigitalMode(e.target.value)}
-                  className="text-[10px] font-bold bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-1.5 py-1 text-slate-800 dark:text-slate-200 outline-none"
-                >
-                  <option value="UPI & QR Code">UPI</option>
-                  <option value="Credit / Debit Card">Card</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                </select>
-                <input
-                  type="number"
-                  min={0}
-                  value={splitDigital}
-                  onChange={(e) => setSplitDigital(e.target.value)}
-                  placeholder="e.g. 500"
-                  className="w-28 text-right bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-700 rounded-md px-2 py-1 text-xs font-mono font-bold"
-                />
+
+              {/* Split Rows */}
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {splitRows.map((row) => (
+                  <div
+                    key={row.id}
+                    className="p-2 bg-white dark:bg-slate-900 rounded-lg border border-blue-100 dark:border-slate-800 space-y-1.5 shadow-2xs"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={row.mode}
+                        onChange={(e) => handleSplitRowChange(row.id, "mode", e.target.value)}
+                        className="text-[10px] font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-1 text-slate-800 dark:text-slate-200 flex-1 outline-none"
+                      >
+                        {(salesPaymentModes.length > 0
+                          ? salesPaymentModes
+                          : ["Cash", "UPI & QR Code", "Credit / Debit Card", "Bank Transfer", "Store Credit / Khata", "Digital Wallet"]
+                        ).map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="relative w-24">
+                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-mono">₹</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={row.amount}
+                          onChange={(e) => handleSplitRowChange(row.id, "amount", e.target.value)}
+                          placeholder="0"
+                          className="w-full text-right bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-1 pl-4 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+                        />
+                      </div>
+
+                      {splitRows.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSplitRow(row.id)}
+                          className="text-slate-400 hover:text-rose-500 p-1 rounded transition cursor-pointer"
+                          title="Remove method"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-1 text-[10px]">
+                      {row.mode !== "Cash" ? (
+                        <input
+                          type="text"
+                          value={row.ref}
+                          onChange={(e) => handleSplitRowChange(row.id, "ref", e.target.value)}
+                          placeholder="UTR / Ref No (Optional)"
+                          className="flex-1 text-[10px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5 text-slate-700 dark:text-slate-300 font-mono outline-none"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">Cash Tender</span>
+                      )}
+                      
+                      {(row.mode.toLowerCase().includes("upi") || row.mode.toLowerCase().includes("qr")) && (
+                        <button
+                          type="button"
+                          onClick={() => setPaymentModalOpen(true)}
+                          className="text-[9px] font-bold text-emerald-700 hover:text-emerald-900 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded flex items-center gap-0.5 cursor-pointer"
+                          title="Open dynamic UPI QR Code for this amount"
+                        >
+                          <QrCode className="w-2.5 h-2.5" />
+                          <span>QR</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleAutoFillRemaining(row.id, roundedTotal)}
+                        className="text-[9px] font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 px-1.5 py-0.5 rounded cursor-pointer"
+                        title="Auto-balance remaining amount into this row"
+                      >
+                        Auto-Fill
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between text-[11px] font-semibold text-blue-900 dark:text-blue-200 pt-1 border-t border-blue-200/60">
-                <span>Split Total:</span>
-                <span className="font-mono">₹{((Number(splitCash) || 0) + (Number(splitDigital) || 0)).toLocaleString("en-IN")} / ₹{roundedTotal}</span>
+
+              {/* Add Split Row Button */}
+              <button
+                type="button"
+                onClick={handleAddSplitRow}
+                className="w-full py-1.5 border border-dashed border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>+ Add Split Payment Method</span>
+              </button>
+
+              {/* Split Summary & Status */}
+              <div className="pt-1.5 border-t border-blue-200/60 dark:border-blue-800/60 flex items-center justify-between text-[11px] font-bold">
+                {totalSplitAllocated === roundedTotal ? (
+                  <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Exactly Balanced
+                  </span>
+                ) : totalSplitAllocated < roundedTotal ? (
+                  <span className="text-amber-600 dark:text-amber-400 font-mono">
+                    ₹{remainingSplitToAllocate.toLocaleString("en-IN")} Remaining
+                  </span>
+                ) : (
+                  <span className="text-blue-600 dark:text-blue-400 font-mono">
+                    ₹{splitChangeToReturn.toLocaleString("en-IN")} Change
+                  </span>
+                )}
+                <span className="font-mono text-slate-900 dark:text-white">
+                  {Math.round((totalSplitAllocated / (roundedTotal || 1)) * 100)}%
+                </span>
               </div>
             </div>
           ) : (
@@ -1974,7 +2140,36 @@ export default function POSScreen() {
             disabled={cart.length === 0 || saving}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
           >
-            {isDigitalMode || isSplitMode ? (
+            {isSplitMode ? (
+              upiSplitTotal > 0 ? (
+                <>
+                  <QrCode className="w-4 h-4 text-white" />
+                  <span>
+                    {saving
+                      ? "Processing..."
+                      : `Show UPI QR (₹${upiSplitTotal.toLocaleString("en-IN")}) & Pay`}
+                  </span>
+                </>
+              ) : hasAnyDigitalInSplit ? (
+                <>
+                  <CreditCard className="w-4 h-4 text-white" />
+                  <span>
+                    {saving
+                      ? "Processing..."
+                      : `Collect Split Payment (₹${roundedTotal.toLocaleString("en-IN")})`}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Receipt className="w-4 h-4 text-white" />
+                  <span>
+                    {saving
+                      ? "Saving..."
+                      : `Collect Cash & Generate Invoice (₹${roundedTotal.toLocaleString("en-IN")})`}
+                  </span>
+                </>
+              )
+            ) : isDigitalMode ? (
               <>
                 <QrCode className="w-4 h-4 text-white" />
                 <span>{saving ? "Processing..." : `Scan QR & Pay ₹${roundedTotal.toLocaleString("en-IN")}`}</span>
@@ -2313,129 +2508,249 @@ export default function POSScreen() {
       {/* ── PAYMENT COLLECTION MODAL ── */}
       {paymentModalOpen && (
         <Modal
-          title={`Collect Payment: ${isSplitMode ? "Split Multi-Mode" : paymentMode}`}
+          title={isSplitMode ? "Collect Split Multi-Payment" : `Collect Payment: ${paymentMode}`}
           onClose={() => setPaymentModalOpen(false)}
           className="max-w-md"
         >
           <div className="space-y-4">
             {/* Header Amount Box */}
-            <div className="bg-slate-50 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                Total Payable Amount
-              </span>
-              <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-mono">
-                ₹{roundedTotal.toLocaleString("en-IN")}
-              </span>
-              <div className="mt-2 flex items-center justify-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                  Ready for Customer Scan & Payment
-                </span>
+            {isSplitMode ? (
+              <div className="bg-blue-50/90 dark:bg-blue-950/50 p-4 rounded-xl border border-blue-200 dark:border-blue-800 text-center shadow-xs">
+                {upiSplitTotal > 0 ? (
+                  <>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-700 dark:text-blue-300 block mb-1">
+                      UPI Amount to Collect via QR
+                    </span>
+                    <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-mono">
+                      ₹{upiSplitTotal.toLocaleString("en-IN")}
+                    </span>
+                    <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      <span>Total Bill: ₹{roundedTotal.toLocaleString("en-IN")}</span>
+                      <span>·</span>
+                      <span className="text-emerald-700 dark:text-emerald-400">Cash: ₹{cashSplitTotal.toLocaleString("en-IN")}</span>
+                      {cardSplitTotal > 0 && (
+                        <>
+                          <span>·</span>
+                          <span className="text-purple-700 dark:text-purple-400">Card: ₹{cardSplitTotal.toLocaleString("en-IN")}</span>
+                        </>
+                      )}
+                      {bankSplitTotal > 0 && (
+                        <>
+                          <span>·</span>
+                          <span className="text-indigo-700 dark:text-indigo-400">Bank: ₹{bankSplitTotal.toLocaleString("en-IN")}</span>
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : cardSplitTotal > 0 ? (
+                  <>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-300 block mb-1">
+                      Card Amount to Swipe on POS
+                    </span>
+                    <span className="text-3xl font-extrabold text-purple-600 dark:text-purple-400 font-mono">
+                      ₹{cardSplitTotal.toLocaleString("en-IN")}
+                    </span>
+                    <div className="mt-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      Total Bill: ₹{roundedTotal.toLocaleString("en-IN")} · Cash: ₹{cashSplitTotal.toLocaleString("en-IN")}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
+                      Total Split Bill
+                    </span>
+                    <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-mono">
+                      ₹{roundedTotal.toLocaleString("en-IN")}
+                    </span>
+                    <div className="mt-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                      Cash Tender: ₹{cashSplitTotal.toLocaleString("en-IN")}
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="bg-slate-50 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
+                  Total Payable Amount
+                </span>
+                <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-mono">
+                  ₹{roundedTotal.toLocaleString("en-IN")}
+                </span>
+                <div className="mt-2 flex items-center justify-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                    Ready for Customer Scan & Payment
+                  </span>
+                </div>
+              </div>
+            )}
 
-            {/* UPI & QR Code View */}
-            {(paymentMode.toLowerCase().includes("upi") ||
-              paymentMode.toLowerCase().includes("qr") ||
-              (isSplitMode && splitDigitalMode.toLowerCase().includes("upi"))) && (
+            {/* Multi-Split Mode Views */}
+            {isSplitMode ? (
               <div className="space-y-3">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center shadow-xs">
-                  <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs inline-block mx-auto mb-2">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                        `upi://pay?pa=${bUpiId || "smartbill@upi"}&pn=${encodeURIComponent(
-                          bName || "SmartBill Store"
-                        )}&am=${isSplitMode ? Number(splitDigital) || roundedTotal : roundedTotal}&cu=INR`
-                      )}&margin=4`}
-                      alt="UPI QR Code"
-                      className="w-44 h-44 mx-auto rounded-lg"
+                {/* UPI QR Code specifically for the UPI split portion */}
+                {(upiSplitTotal > 0 || splitRows.some((r) => r.mode.toLowerCase().includes("upi") || r.mode.toLowerCase().includes("qr"))) && (
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center shadow-xs space-y-2">
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs inline-block mx-auto">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                          `upi://pay?pa=${bUpiId || "smartbill@upi"}&pn=${encodeURIComponent(
+                            bName || "SmartBill Store"
+                          )}&am=${upiSplitTotal > 0 ? upiSplitTotal : roundedTotal}&cu=INR`
+                        )}&margin=4`}
+                        alt="UPI QR Code"
+                        className="w-44 h-44 mx-auto rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">
+                        {bName || "SmartBill Enterprise Store"}
+                      </p>
+                      <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
+                        {bUpiId || "merchant@upi"}
+                      </p>
+                    </div>
+
+                    <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-lg py-1 px-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                      QR encoded for UPI portion: ₹{upiSplitTotal > 0 ? upiSplitTotal.toLocaleString("en-IN") : roundedTotal.toLocaleString("en-IN")}
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Scan with <strong>GPay, PhonePe, Paytm, BHIM, Amazon Pay</strong>, or any UPI app.
+                    </p>
+                  </div>
+                )}
+
+                {/* Card Swipe Section */}
+                {cardSplitTotal > 0 && (
+                  <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl p-3.5 text-center space-y-1.5">
+                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 flex items-center justify-center mx-auto">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <p className="text-xs font-bold text-purple-900 dark:text-purple-200">
+                      Swipe Card on POS EDC Terminal
+                    </p>
+                    <p className="text-xs text-purple-800 dark:text-purple-300 font-mono font-bold">
+                      Enter Card Amount: <strong>₹{cardSplitTotal.toLocaleString("en-IN")}</strong>
+                    </p>
+                  </div>
+                )}
+
+                {/* Bank Transfer Section */}
+                {bankSplitTotal > 0 && (
+                  <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-1 text-xs">
+                    <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Landmark className="w-4 h-4 text-purple-600" />
+                      <span>Bank IMPS/NEFT Amount: <strong className="text-blue-600 font-mono">₹{bankSplitTotal.toLocaleString("en-IN")}</strong></span>
+                    </p>
+                    <p className="text-slate-600 dark:text-slate-300 text-[11px]">
+                      Bank: {bBankName || "HDFC Bank"} | A/C: {bAccNo || "50200012345678"} | IFSC: {bIfsc || "HDFC0001234"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Split Breakdown List */}
+                <div className="bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/70 rounded-xl p-3 space-y-2 text-xs">
+                  <p className="font-bold text-blue-900 dark:text-blue-200">Split Breakdown Allocations</p>
+                  <div className="space-y-1 divide-y divide-blue-100 dark:divide-blue-900/40">
+                    {splitRows
+                      .filter((r) => Number(r.amount) > 0)
+                      .map((row) => (
+                        <div key={row.id} className="pt-1 flex items-center justify-between text-slate-800 dark:text-slate-200">
+                          <span className="font-medium">{row.mode} {row.ref ? `(${row.ref})` : ""}:</span>
+                          <span className="font-mono font-bold">₹{Number(row.amount).toLocaleString("en-IN")}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Single Payment Mode Views (When not in split mode) */
+              <>
+                {/* UPI & QR Code View */}
+                {(paymentMode.toLowerCase().includes("upi") || paymentMode.toLowerCase().includes("qr")) && (
+                  <div className="space-y-3">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center shadow-xs">
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs inline-block mx-auto mb-2">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                            `upi://pay?pa=${bUpiId || "smartbill@upi"}&pn=${encodeURIComponent(
+                              bName || "SmartBill Store"
+                            )}&am=${roundedTotal}&cu=INR`
+                          )}&margin=4`}
+                          alt="UPI QR Code"
+                          className="w-44 h-44 mx-auto rounded-lg"
+                        />
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          {bName || "SmartBill Enterprise Store"}
+                        </p>
+                        <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
+                          {bUpiId || "merchant@upi"}
+                        </p>
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                        Scan with <strong>GPay, PhonePe, Paytm, BHIM, Amazon Pay</strong>, or any UPI banking app.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Card / POS Terminal View */}
+                {paymentMode.toLowerCase().includes("card") && (
+                  <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl p-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 flex items-center justify-center mx-auto">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-bold text-purple-900 dark:text-purple-200">
+                      Swipe / Tap Card on POS EDC Machine
+                    </p>
+                    <p className="text-[11px] text-purple-700 dark:text-purple-300">
+                      Enter <strong>₹{roundedTotal}</strong> on terminal and swipe customer's Visa, Mastercard, or RuPay card.
+                    </p>
+                  </div>
+                )}
+
+                {/* Bank Transfer View */}
+                {paymentMode.toLowerCase().includes("bank") && (
+                  <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 space-y-1 text-xs">
+                    <p className="font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-1.5">
+                      <Landmark className="w-4 h-4 text-purple-600" />
+                      <span>Business Bank Details</span>
+                    </p>
+                    <p className="text-slate-600 dark:text-slate-300">
+                      <strong>Bank:</strong> {bBankName || "HDFC Bank"} ({bAccType || "Current"})
+                    </p>
+                    <p className="text-slate-600 dark:text-slate-300">
+                      <strong>Account No:</strong> {bAccNo || "50200012345678"}
+                    </p>
+                    <p className="text-slate-600 dark:text-slate-300">
+                      <strong>IFSC:</strong> {bIfsc || "HDFC0001234"}
+                    </p>
+                  </div>
+                )}
+
+                {/* UTR / Transaction Reference Input */}
+                {requireRef && (
+                  <div className="space-y-1 pt-1">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block flex items-center justify-between">
+                      <span>UTR / Transaction Reference No</span>
+                      <span className="text-red-500 font-bold">*Required</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={transactionRef}
+                      onChange={(e) => setTransactionRef(e.target.value)}
+                      placeholder="e.g. UPI Ref / Approval Code / UTR"
+                      className="w-full border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900 outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
-
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white">
-                      {bName || "SmartBill Enterprise Store"}
-                    </p>
-                    <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
-                      {bUpiId || "merchant@upi"}
-                    </p>
-                  </div>
-
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
-                    Scan with <strong>GPay, PhonePe, Paytm, BHIM, Amazon Pay</strong>, or any UPI banking app.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Card / POS Terminal View */}
-            {(paymentMode.toLowerCase().includes("card") ||
-              (isSplitMode && splitDigitalMode.toLowerCase().includes("card"))) && (
-              <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl p-4 text-center space-y-2">
-                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-600 flex items-center justify-center mx-auto">
-                  <CreditCard className="w-5 h-5" />
-                </div>
-                <p className="text-xs font-bold text-purple-900 dark:text-purple-200">
-                  Swipe / Tap Card on POS EDC Machine
-                </p>
-                <p className="text-[11px] text-purple-700 dark:text-purple-300">
-                  Enter <strong>₹{isSplitMode ? splitDigital : roundedTotal}</strong> on terminal and swipe customer's Visa, Mastercard, or RuPay card.
-                </p>
-              </div>
-            )}
-
-            {/* Bank Transfer View */}
-            {paymentMode.toLowerCase().includes("bank") && (
-              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 space-y-1 text-xs">
-                <p className="font-bold text-slate-900 dark:text-white mb-1.5 flex items-center gap-1.5">
-                  <Landmark className="w-4 h-4 text-purple-600" />
-                  <span>Business Bank Details</span>
-                </p>
-                <p className="text-slate-600 dark:text-slate-300">
-                  <strong>Bank:</strong> {bBankName || "HDFC Bank"} ({bAccType || "Current"})
-                </p>
-                <p className="text-slate-600 dark:text-slate-300">
-                  <strong>Account No:</strong> {bAccNo || "50200012345678"}
-                </p>
-                <p className="text-slate-600 dark:text-slate-300">
-                  <strong>IFSC:</strong> {bIfsc || "HDFC0001234"}
-                </p>
-              </div>
-            )}
-
-            {/* Split Breakdown View */}
-            {isSplitMode && (
-              <div className="bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl p-3 space-y-1 text-xs">
-                <p className="font-bold text-blue-900 dark:text-blue-200 mb-1">Split Payment Summary</p>
-                <div className="flex justify-between text-slate-700 dark:text-slate-300">
-                  <span>Cash Portion:</span>
-                  <span className="font-mono font-bold">₹{splitCash || 0}</span>
-                </div>
-                <div className="flex justify-between text-slate-700 dark:text-slate-300">
-                  <span>{splitDigitalMode} Portion:</span>
-                  <span className="font-mono font-bold">₹{splitDigital || 0}</span>
-                </div>
-              </div>
-            )}
-
-            {/* UTR / Transaction Reference Input */}
-            <div className="space-y-1 pt-1">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block flex items-center justify-between">
-                <span>UTR / Transaction Reference No</span>
-                {requireRef ? (
-                  <span className="text-red-500 font-bold">*Required</span>
-                ) : (
-                  <span className="text-slate-400 font-normal text-[10px]">Optional</span>
                 )}
-              </label>
-              <input
-                type="text"
-                value={transactionRef}
-                onChange={(e) => setTransactionRef(e.target.value)}
-                placeholder="e.g. UPI Ref / Approval Code / UTR"
-                className="w-full border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900 outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
+              </>
+            )}
 
             {/* Action Buttons */}
             <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
@@ -2462,13 +2777,6 @@ export default function POSScreen() {
           </div>
         </Modal>
       )}
-
-      {/* Camera Barcode & QR Scanner Modal */}
-      <CameraBarcodeScannerModal
-        isOpen={cameraScannerOpen}
-        onClose={() => setCameraScannerOpen(false)}
-        onScanProduct={handleScanBarcode}
-      />
     </div>
   );
 }

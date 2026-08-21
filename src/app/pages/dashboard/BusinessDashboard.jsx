@@ -86,7 +86,37 @@ export default function BusinessDashboard({ onNav }) {
 
   useEffect(() => {
     loadDashboardData();
+
+    const handleRealtimeUpdate = () => {
+      loadDashboardData();
+    };
+
+    window.addEventListener("stockUpdated", handleRealtimeUpdate);
+    window.addEventListener("productUpdated", handleRealtimeUpdate);
+    window.addEventListener("orderCreated", handleRealtimeUpdate);
+    window.addEventListener("purchaseCreated", handleRealtimeUpdate);
+    window.addEventListener("inventorySettingsUpdated", handleRealtimeUpdate);
+
+    return () => {
+      window.removeEventListener("stockUpdated", handleRealtimeUpdate);
+      window.removeEventListener("productUpdated", handleRealtimeUpdate);
+      window.removeEventListener("orderCreated", handleRealtimeUpdate);
+      window.removeEventListener("purchaseCreated", handleRealtimeUpdate);
+      window.removeEventListener("inventorySettingsUpdated", handleRealtimeUpdate);
+    };
   }, [loadDashboardData]);
+
+  // Dynamic global low stock threshold
+  const globalLowStockThreshold = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("smartbill_inventorySettings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.lowStockAlert !== undefined) return Number(parsed.lowStockAlert) || 10;
+      }
+    } catch (_) {}
+    return 10;
+  }, []);
 
   // Derived Key Business Metrics
   const metrics = useMemo(() => {
@@ -112,8 +142,12 @@ export default function BusinessDashboard({ onNav }) {
     });
 
     const lowStockCount = products.filter((p) => {
+      if (p.status === "Inactive") return false;
       const stock = Number(p.stock) || 0;
-      const min = Number(p.minStock ?? 10);
+      const min =
+        p.minStock !== undefined && p.minStock !== null && p.minStock !== ""
+          ? Number(p.minStock)
+          : globalLowStockThreshold;
       return stock <= min;
     }).length;
 
@@ -123,7 +157,7 @@ export default function BusinessDashboard({ onNav }) {
       totalCustomers: customers.length,
       lowStockItems: lowStockCount,
     };
-  }, [orders, products, customers]);
+  }, [orders, products, customers, globalLowStockThreshold]);
 
   // Daily Sales for Current Week
   const weeklySalesData = useMemo(() => {
