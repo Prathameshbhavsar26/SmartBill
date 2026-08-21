@@ -9,6 +9,8 @@ import {
   Info,
   Eye,
   EyeOff,
+  Plus,
+  Minus,
 } from "lucide-react";
 
 export function Btn({
@@ -470,6 +472,57 @@ export function ConfirmDialog({ message, onConfirm, onCancel }) {
           </Btn>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function StepperInput({
+  value,
+  onChange,
+  min = 0,
+  max = 999999,
+  step = 1,
+  className = "",
+  inputClassName = "",
+}) {
+  const handleDecrement = () => {
+    const next = Number(value) - step;
+    if (next >= min) onChange(next);
+  };
+  const handleIncrement = () => {
+    const next = Number(value) + step;
+    if (next <= max) onChange(next);
+  };
+
+  return (
+    <div
+      className={`flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden ${className}`}
+    >
+      <button
+        type="button"
+        onClick={handleDecrement}
+        className="w-7 h-7 flex-shrink-0 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300 transition-colors cursor-pointer"
+      >
+        <Minus className="w-3.5 h-3.5" />
+      </button>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => {
+          const val = e.target.value === "" ? "" : Number(e.target.value);
+          onChange(val);
+        }}
+        min={min}
+        max={max}
+        className={`flex-1 text-center text-sm font-semibold text-slate-900 dark:text-white bg-transparent outline-none focus:ring-0 px-1 py-1 font-mono ${inputClassName}`}
+      />
+      <button
+        type="button"
+        onClick={handleIncrement}
+        className="w-7 h-7 flex-shrink-0 flex items-center justify-center text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors cursor-pointer"
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileText, PieChart, Box, ShieldCheck, ArrowRight, Zap, CheckCircle2, BellRing } from 'lucide-react';
-import Footer from '../../../components/common/Footer';
+
 import PublicNavbar from '../../../components/common/PublicNavbar';
 import { Link } from 'react-router-dom';
 
@@ -109,7 +109,7 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      <Footer />
+
     </div>
   );
 }

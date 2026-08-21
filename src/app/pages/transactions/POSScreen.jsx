@@ -26,18 +26,16 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Camera,
   Share2,
 } from "lucide-react";
 import { fmt } from "../../utils/format";
-import { Badge, Btn, Card, Input, Select, Modal } from "../../components/common/ui";
+import { Badge, Btn, Card, Input, Select, Modal, StepperInput } from "../../components/common/ui";
 import { fetchCustomers, createCustomer } from "../../api/customerAPI";
 import { createOrder, createOrderReturn, fetchOrders } from "../../api/orderAPI";
 import { getProducts } from "../../api/productAPI";
 import { getInvoiceSettings } from "../../api/invoiceSettingsAPI";
 import { fetchPartySettings } from "../../api/partySettingsAPI";
 import { useTransactionSettings } from "../../hooks/useTransactionSettings";
-import CameraBarcodeScannerModal from "../../components/pos/CameraBarcodeScannerModal";
 import { shareInvoiceOnWhatsApp, shareInvoiceNative } from "../../utils/whatsappInvoice";
 
 export default function POSScreen() {
@@ -47,7 +45,6 @@ export default function POSScreen() {
   const [customers, setCustomers] = useState([]);
   const [productList, setProductList] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
-  const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
   const [customer, setCustomer] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerCity, setCustomerCity] = useState("");
@@ -347,6 +344,26 @@ export default function POSScreen() {
           return i;
         })
         .filter((i) => i.qty > 0)
+    );
+  };
+
+  const updateExactQty = (id, val) => {
+    setError("");
+    setCart((c) =>
+      c.map((i) => {
+        const itemPId = getProductId(i.product);
+        if (itemPId === id) {
+          let nextQty = val === "" ? "" : Number(val);
+          if (nextQty !== "" && nextQty < 1) nextQty = 1;
+          const inStock = Number(i.product?.stock) || 0;
+          if (!allowNegativeStock && nextQty !== "" && nextQty > inStock) {
+            setError(`Cannot exceed available stock (${inStock}) for ${i.product?.name}.`);
+            nextQty = Math.max(1, inStock);
+          }
+          return { ...i, qty: nextQty || 1 };
+        }
+        return i;
+      })
     );
   };
 
@@ -1309,15 +1326,7 @@ export default function POSScreen() {
             icon={<ScanLine className="w-4 h-4" />}
             className="flex-1"
           />
-          <button
-            type="button"
-            onClick={() => setCameraScannerOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition shadow-sm cursor-pointer"
-            title="Scan barcode with device camera"
-          >
-            <Camera className="w-4 h-4" />
-            <span>Camera Scan</span>
-          </button>
+
           <Btn
             variant="outline"
             size="md"
@@ -1602,25 +1611,12 @@ export default function POSScreen() {
 
                   <div className="flex items-center justify-between gap-2 pt-0.5">
                     {/* Qty Counter */}
-                    <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-1 shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => updateQty(itemId, -1)}
-                        className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white min-w-[24px] text-center font-mono">
-                        {item.qty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => updateQty(itemId, 1)}
-                        className="w-6 h-6 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white transition-colors cursor-pointer shadow-xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <StepperInput
+                      min={1}
+                      value={item.qty}
+                      onChange={(val) => updateExactQty(itemId, val)}
+                      inputClassName="w-10 py-1"
+                    />
 
                     {/* Unit Price (Editable if allowPriceEditing is true) */}
                     <div className="flex items-center gap-1">
@@ -2424,12 +2420,7 @@ export default function POSScreen() {
         </Modal>
       )}
 
-      {/* Camera Barcode & QR Scanner Modal */}
-      <CameraBarcodeScannerModal
-        isOpen={cameraScannerOpen}
-        onClose={() => setCameraScannerOpen(false)}
-        onScanProduct={handleScanBarcode}
-      />
+
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Briefcase, Laptop, HeartPulse, GraduationCap, ArrowRight } from 'lucide-react';
-import Footer from '../../../components/common/Footer';
+
 import PublicNavbar from '../../../components/common/PublicNavbar';
 import { Link } from 'react-router-dom';
 
@@ -55,7 +55,7 @@ export default function CareersPage() {
         </div>
       </section>
 
-      <Footer />
+
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check } from 'lucide-react';
-import Footer from '../../../components/common/Footer';
+
 import PublicNavbar from '../../../components/common/PublicNavbar';
 import { Link, useNavigate } from 'react-router-dom';
 import { PLANS } from '../../../constants/landing';
@@ -145,7 +145,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <Footer />
+
     </div>
   );
 }

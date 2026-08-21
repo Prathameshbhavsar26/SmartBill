@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Book, CreditCard, Settings, Users, FileText, ChevronRight, ArrowLeft } from 'lucide-react';
-import Footer from '../../../components/common/Footer';
+
 import PublicNavbar from '../../../components/common/PublicNavbar';
 import { Link } from 'react-router-dom';
 
@@ -103,7 +103,7 @@ export default function HelpCenterPage() {
         </div>
       </section>
 
-      <Footer />
+
     </div>
   );
 }

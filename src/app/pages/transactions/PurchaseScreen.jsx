@@ -14,7 +14,7 @@ import {
 import { getProducts } from "../../api/productAPI";
 import { fetchSuppliers } from "../../api/supplierAPI";
 import { fmt } from "../../utils/format";
-import { Toast } from "../../components/common/ui";
+import { Toast, StepperInput } from "../../components/common/ui";
 
 const GST_OPTIONS = [0, 5, 12, 18, 28];
 const PAYMENT_METHODS = [
@@ -91,6 +91,7 @@ export default function PurchaseScreen() {
   ]);
 
   const [searchHistory, setSearchHistory] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
   const [toast, setToast] = useState(null);
 
   const showToast = (msg, type = "success") => {
@@ -482,9 +483,18 @@ const handleMarkAsPaid = async (purchaseId) => {
         ""
       ).toLowerCase();
       const po = (purchase.purchaseOrderNo || "").toLowerCase();
-      return inv.includes(q) || supp.includes(q) || po.includes(q);
+      
+      const searchMatch = inv.includes(q) || supp.includes(q) || po.includes(q);
+      
+      let dateMatch = true;
+      if (filterMonth) {
+        const pDate = purchase.purchaseDate || purchase.date || "";
+        dateMatch = pDate.startsWith(filterMonth);
+      }
+      
+      return searchMatch && dateMatch;
     });
-  }, [purchaseList, searchHistory]);
+  }, [purchaseList, searchHistory, filterMonth]);
 
   return (
     <div className="space-y-4">
@@ -626,7 +636,7 @@ const handleMarkAsPaid = async (purchaseId) => {
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
                       <th className="pb-2 min-w-[160px]">Product *</th>
                       <th className="pb-2 w-16 text-center">Qty *</th>
-                      <th className="pb-2 w-16 text-center">Unit</th>
+
                       <th className="pb-2 w-24 text-right">Rate *</th>
                       <th className="pb-2 w-20 text-center">GST %</th>
                       <th className="pb-2 w-20 text-right">Discount</th>
@@ -667,34 +677,15 @@ const handleMarkAsPaid = async (purchaseId) => {
 
                         {/* Qty */}
                         <td className="py-2.5 px-1">
-                          <input
-                            type="number"
+                          <StepperInput
                             min={1}
                             value={item.qty}
-                            onChange={(e) =>
-                              updateItem(
-                                i,
-                                "qty",
-                                e.target.value === ""
-                                  ? ""
-                                  : Number(e.target.value)
-                              )
-                            }
-                            className="w-full text-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500 font-mono"
+                            onChange={(val) => updateItem(i, "qty", val)}
+                            inputClassName="w-12 py-1.5 font-mono"
                           />
                         </td>
 
-                        {/* Unit */}
-                        <td className="py-2.5 px-1">
-                          <input
-                            type="text"
-                            value={item.unit}
-                            onChange={(e) =>
-                              updateItem(i, "unit", e.target.value)
-                            }
-                            className="w-full text-center bg-slate-50 dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 rounded-md py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none"
-                          />
-                        </td>
+
 
                         {/* Rate */}
                         <td className="py-2.5 px-1">
@@ -926,15 +917,34 @@ const handleMarkAsPaid = async (purchaseId) => {
       ) : (
         /* ── Purchase History Tab ── */
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-          {/* Search bar */}
-          <div className="p-3.5 border-b border-slate-200 dark:border-slate-800">
-            <div className="relative max-w-sm">
+          {/* Search bar & Filter */}
+          <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-sm">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 value={searchHistory}
                 onChange={(e) => setSearchHistory(e.target.value)}
+                placeholder="Search invoice or supplier..."
                 className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-blue-500"
               />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Filter By Month:</label>
+              <input
+                type="month"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                className="px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
+              />
+              {filterMonth && (
+                <button
+                  onClick={() => setFilterMonth("")}
+                  className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
 
