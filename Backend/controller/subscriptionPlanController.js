@@ -1,10 +1,51 @@
 import SubscriptionPlan from "../models/SubscriptionPlan.js";
 
-/**
- * GET /api/admin/subscription-plans
- * Get all subscription plans.
- * SuperAdmin only.
- */
+/*
+|--------------------------------------------------------------------------
+| Helper: Generate unique plan key
+|--------------------------------------------------------------------------
+*/
+
+const generatePlanKey = async (name, excludeId = null) => {
+  let baseKey = String(name)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  if (!baseKey) {
+    baseKey = "plan";
+  }
+
+  let key = baseKey;
+  let counter = 1;
+
+  while (true) {
+    const query = { key };
+
+    if (excludeId) {
+      query._id = { $ne: excludeId };
+    }
+
+    const existingPlan = await SubscriptionPlan.findOne(query);
+
+    if (!existingPlan) {
+      return key;
+    }
+
+    key = `${baseKey}-${counter}`;
+    counter++;
+  }
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| GET /api/admin/subscription-plans
+| SuperAdmin only
+|--------------------------------------------------------------------------
+*/
+
 export const getSubscriptionPlans = async (req, res) => {
   try {
     if (req.user?.role !== "superadmin") {
@@ -23,20 +64,74 @@ export const getSubscriptionPlans = async (req, res) => {
       data: plans,
     });
   } catch (error) {
-    console.error("GET SUBSCRIPTION PLANS ERROR:", error);
+    console.error(
+      "GET SUBSCRIPTION PLANS ERROR:",
+      error
+    );
 
     return res.status(500).json({
-      message: error.message || "Failed to fetch subscription plans.",
+      message:
+        error.message ||
+        "Failed to fetch subscription plans.",
     });
   }
 };
 
-/**
- * POST /api/admin/subscription-plans
- * Create a new subscription plan.
- * SuperAdmin only.
- */
-export const createSubscriptionPlan = async (req, res) => {
+
+/*
+|--------------------------------------------------------------------------
+| GET /api/subscription-plans
+| PUBLIC
+|
+| Used by Sign In / Registration / Pricing pages
+|--------------------------------------------------------------------------
+*/
+
+export const getPublicSubscriptionPlans = async (
+  req,
+  res
+) => {
+  try {
+    const plans = await SubscriptionPlan.find({
+      status: "active",
+    })
+      .select(
+        "key name price billingCycle features status"
+      )
+      .sort({ price: 1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      count: plans.length,
+      data: plans,
+    });
+  } catch (error) {
+    console.error(
+      "GET PUBLIC SUBSCRIPTION PLANS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      message:
+        error.message ||
+        "Failed to fetch subscription plans.",
+    });
+  }
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| POST /api/admin/subscription-plans
+| SuperAdmin only
+|--------------------------------------------------------------------------
+*/
+
+export const createSubscriptionPlan = async (
+  req,
+  res
+) => {
   try {
     if (req.user?.role !== "superadmin") {
       return res.status(403).json({
@@ -45,67 +140,106 @@ export const createSubscriptionPlan = async (req, res) => {
     }
 
     const {
-      key,
       name,
       price,
       billingCycle,
-      maxBusinesses,
-      maxUsers,
-      maxInvoicesPerMonth,
       features,
       status,
     } = req.body;
 
-    if (!key || !name || price === undefined) {
+    if (!name || String(name).trim() === "") {
       return res.status(400).json({
-        message: "Plan key, name and price are required.",
+        message: "Plan name is required.",
       });
     }
 
-    const normalizedKey = String(key).toLowerCase().trim();
-
-    const existingPlan = await SubscriptionPlan.findOne({
-      key: normalizedKey,
-    });
-
-    if (existingPlan) {
-      return res.status(409).json({
-        message: "A subscription plan with this key already exists.",
+    if (
+      price === undefined ||
+      price === null ||
+      Number.isNaN(Number(price)) ||
+      Number(price) < 0
+    ) {
+      return res.status(400).json({
+        message: "Valid plan price is required.",
       });
     }
+
+    const normalizedName = String(name).trim();
+
+    const key = await generatePlanKey(normalizedName);
 
     const plan = await SubscriptionPlan.create({
-      key: normalizedKey,
-      name: String(name).trim(),
-      price,
-      billingCycle: billingCycle || "monthly",
-      maxBusinesses,
-      maxUsers,
-      maxInvoicesPerMonth,
-      features,
+      key,
+      name: normalizedName,
+      price: Number(price),
+
+      billingCycle:
+        billingCycle || "monthly",
+
+      features: {
+        basicReports:
+          Boolean(features?.basicReports),
+
+        emailSupport:
+          Boolean(features?.emailSupport),
+
+        advancedReports:
+          Boolean(features?.advancedReports),
+
+        gstFiling:
+          Boolean(features?.gstFiling),
+
+        prioritySupport:
+          Boolean(features?.prioritySupport),
+
+        barcodeScanner:
+          Boolean(features?.barcodeScanner),
+
+        apiAccess:
+          Boolean(features?.apiAccess),
+
+        customIntegrations:
+          Boolean(features?.customIntegrations),
+
+        dedicatedManager:
+          Boolean(features?.dedicatedManager),
+      },
+
       status: status || "active",
     });
 
     return res.status(201).json({
       success: true,
-      message: "Subscription plan created successfully.",
+      message:
+        "Subscription plan created successfully.",
       data: plan,
     });
   } catch (error) {
-    console.error("CREATE SUBSCRIPTION PLAN ERROR:", error);
+    console.error(
+      "CREATE SUBSCRIPTION PLAN ERROR:",
+      error
+    );
 
     return res.status(500).json({
-      message: error.message || "Failed to create subscription plan.",
+      message:
+        error.message ||
+        "Failed to create subscription plan.",
     });
   }
 };
 
-/**
- * PUT /api/admin/subscription-plans/:id
- * Update an existing subscription plan.
- * SuperAdmin only.
- */
-export const updateSubscriptionPlan = async (req, res) => {
+
+/*
+|--------------------------------------------------------------------------
+| PUT /api/admin/subscription-plans/:id
+| SuperAdmin only
+|--------------------------------------------------------------------------
+*/
+
+export const updateSubscriptionPlan = async (
+  req,
+  res
+) => {
   try {
     if (req.user?.role !== "superadmin") {
       return res.status(403).json({
@@ -115,80 +249,188 @@ export const updateSubscriptionPlan = async (req, res) => {
 
     const { id } = req.params;
 
-    const plan = await SubscriptionPlan.findById(id);
+    const plan =
+      await SubscriptionPlan.findById(id);
 
     if (!plan) {
       return res.status(404).json({
-        message: "Subscription plan not found.",
+        message:
+          "Subscription plan not found.",
       });
     }
 
-    const allowedFields = [
-      "name",
-      "price",
-      "billingCycle",
-      "maxBusinesses",
-      "maxUsers",
-      "maxInvoicesPerMonth",
-      "features",
-      "status",
-    ];
+    const {
+      name,
+      price,
+      billingCycle,
+      features,
+      status,
+    } = req.body;
 
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        plan[field] = req.body[field];
+    /*
+     * Do not change the key.
+     *
+     * Existing users may already have:
+     *
+     * subscription.plan = plan.key
+     *
+     * Changing the key could break existing subscriptions.
+     */
+
+    if (name !== undefined) {
+      if (!String(name).trim()) {
+        return res.status(400).json({
+          message:
+            "Plan name cannot be empty.",
+        });
       }
-    });
+
+      plan.name = String(name).trim();
+    }
+
+    if (price !== undefined) {
+      if (
+        Number.isNaN(Number(price)) ||
+        Number(price) < 0
+      ) {
+        return res.status(400).json({
+          message:
+            "Plan price must be a valid positive number.",
+        });
+      }
+
+      plan.price = Number(price);
+    }
+
+    if (billingCycle !== undefined) {
+      if (
+        !["monthly", "yearly", "custom"].includes(
+          billingCycle
+        )
+      ) {
+        return res.status(400).json({
+          message:
+            "Invalid billing cycle.",
+        });
+      }
+
+      plan.billingCycle = billingCycle;
+    }
+
+    if (features !== undefined) {
+      plan.features = {
+        basicReports:
+          Boolean(features.basicReports),
+
+        emailSupport:
+          Boolean(features.emailSupport),
+
+        advancedReports:
+          Boolean(features.advancedReports),
+
+        gstFiling:
+          Boolean(features.gstFiling),
+
+        prioritySupport:
+          Boolean(features.prioritySupport),
+
+        barcodeScanner:
+          Boolean(features.barcodeScanner),
+
+        apiAccess:
+          Boolean(features.apiAccess),
+
+        customIntegrations:
+          Boolean(features.customIntegrations),
+
+        dedicatedManager:
+          Boolean(features.dedicatedManager),
+      };
+    }
+
+    if (status !== undefined) {
+      if (
+        !["active", "inactive"].includes(status)
+      ) {
+        return res.status(400).json({
+          message:
+            "Invalid subscription plan status.",
+        });
+      }
+
+      plan.status = status;
+    }
 
     await plan.save();
 
     return res.status(200).json({
       success: true,
-      message: "Subscription plan updated successfully.",
+      message:
+        "Subscription plan updated successfully.",
       data: plan,
     });
   } catch (error) {
-    console.error("UPDATE SUBSCRIPTION PLAN ERROR:", error);
+    console.error(
+      "UPDATE SUBSCRIPTION PLAN ERROR:",
+      error
+    );
 
     return res.status(500).json({
-      message: error.message || "Failed to update subscription plan.",
+      message:
+        error.message ||
+        "Failed to update subscription plan.",
     });
   }
 };
 
-/**
- * DELETE /api/admin/subscription-plans/:id
- * Delete a subscription plan.
- * SuperAdmin only.
- */
-export const deleteSubscriptionPlan = async (req, res) => {
+
+/*
+|--------------------------------------------------------------------------
+| DELETE /api/admin/subscription-plans/:id
+| SuperAdmin only
+|--------------------------------------------------------------------------
+*/
+
+export const deleteSubscriptionPlan = async (
+  req,
+  res
+) => {
   try {
     if (req.user?.role !== "superadmin") {
       return res.status(403).json({
-        message: "Forbidden: SuperAdmin access required.",
+        message:
+          "Forbidden: SuperAdmin access required.",
       });
     }
 
     const { id } = req.params;
 
-    const plan = await SubscriptionPlan.findById(id);
+    const plan =
+      await SubscriptionPlan.findById(id);
 
     if (!plan) {
       return res.status(404).json({
-        message: "Subscription plan not found.",
+        message:
+          "Subscription plan not found.",
       });
     }
 
-    // Do not allow deletion of plans currently used by users.
-    const User = (await import("../models/User.js")).default;
+    /*
+     * Do not delete plans currently used by users.
+     */
 
-    const usersUsingPlan = await User.countDocuments({
-      "subscription.plan": plan.key,
-    });
+    const User =
+      (await import("../models/User.js")).default;
+
+    const usersUsingPlan =
+      await User.countDocuments({
+        "subscription.plan": plan.key,
+      });
 
     if (usersUsingPlan > 0) {
       return res.status(400).json({
-        message: `Cannot delete this plan because ${usersUsingPlan} user(s) are currently subscribed to it.`,
+        message:
+          `Cannot delete this plan because ${usersUsingPlan} user(s) are currently subscribed to it.`,
       });
     }
 
@@ -196,13 +438,19 @@ export const deleteSubscriptionPlan = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Subscription plan deleted successfully.",
+      message:
+        "Subscription plan deleted successfully.",
     });
   } catch (error) {
-    console.error("DELETE SUBSCRIPTION PLAN ERROR:", error);
+    console.error(
+      "DELETE SUBSCRIPTION PLAN ERROR:",
+      error
+    );
 
     return res.status(500).json({
-      message: error.message || "Failed to delete subscription plan.",
+      message:
+        error.message ||
+        "Failed to delete subscription plan.",
     });
   }
 };

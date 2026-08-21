@@ -6,7 +6,6 @@ const subscriptionPlanSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      enum: ["starter", "pro", "enterprise"],
       lowercase: true,
       trim: true,
     },
@@ -29,31 +28,51 @@ const subscriptionPlanSchema = new mongoose.Schema(
       default: "monthly",
     },
 
-    maxBusinesses: {
-      type: Number,
-      default: Infinity,
-    },
-
-    maxUsers: {
-      type: Number,
-      default: Infinity,
-    },
-
-    maxInvoicesPerMonth: {
-      type: Number,
-      default: Infinity,
-    },
-
     features: {
-      basicReports: { type: Boolean, default: false },
-      emailSupport: { type: Boolean, default: false },
-      advancedReports: { type: Boolean, default: false },
-      gstFiling: { type: Boolean, default: false },
-      prioritySupport: { type: Boolean, default: false },
-      barcodeScanner: { type: Boolean, default: false },
-      apiAccess: { type: Boolean, default: false },
-      customIntegrations: { type: Boolean, default: false },
-      dedicatedManager: { type: Boolean, default: false },
+      basicReports: {
+        type: Boolean,
+        default: false,
+      },
+
+      emailSupport: {
+        type: Boolean,
+        default: false,
+      },
+
+      advancedReports: {
+        type: Boolean,
+        default: false,
+      },
+
+      gstFiling: {
+        type: Boolean,
+        default: false,
+      },
+
+      prioritySupport: {
+        type: Boolean,
+        default: false,
+      },
+
+      barcodeScanner: {
+        type: Boolean,
+        default: false,
+      },
+
+      apiAccess: {
+        type: Boolean,
+        default: false,
+      },
+
+      customIntegrations: {
+        type: Boolean,
+        default: false,
+      },
+
+      dedicatedManager: {
+        type: Boolean,
+        default: false,
+      },
     },
 
     status: {
@@ -64,7 +83,10 @@ const subscriptionPlanSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
-export default mongoose.model("SubscriptionPlan", subscriptionPlanSchema);
+export default mongoose.model(
+  "SubscriptionPlan",
+  subscriptionPlanSchema
+);
