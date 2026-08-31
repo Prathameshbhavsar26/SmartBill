@@ -3,26 +3,22 @@ import axiosClient from "./axiosClient";
 
 /*
 |--------------------------------------------------------------------------
-| Public API client
+| API URLs
 |--------------------------------------------------------------------------
-|
-| IMPORTANT:
-| Do NOT use the authenticated axiosClient for public subscription plans.
-|
-| After login/register, axiosClient may contain:
-| - Authorization headers
-| - token interceptors
-| - 401 handling
-| - redirect/logout logic
-|
-| The subscription plans endpoint is PUBLIC.
-|
 */
 
 const PUBLIC_API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   "http://localhost:5000/api";
 
+/*
+|--------------------------------------------------------------------------
+| Public API client
+|--------------------------------------------------------------------------
+|
+| These APIs must work even when the user is NOT logged in.
+|
+*/
 
 const publicAxios = axios.create({
   baseURL: PUBLIC_API_BASE_URL,
@@ -33,35 +29,33 @@ const publicAxios = axios.create({
   },
 });
 
+/*
+|--------------------------------------------------------------------------
+| Authenticated API client
+|--------------------------------------------------------------------------
+|
+| Used only for APIs that actually require a logged-in user.
+|
+*/
 
 /*
 |--------------------------------------------------------------------------
-| Public subscription API
+| Subscription API
 |--------------------------------------------------------------------------
 */
 
-export const subscriptionAPI = {
+const subscriptionAPI = {
 
   /*
   |--------------------------------------------------------------------------
   | Get public subscription plans
   |--------------------------------------------------------------------------
-  |
-  | This request intentionally does NOT use axiosClient.
-  |
   */
 
   getPublicPlans: async () => {
-
     const response = await publicAxios.get(
       "/subscription-plans",
       {
-        /*
-         * Prevent browser/proxy caching.
-         *
-         * The timestamp also guarantees that every request
-         * is treated as a fresh request.
-         */
         params: {
           _t: Date.now(),
         },
@@ -79,11 +73,55 @@ export const subscriptionAPI = {
 
   /*
   |--------------------------------------------------------------------------
+  | Create Razorpay order
+  |--------------------------------------------------------------------------
+  |
+  | IMPORTANT:
+  | This is intentionally using publicAxios.
+  |
+  | The user has NOT registered/logged in yet.
+  |
+  */
+
+  createOrder: async (planName, options = {}) => {
+    const response = await publicAxios.post(
+      "/subscriptions/create-order",
+      {
+        planName,
+        ...options,
+      }
+    );
+
+    return response.data;
+  },
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Verify Razorpay payment
+  |--------------------------------------------------------------------------
+  |
+  | Payment verification happens before registration,
+  | so this must also not depend on an expired login token.
+  |
+  */
+
+  verifyPayment: async (payload) => {
+    const response = await publicAxios.post(
+      "/subscriptions/verify-payment",
+      payload
+    );
+
+    return response.data;
+  },
+
+
+  /*
+  |--------------------------------------------------------------------------
   | Authenticated subscription APIs
   |--------------------------------------------------------------------------
   |
-  | These continue using the normal axiosClient because
-  | they require authentication.
+  | These are for already logged-in users.
   |
   */
 
@@ -97,26 +135,10 @@ export const subscriptionAPI = {
       .then((res) => res.data),
 
 
-  createOrder: (planName, options = {}) =>
-    axiosClient
-      .post("/subscriptions/create-order", {
-        planName,
-        ...options,
-      })
-      .then((res) => res.data),
-
-
-  verifyPayment: (payload) =>
-    axiosClient
-      .post("/subscriptions/verify-payment", payload)
-      .then((res) => res.data),
-
-
   getSubscriptionStatus: () =>
     axiosClient
       .get("/subscriptions/status")
       .then((res) => res.data),
 };
-
 
 export default subscriptionAPI;
