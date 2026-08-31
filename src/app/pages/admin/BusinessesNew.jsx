@@ -2,14 +2,14 @@ import React, { useMemo, useState, useEffect } from "react";
 import {
   Building,
   Search,
-  Filter,
   RefreshCw,
   CheckCircle,
   XCircle,
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import adminAPI from "../../api/adminAPI";
+
+const API_BASE = "http://localhost:5000/api";
 
 const fmt = (n) => `₹${Number(n).toLocaleString("en-IN")}`;
 
@@ -77,10 +77,27 @@ function Modal({ title, onClose, children }) {
   );
 }
 
+const CACHE_KEY = "smartbill_businesses_cache";
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export default function BusinessesNew() {
   const [search, setSearch] = useState("");
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState(() => {
+    // Seed from cache immediately so refresh shows data instantly
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { data, ts } = JSON.parse(cached);
+        if (Date.now() - ts < CACHE_TTL_MS) return data;
+      }
+    } catch {}
+    return [];
+  });
+  const hasCachedData = rows.length > 0;
+  // `loading` = true only when we have NO data yet (full-page spinner)
+  // `refreshing` = true when we have cached data but are fetching fresh copy in background
+  const [loading, setLoading] = useState(!hasCachedData);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   const [suspendModalOpen, setSuspendModalOpen] = useState(false);
@@ -88,22 +105,69 @@ export default function BusinessesNew() {
   const [suspendReason, setSuspendReason] = useState("");
   const [suspendReasonError, setSuspendReasonError] = useState("");
 
-  const loadBusinesses = async () => {
+  const loadBusinesses = async (signal) => {
+    const hasCached = rows.length > 0;
     try {
-      setLoading(true);
+      if (hasCached) {
+        setRefreshing(true);  // background refresh — keep showing existing rows
+      } else {
+        setLoading(true);     // no data at all — show full spinner
+      }
       setError(null);
-      const res = await adminAPI.getAllBusinesses();
-      setRows(res.data || []);
+
+      const token = localStorage.getItem("smartbill_token");
+      if (!token) {
+        setError("Not logged in. Please log out and log back in.");
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/admin/businesses`, {
+        method: "GET",
+        signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (signal?.aborted) return;
+
+      const json = await response.json();
+
+      if (!response.ok) {
+        setError(`Server error ${response.status}: ${json.message || "Unknown error"}`);
+        return;
+      }
+
+      const data = json.data || [];
+      setRows(data);
+
+      try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+      } catch {}
     } catch (err) {
+      if (err.name === "AbortError") return;
       console.error("Error loading businesses:", err);
-      setError(err.message || "Failed to fetch registered business owners.");
+      setError(`Network error: ${err.message}. Check that backend is running on port 5000.`);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
+  const handleRefresh = () => {
+    // Clear cache and force fresh fetch
+    try { sessionStorage.removeItem(CACHE_KEY); } catch {}
+    const controller = new AbortController();
+    loadBusinesses(controller.signal);
+  };
+
   useEffect(() => {
-    loadBusinesses();
+    const controller = new AbortController();
+    loadBusinesses(controller.signal);
+    return () => controller.abort(); // Cleanup on unmount / StrictMode double-invoke
   }, []);
 
   const filtered = useMemo(() => {
@@ -155,7 +219,17 @@ export default function BusinessesNew() {
     }
 
     try {
-      await adminAPI.updateBusinessStatus(suspendBusinessId, "Suspended", reason);
+      const token = localStorage.getItem("smartbill_token");
+      const response = await fetch(`${API_BASE}/admin/businesses/${suspendBusinessId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "Suspended", reason }),
+      });
+      if (!response.ok) {
+        const json = await response.json();
+        setSuspendReasonError(json.message || "Failed to update business status.");
+        return;
+      }
       setRows((prev) =>
         prev.map((b) =>
           b.id === suspendBusinessId || b._id === suspendBusinessId
@@ -172,7 +246,17 @@ export default function BusinessesNew() {
 
   const resumeBusiness = async (businessId) => {
     try {
-      await adminAPI.updateBusinessStatus(businessId, "Active", "");
+      const token = localStorage.getItem("smartbill_token");
+      const response = await fetch(`${API_BASE}/admin/businesses/${businessId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "Active", reason: "" }),
+      });
+      if (!response.ok) {
+        const json = await response.json();
+        alert(json.message || "Failed to reactivate business.");
+        return;
+      }
       setRows((prev) =>
         prev.map((b) =>
           b.id === businessId || b._id === businessId
@@ -195,6 +279,11 @@ export default function BusinessesNew() {
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
               Live Database
             </span>
+            {refreshing && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" /> Syncing...
+              </span>
+            )}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Manage all registered business owner profiles, subscriptions, and database status.
@@ -212,13 +301,13 @@ export default function BusinessesNew() {
           </div>
 
           <button
-            onClick={loadBusinesses}
-            disabled={loading}
+            onClick={handleRefresh}
+            disabled={loading || refreshing}
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium bg-white border border-slate-200 text-slate-700 rounded-lg shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
             title="Refresh database records"
           >
-            <RefreshCw className={`h-4 w-4 text-slate-500 ${loading ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
+            <RefreshCw className={`h-4 w-4 text-slate-500 ${(loading || refreshing) ? "animate-spin" : ""}`} />
+            <span>{refreshing ? "Syncing" : "Refresh"}</span>
           </button>
         </div>
       </div>
@@ -231,7 +320,7 @@ export default function BusinessesNew() {
             <span>{error}</span>
           </div>
           <button
-            onClick={loadBusinesses}
+            onClick={handleRefresh}
             className="px-3 py-1 bg-red-600 text-white text-xs font-semibold rounded-md hover:bg-red-700 transition-colors"
           >
             Retry

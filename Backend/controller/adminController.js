@@ -17,36 +17,31 @@ export const getAllBusinesses = async (req, res) => {
       });
     }
 
-    // Fetch all owners (users with role === 'owner' or top-level accounts excluding superadmins)
-    const owners = await User.find({
+    // Run all 3 DB queries in parallel for maximum speed
+    const ownerQuery = {
       $or: [
         { role: "owner" },
         { ownerId: null, role: { $ne: "superadmin" } },
       ],
-    })
-      .select("-password -passwordResetToken -passwordResetExpires -twoFactorSecret")
-      .sort({ createdAt: -1 })
-      .lean();
+    };
 
-    // Aggregate revenue per owner from Order collection using totalOrderValue
-    const revenueByOwner = await Order.aggregate([
-      {
-        $group: {
-          _id: "$ownerId",
-          totalRevenue: { $sum: "$totalOrderValue" },
-        },
-      },
+    const [owners, revenueByOwner, employeeCounts] = await Promise.all([
+      User.find(ownerQuery)
+        .select("-password -passwordResetToken -passwordResetExpires -twoFactorSecret")
+        .sort({ createdAt: -1 })
+        .lean(),
+      Order.aggregate([
+        { $group: { _id: "$ownerId", totalRevenue: { $sum: "$totalOrderValue" } } },
+      ]),
+      User.aggregate([
+        { $match: { ownerId: { $ne: null } } },
+        { $group: { _id: "$ownerId", count: { $sum: 1 } } },
+      ]),
     ]);
 
     const revenueMap = new Map(
       revenueByOwner.map((item) => [String(item._id), Number(item.totalRevenue) || 0])
     );
-
-    // Aggregate employee count per owner
-    const employeeCounts = await User.aggregate([
-      { $match: { ownerId: { $ne: null } } },
-      { $group: { _id: "$ownerId", count: { $sum: 1 } } },
-    ]);
 
     const employeeMap = new Map(
       employeeCounts.map((item) => [String(item._id), Number(item.count) || 0])

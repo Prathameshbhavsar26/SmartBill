@@ -302,11 +302,6 @@ const filtered = supplierList.filter((s) =>
                 onChange={(v) => setForm((f) => ({ ...f, gst: v }))}
               />
             </div>
-            <Input
-              label="Balance Due (₹)"
-              value={form.balanceDue}
-              onChange={(v) => setForm((f) => ({ ...f, balanceDue: v }))}
-            />
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
@@ -326,7 +321,6 @@ const filtered = supplierList.filter((s) =>
       email: form.email,
       city: form.city,
       gst: form.gst,
-      openingBalance: Number(form.balanceDue || 0),
     });
 
     await loadSuppliers();
@@ -383,7 +377,6 @@ const filtered = supplierList.filter((s) =>
                   "Contact",
                   "Phone",
                   "City",
-                  "Balance Due",
                   "Actions",
                 ].map((h) => (
                   <th
@@ -410,9 +403,6 @@ const filtered = supplierList.filter((s) =>
                     {s.phone}
                   </td>
                   <td className="px-5 py-4 text-slate-600">{s.city}</td>
-                  <td className="px-5 py-4 font-semibold text-slate-900">
-                    {fmt(s.balance)}
-                  </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 

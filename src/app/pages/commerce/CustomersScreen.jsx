@@ -899,13 +899,6 @@ export default function CustomersScreen() {
                     setForm((f) => ({ ...f, gst: value }))
                   }
                 />
-                <Input
-                  label="Opening Balance (₹)"
-                  value={form.openingBalance}
-                  onChange={(value) =>
-                    setForm((f) => ({ ...f, openingBalance: value }))
-                  }
-                />
               </>
             )}
 

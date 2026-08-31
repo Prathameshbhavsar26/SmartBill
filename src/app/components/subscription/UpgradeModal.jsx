@@ -114,7 +114,7 @@ export default function UpgradeModal({ preview, onClose, onSuccess, userEmail })
         currency: orderData.currency || "INR",
         name: "SmartBill",
         description: `${newPlan.name} Plan${proratedCredit > 0 ? ` (₹${proratedCredit} prorated discount applied)` : ""}`,
-        order_id: orderData.isMock ? undefined : orderData.orderId,
+        order_id: orderData.orderId,
         prefill: { email: userEmail || "" },
         theme: { color: "#2563EB" },
         handler: async (response) => {
@@ -143,19 +143,6 @@ export default function UpgradeModal({ preview, onClose, onSuccess, userEmail })
         },
       };
 
-      // Mock flow (test environment)
-      if (orderData.isMock) {
-        const verifyRes = await subscriptionAPI.verifyPayment({
-          razorpay_order_id: orderData.orderId,
-          razorpay_payment_id: `pay_mock_${Date.now()}`,
-          razorpay_signature: "mock_sig",
-          planName: newPlan.key,
-          isUpgrade: true,
-        });
-        setStep("success");
-        if (onSuccess) onSuccess(verifyRes);
-        return;
-      }
 
       const rzp = new window.Razorpay(options);
       rzp.open();

@@ -41,6 +41,7 @@ export const protect = async (req, res, next) => {
         .json({ message: "Not authorized, user not found." });
     }
 
+    // Superadmin bypasses all additional status checks for performance
     if (user.role !== "superadmin") {
       const systemSettings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
       if (systemSettings?.maintenanceMode) {

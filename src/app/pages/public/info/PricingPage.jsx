@@ -30,16 +30,6 @@ export default function PricingPage() {
         }
       };
 
-      // If backend generated a mock/test order or Razorpay SDK is unavailable, proceed with test verification
-      if (res.isMock || res.orderId?.startsWith("order_test_") || typeof window.Razorpay === "undefined") {
-        await executePaymentVerification({
-          razorpay_order_id: res.orderId,
-          razorpay_payment_id: `pay_test_${Date.now()}`,
-          razorpay_signature: "mock_signature",
-          planName: plan.name,
-        });
-        return;
-      }
 
       const options = {
         key: razorpayKey,
@@ -67,16 +57,14 @@ export default function PricingPage() {
       };
 
       try {
+        if (typeof window.Razorpay === "undefined") {
+          throw new Error("Razorpay SDK not loaded");
+        }
         const rzp = new window.Razorpay(options);
         rzp.open();
       } catch (rzpErr) {
-        console.warn("Razorpay SDK modal error, falling back to test mode:", rzpErr);
-        await executePaymentVerification({
-          razorpay_order_id: res.orderId,
-          razorpay_payment_id: `pay_test_${Date.now()}`,
-          razorpay_signature: "mock_signature",
-          planName: plan.name,
-        });
+        console.error("Razorpay SDK modal error:", rzpErr);
+        alert("Failed to load payment gateway. Please make sure you are connected to the internet and try again.");
       }
     } catch (error) {
       console.error("Payment initiation failed:", error);
