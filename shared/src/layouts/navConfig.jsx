@@ -1,0 +1,118 @@
+import {
+  LayoutDashboard,
+  Users,
+  Package,
+  ShoppingCart,
+  FileText,
+  Landmark,
+  BarChart3,
+  Settings,
+  Bell,
+  LogOut,
+  ChevronRight,
+  Menu,
+  X,
+  Plus,
+  Search,
+  Filter,
+  Download,
+  Printer,
+  Edit2,
+  Trash2,
+  Eye,
+  ArrowUpRight,
+  ArrowDownRight,
+  TrendingUp,
+  DollarSign,
+  Truck,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Star,
+  Shield,
+  Zap,
+  Globe,
+  ChevronDown,
+  ChevronUp,
+  MoreVertical,
+  Building2,
+  UserCircle,
+  Lock,
+  CreditCard,
+  Percent,
+  Tag,
+  BarChart2,
+  Receipt,
+  Wallet,
+  Package2,
+  Layers,
+  RefreshCw,
+  Upload,
+  Home,
+  Mail,
+  Phone,
+  MapPin,
+  Check,
+  Minus,
+  Calculator,
+  ScanLine,
+  Banknote,
+  PieChart,
+  Activity,
+  ArrowRight,
+  Send,
+  MessageSquare,
+  Info,
+  LogIn,
+  AlertCircle,
+  EyeOff,
+} from "lucide-react";
+
+export const NAV_GROUPS = [
+  {
+    label: "Main",
+    items: [{ key: "dashboard", label: "Dashboard", icon: LayoutDashboard }],
+  },
+  {
+    label: "Commerce",
+    items: [
+      { key: "customers", label: "Customers", icon: Users },
+      { key: "suppliers", label: "Suppliers", icon: Truck },
+      { key: "products", label: "Products", icon: Package },
+    ],
+  },
+  {
+    label: "Transactions",
+    items: [
+      { key: "pos", label: "Sales / Billing", icon: Receipt },
+      { key: "purchase", label: "Purchase", icon: ShoppingCart },
+      { key: "inventory", label: "Inventory", icon: Layers },
+      { key: "expenses", label: "Expenses", icon: Wallet },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [{ key: "reports", label: "Reports", icon: BarChart3 }],
+  },
+  {
+    label: "Administration",
+    items: [
+      { key: "users", label: "Users", icon: Shield },
+      { key: "settings", label: "Settings", icon: Settings },
+    ],
+  },
+];
+
+export const SUPER_ADMIN_ITEMS = [
+  { key: "super-dashboard", label: "Overview", icon: LayoutDashboard },
+
+  { key: "businesses", label: "Businesses", icon: Building2 },
+
+  { key: "revenue", label: "Revenue", icon: BarChart3 },
+
+  { key: "settings", label: "Settings", icon: Settings },
+];
+
+
+

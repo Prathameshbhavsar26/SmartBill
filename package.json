@@ -1,11 +1,15 @@
 {
-  "name": "@figma/my-make-file",
+  "name": "business-management-dashboard",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "shared"
+  ],
   "scripts": {
-    "build": "vite build",
-    "dev": "vite"
+    "dev": "concurrently \"npm run dev -w apps/landing-page\" \"npm run dev -w apps/crm\" \"npm run dev -w apps/admin-panel\" \"npm start --prefix Backend\"",
+    "build": "npm run build --workspaces --if-present"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -72,6 +76,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
+    "concurrently": "^10.0.5",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"
   },

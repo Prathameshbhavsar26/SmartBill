@@ -9,8 +9,7 @@ import {
   Star,
 } from "lucide-react";
 
-export const FEATURES = [ 
-  
+export const FEATURES = [
   {
     icon: Receipt,
     title: "Smart Invoicing",
@@ -109,3 +108,6 @@ export const TESTIMONIALS = [
     rating: 5,
   },
 ];
+
+
+
