@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Check } from "lucide-react";
 
-import PublicNavbar from "../../../components/common/PublicNavbar";
+import PublicNavbar from "@shared/components/common/PublicNavbar";
 import { useNavigate } from "react-router-dom";
-import { Btn } from "../../../components/common/ui";
-import subscriptionAPI from "../../../api/subscriptionAPI";
-
+import { Btn } from "@shared/components/common/ui";
+import subscriptionAPI from "@shared/api/subscriptionAPI";
 /*
 |--------------------------------------------------------------------------
 | Backend feature key -> Frontend display label
