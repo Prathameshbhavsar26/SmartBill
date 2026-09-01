@@ -1,6 +1,31 @@
+import axios from "axios";
 import axiosClient from "./axiosClient";
 
+const PUBLIC_API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+const publicAxios = axios.create({
+  baseURL: PUBLIC_API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
 export const subscriptionAPI = {
+  getPublicPlans: async () => {
+    const response = await publicAxios.get("/subscription-plans", {
+      params: {
+        _t: Date.now(),
+      },
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+    });
+    return response.data;
+  },
+
   /** Get prorated upgrade/downgrade pricing preview */
   getUpgradePreview: (newPlan) =>
     axiosClient
@@ -9,13 +34,13 @@ export const subscriptionAPI = {
 
   /** Create a Razorpay order. Pass isUpgrade + proratedAmount for mid-cycle changes. */
   createOrder: (planName, options = {}) =>
-    axiosClient
+    publicAxios
       .post("/subscriptions/create-order", { planName, ...options })
       .then((res) => res.data),
 
   /** Verify Razorpay payment and activate/schedule plan */
   verifyPayment: (payload) =>
-    axiosClient
+    publicAxios
       .post("/subscriptions/verify-payment", payload)
       .then((res) => res.data),
 
@@ -25,6 +50,3 @@ export const subscriptionAPI = {
 };
 
 export default subscriptionAPI;
-
-
-
