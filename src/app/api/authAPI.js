@@ -49,6 +49,14 @@ export const changePassword = (payload) =>
 export const verifyLoginOtp = (payload) =>
   axiosClient.post("/auth/verify-login-otp", payload).then((res) => res.data);
 
-// Request password reset
+// Request password reset OTP
 export const forgotPassword = (payload) =>
   axiosClient.post("/auth/forgot-password", payload).then((res) => res.data);
+
+// Verify Reset OTP (Step 2)
+export const verifyResetOtp = (payload) =>
+  axiosClient.post("/auth/verify-reset-otp", payload).then((res) => res.data);
+
+// Reset password with OTP
+export const resetPassword = (payload) =>
+  axiosClient.post("/auth/reset-password", payload).then((res) => res.data);

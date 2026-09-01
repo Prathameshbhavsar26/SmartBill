@@ -10,6 +10,8 @@ import {
   changePassword,
   verifyLoginOtp,
   forgotPassword,
+  verifyResetOtp,
+  resetPassword,
 } from "../controller/authcontroller.js";
 
 import { authMiddleware } from "../middleware/auth.js";
@@ -34,6 +36,10 @@ router.post("/send-otp", sendOtp);
 router.post("/verify-otp", verifyOtp);
 
 router.post("/forgot-password", forgotPassword);
+
+router.post("/verify-reset-otp", verifyResetOtp);
+
+router.post("/reset-password", resetPassword);
 
 
 // ================= PROFILE & SECURITY =================

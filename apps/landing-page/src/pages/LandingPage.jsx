@@ -505,7 +505,7 @@ export default function LandingPage({ onNav }) {
           Navbar
       ================================================================= */}
 
-      <PublicNavbar />
+      <PublicNavbar onNav={onNav} />
 
       {/* ================================================================
           Hero

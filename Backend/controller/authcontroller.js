@@ -332,15 +332,8 @@ export const login = async (req, res) => {
     }
 
     let user = null;
-    let lockoutMsg = null;
 
     for (const candidate of candidates) {
-      if (candidate.lockoutUntil && candidate.lockoutUntil > new Date()) {
-        const remainingMins = Math.ceil((candidate.lockoutUntil.getTime() - Date.now()) / 60000);
-        lockoutMsg = `Account locked due to too many failed login attempts. Please try again in ${remainingMins} minute(s).`;
-        continue;
-      }
-
       const match = await bcrypt.compare(password, candidate.password);
       if (match) {
         user = candidate;
@@ -350,17 +343,7 @@ export const login = async (req, res) => {
           await user.save();
         }
         break;
-      } else {
-        candidate.failedLoginAttempts = (candidate.failedLoginAttempts || 0) + 1;
-        if (candidate.failedLoginAttempts >= maxAttempts) {
-          candidate.lockoutUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 min lock
-        }
-        await candidate.save();
       }
-    }
-
-    if (lockoutMsg && !user) {
-      return res.status(403).json({ message: lockoutMsg });
     }
 
     if (!user) {
@@ -401,30 +384,6 @@ export const login = async (req, res) => {
           message: "Your account is deactivated. Please contact your business owner or support.",
         });
       }
-    }
-
-    // Check if Two-Factor Authentication is enabled
-    if (user.twoFactorEnabled) {
-      const targetPhone = user.phone ? normalizePhone(user.phone) : (identifier.type === "phone" ? identifier.value : "9876543210");
-      const otp = generateOtp();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-
-      await Verification.findOneAndDelete({ phone: targetPhone });
-      await Verification.create({
-        phone: targetPhone,
-        otp,
-        expiresAt,
-      });
-
-      console.log(`[2FA OTP REQUIRED] Sent code ${otp} to +91 ${targetPhone} for user ${user.email}`);
-
-      return res.status(200).json({
-        requireOtp: true,
-        phone: targetPhone,
-        userId: user._id,
-        otp: otp,
-        message: `Two-Factor OTP sent to +91 ${targetPhone.slice(-4).padStart(10, "*")}`,
-      });
     }
 
     if (user.ownerId && !ownerUser) {
@@ -747,7 +706,6 @@ export const sendOtp = async (req, res) => {
 
     return res.status(200).json({
       message: "OTP sent successfully.",
-      otp,
     });
   } catch (error) {
     console.error("SEND OTP ERROR:", error);
@@ -837,48 +795,307 @@ export const verifyOtp = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, phone, identifier: rawId } = req.body;
+    const rawIdentifier = (email && String(email).trim()) || (phone && String(phone).trim()) || rawId;
+    const identifier = detectIdentifier(rawIdentifier);
 
-    if (!email) {
+    if (identifier.type === "none") {
       return res.status(400).json({
-        message: "Email is required.",
+        message: "A valid email address or 10-digit mobile number is required.",
       });
     }
 
-    const normalizedEmail = String(email).trim().toLowerCase();
-
-    const user = await User.findOne({ email: normalizedEmail });
+    let user = null;
+    if (identifier.type === "email") {
+      user = await User.findOne({
+        email: { $regex: new RegExp(`^${identifier.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+      });
+    } else {
+      user = await User.findOne({
+        $or: [
+          { phone: identifier.value },
+          { phone: `+91${identifier.value}` },
+          { phone: `91${identifier.value}` },
+        ],
+      });
+    }
 
     if (!user) {
+      const label = identifier.type === "email" ? "email address" : "mobile number";
       return res.status(404).json({
-        message: "No account found with this email address. Please check and try again.",
+        message: `No account found with this ${label}. Please check and try again.`,
       });
     }
 
-    const resetLink = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password?email=${encodeURIComponent(user.email)}`;
+    const targetKey =
+      identifier.type === "email"
+        ? (user.email || identifier.value).toLowerCase().trim()
+        : normalizePhone(user.phone || identifier.value);
 
-    // Dispatch Password Reset Email (checks SuperAdmin active/inactive setting in MongoDB)
-    const emailResult = await sendPasswordResetEmail({
-      toEmail: user.email,
-      userName: `${user.firstName} ${user.lastName}`.trim(),
-      resetLink,
-      businessName: user.businessName || "Smart Bill",
+    const otp = generateOtp();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins validity
+
+    // Clean up all existing records for this user to avoid stale OTP collisions
+    await Verification.deleteMany({
+      $or: [
+        { phone: targetKey },
+        { phone: identifier.value },
+        ...(user.email ? [{ phone: user.email }, { phone: user.email.toLowerCase().trim() }] : []),
+        ...(user.phone ? [{ phone: user.phone }, { phone: normalizePhone(user.phone) }] : []),
+      ],
     });
 
-    if (emailResult?.skipped) {
-      return res.status(200).json({
-        message: "Password reset requested, but Password Reset Email is disabled in SuperAdmin settings.",
-        skipped: true,
+    await Verification.create({
+      phone: targetKey,
+      otp,
+      expiresAt,
+    });
+
+    console.log(`[PASSWORD RESET OTP] Generated OTP ${otp} for ${user.email} (${user.phone})`);
+
+    // Dispatch Password Reset Email if user has an email
+    if (user.email) {
+      const clientUrl = process.env.CLIENT_URL || "http://localhost:5174";
+      const resetLink = `${clientUrl}/forgot?email=${encodeURIComponent(user.email)}`;
+      const mailRes = await sendPasswordResetEmail({
+        toEmail: user.email,
+        userName: `${user.firstName} ${user.lastName}`.trim(),
+        resetLink,
+        otp,
+        businessName: user.businessName || "Smart Bill",
       });
+
+      if (!mailRes.success && !mailRes.previewUrl) {
+        console.error("Real email dispatch failed:", mailRes.error || mailRes.reason);
+        if (identifier.type === "email") {
+          return res.status(500).json({
+            message: mailRes.reason || "Failed to send email. Please ensure EMAIL_USER and EMAIL_PASS are set in Backend/.env.",
+          });
+        }
+      }
     }
 
     return res.status(200).json({
-      message: "Password reset link sent successfully.",
+      message: `Verification code has been sent to your registered ${identifier.type === "email" ? "email" : "mobile"}. Please check your inbox.`,
+      identifier: targetKey,
+      type: identifier.type,
     });
   } catch (error) {
     console.error("FORGOT PASSWORD ERROR:", error);
     return res.status(500).json({
       message: "Something went wrong while processing your request. Please try again.",
+    });
+  }
+};
+
+// ======================================================
+// VERIFY RESET OTP (STEP 2: VERIFY CODE FIRST)
+// ======================================================
+
+export const verifyResetOtp = async (req, res) => {
+  try {
+    const { identifier: rawId, email, phone, otp } = req.body;
+    const rawIdentifier = (email && String(email).trim()) || (phone && String(phone).trim()) || rawId;
+    const identifier = detectIdentifier(rawIdentifier);
+
+    if (identifier.type === "none" || !otp) {
+      return res.status(400).json({
+        message: "A valid email/phone and 6-digit OTP are required.",
+      });
+    }
+
+    let user = null;
+    if (identifier.type === "email") {
+      user = await User.findOne({
+        email: { $regex: new RegExp(`^${identifier.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+      });
+    } else {
+      user = await User.findOne({
+        $or: [
+          { phone: identifier.value },
+          { phone: `+91${identifier.value}` },
+          { phone: `91${identifier.value}` },
+        ],
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        message: "No account found with this email/mobile number.",
+      });
+    }
+
+    const targetKey =
+      identifier.type === "email"
+        ? (user.email || identifier.value).toLowerCase().trim()
+        : normalizePhone(user.phone || identifier.value);
+
+    // Fetch the newest active verification record
+    const record = await Verification.findOne({
+      $or: [
+        { phone: targetKey },
+        { phone: identifier.value },
+        ...(user.email ? [{ phone: user.email }, { phone: user.email.toLowerCase().trim() }] : []),
+        ...(user.phone ? [{ phone: user.phone }, { phone: normalizePhone(user.phone) }] : []),
+      ],
+    }).sort({ createdAt: -1 });
+
+    if (!record) {
+      return res.status(400).json({
+        message: "No OTP was requested for this account, or it has expired. Please request a new code.",
+      });
+    }
+
+    if (record.expiresAt < new Date()) {
+      await Verification.deleteMany({
+        $or: [
+          { phone: targetKey },
+          { phone: identifier.value },
+          ...(user.email ? [{ phone: user.email }, { phone: user.email.toLowerCase().trim() }] : []),
+          ...(user.phone ? [{ phone: user.phone }, { phone: normalizePhone(user.phone) }] : []),
+        ],
+      });
+      return res.status(400).json({
+        message: "OTP has expired. Please request a new code.",
+      });
+    }
+
+    const enteredOtp = String(otp ?? "").trim();
+    const expectedOtp = String(record.otp ?? "").trim();
+
+    console.log(`[VERIFY RESET OTP] Target: ${targetKey}, Expected: ${expectedOtp}, Entered: ${enteredOtp}`);
+
+    if (expectedOtp !== enteredOtp) {
+      return res.status(400).json({
+        message: "Invalid OTP code. Please check your email and enter the correct 6-digit code.",
+      });
+    }
+
+    record.verified = true;
+    await record.save();
+
+    return res.status(200).json({
+      message: "OTP verified successfully. You can now set a new password.",
+      verified: true,
+    });
+  } catch (error) {
+    console.error("VERIFY RESET OTP ERROR:", error);
+    return res.status(500).json({
+      message: "Something went wrong while verifying OTP. Please try again.",
+    });
+  }
+};
+
+// ======================================================
+// RESET PASSWORD (STEP 3: SET NEW PASSWORD)
+// ======================================================
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { identifier: rawId, email, phone, otp, newPassword } = req.body;
+    const rawIdentifier = (email && String(email).trim()) || (phone && String(phone).trim()) || rawId;
+    const identifier = detectIdentifier(rawIdentifier);
+
+    if (identifier.type === "none" || !otp || !newPassword) {
+      return res.status(400).json({
+        message: "Email or mobile number, 6-digit OTP, and new password are required.",
+      });
+    }
+
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({
+        message: "New password must be at least 8 characters long.",
+      });
+    }
+
+    let user = null;
+    if (identifier.type === "email") {
+      user = await User.findOne({
+        email: { $regex: new RegExp(`^${identifier.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+      });
+    } else {
+      user = await User.findOne({
+        $or: [
+          { phone: identifier.value },
+          { phone: `+91${identifier.value}` },
+          { phone: `91${identifier.value}` },
+        ],
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User account not found.",
+      });
+    }
+
+    const targetKey =
+      identifier.type === "email"
+        ? (user.email || identifier.value).toLowerCase().trim()
+        : normalizePhone(user.phone || identifier.value);
+
+    const record = await Verification.findOne({
+      $or: [
+        { phone: targetKey },
+        { phone: identifier.value },
+        ...(user.email ? [{ phone: user.email }, { phone: user.email.toLowerCase().trim() }] : []),
+        ...(user.phone ? [{ phone: user.phone }, { phone: normalizePhone(user.phone) }] : []),
+      ],
+    }).sort({ createdAt: -1 });
+
+    if (!record) {
+      return res.status(400).json({
+        message: "No OTP was requested for this account, or it has expired. Please request a new code.",
+      });
+    }
+
+    if (record.expiresAt < new Date()) {
+      await Verification.deleteMany({
+        $or: [
+          { phone: targetKey },
+          { phone: identifier.value },
+          ...(user.email ? [{ phone: user.email }, { phone: user.email.toLowerCase().trim() }] : []),
+          ...(user.phone ? [{ phone: user.phone }, { phone: normalizePhone(user.phone) }] : []),
+        ],
+      });
+      return res.status(400).json({
+        message: "OTP has expired. Please request a new code.",
+      });
+    }
+
+    const enteredOtp = String(otp ?? "").trim();
+    const expectedOtp = String(record.otp ?? "").trim();
+
+    if (expectedOtp !== enteredOtp) {
+      return res.status(400).json({
+        message: "Invalid OTP code. Please enter the correct 6-digit code.",
+      });
+    }
+
+    // Hash new password and save
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.failedLoginAttempts = 0;
+    user.lockoutUntil = null;
+    await user.save();
+
+    // Clean up all used OTPs for this user
+    await Verification.deleteMany({
+      $or: [
+        { phone: targetKey },
+        { phone: identifier.value },
+        ...(user.email ? [{ phone: user.email }, { phone: user.email.toLowerCase().trim() }] : []),
+        ...(user.phone ? [{ phone: user.phone }, { phone: normalizePhone(user.phone) }] : []),
+      ],
+    });
+
+    return res.status(200).json({
+      message: "Password reset successfully! You can now sign in with your new password.",
+    });
+  } catch (error) {
+    console.error("RESET PASSWORD ERROR:", error);
+    return res.status(500).json({
+      message: "Something went wrong while resetting password. Please try again.",
     });
   }
 };

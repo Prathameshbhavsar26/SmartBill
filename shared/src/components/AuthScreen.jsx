@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -6,6 +6,7 @@ import {
   Building2,
   Check,
   CheckCircle,
+  KeyRound,
   Lock,
   LogIn,
   Mail,
@@ -20,7 +21,7 @@ import {
   Select,
   Toast,
 } from "@shared/components/common/ui";
-import { registerUser, loginUser, sendOtp, verifyOtp, verifyLoginOtp, forgotPassword } from "@shared/api/authAPI";
+import { registerUser, loginUser, sendOtp, verifyOtp, verifyLoginOtp, forgotPassword, verifyResetOtp, resetPassword } from "@shared/api/authAPI";
 import { setUserToStorage } from "@shared/utils/userUtils";
 
 const PHONE_PREFIX = "+91 ";
@@ -52,14 +53,58 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [otpError, setOtpError] = useState("");
 
-  // ---- 2FA Login State ----
-  const [loginRequireOtp, setLoginRequireOtp] = useState(false);
-  const [loginOtp, setLoginOtp] = useState("");
-  const [login2faUserId, setLogin2faUserId] = useState(null);
-  const [login2faPhone, setLogin2faPhone] = useState("");
-  const [loginOtpVerifying, setLoginOtpVerifying] = useState(false);
-  const [loginOtpError, setLoginOtpError] = useState("");
-  const [devOtpHint, setDevOtpHint] = useState("");
+  // ---- Forgot / Reset Password State ----
+  const [forgotMethod, setForgotMethod] = useState("email"); // "email" | "phone"
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotPhone, setForgotPhone] = useState(PHONE_PREFIX);
+  const [forgotStep, setForgotStep] = useState(1); // 1 = Request OTP, 2 = Verify OTP & Set New Password
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [forgotEmailError, setForgotEmailError] = useState("");
+  const [forgotPhoneError, setForgotPhoneError] = useState("");
+  const [forgotPasswordError, setForgotPasswordError] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Parse URL search params (e.g., /forgot?email=someone@example.com from reset email)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const emailParam = params.get("email");
+      const phoneParam = params.get("phone");
+      const otpParam = params.get("otp");
+
+      if (view === "forgot") {
+        if (emailParam) {
+          const cleanEmail = decodeURIComponent(emailParam).trim();
+          setForgotMethod("email");
+          setForgotEmail(cleanEmail);
+          setForgotStep(2); // Automatically advance to Step 2 so user enters the OTP they received!
+        } else if (phoneParam) {
+          const cleanPhone = decodeURIComponent(phoneParam).trim();
+          setForgotMethod("phone");
+          setForgotPhone(cleanPhone);
+          setForgotStep(2);
+        }
+
+        if (otpParam) {
+          setForgotOtp(decodeURIComponent(otpParam).trim().replace(/\D/g, "").slice(0, 6));
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to parse URL search params:", e);
+    }
+  }, [view]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // ---- Error state ----
   const [loginEmailError, setLoginEmailError] = useState("");
@@ -156,54 +201,19 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
           };
       const data = await loginUser(payload);
 
-      // If user has Two-Factor Authentication enabled:
-      if (data.requireOtp) {
-        setLoginRequireOtp(true);
-        setLogin2faUserId(data.userId);
-        setLogin2faPhone(data.phone);
-        setDevOtpHint(String(data.otp || ""));
-        setLoginOtp("");
-        setLoginOtpError("");
-        showToast(data.message || "OTP code sent to your registered phone", "info");
-        return;
-      }
-
       const loggedInUser = data.user;
       localStorage.setItem("smartbill_token", data.token);
       setUserToStorage(loggedInUser);
       showToast("Login successful", "success");
-      onLogin(loggedInUser.role, loggedInUser);
+      if (typeof onLogin === "function") {
+        onLogin(loggedInUser.role || "owner", loggedInUser);
+      } else {
+        window.location.href = "/app";
+      }
     } catch (err) {
       setFormError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleVerify2FaLogin = async () => {
-    if (!loginOtp || loginOtp.trim().length !== 6) {
-      setLoginOtpError("Please enter a valid 6-digit OTP code.");
-      return;
-    }
-
-    setLoginOtpVerifying(true);
-    setLoginOtpError("");
-    try {
-      const data = await verifyLoginOtp({
-        userId: login2faUserId,
-        phone: login2faPhone,
-        otp: loginOtp.trim(),
-      });
-
-      const loggedInUser = data.user;
-      localStorage.setItem("smartbill_token", data.token);
-      setUserToStorage(loggedInUser);
-      showToast("Two-Factor verification successful!", "success");
-      onLogin(loggedInUser.role, loggedInUser);
-    } catch (err) {
-      setLoginOtpError(err.response?.data?.message || err.message || "Invalid or expired OTP code.");
-    } finally {
-      setLoginOtpVerifying(false);
     }
   };
 
@@ -255,7 +265,11 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
         "Account created successfully. You're now signed in.",
         "success",
       );
-      onLogin(data.user.role || "owner", data.user);
+      if (typeof onLogin === "function") {
+        onLogin(data.user.role || "owner", data.user);
+      } else {
+        window.location.href = "/app";
+      }
     } catch (err) {
       if (err.field === "email") {
         setRegisterEmailError(err.message);
@@ -282,10 +296,8 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
       const data = await sendOtp({ phone: getCleanPhone() });
       setOtpSent(true);
       setPhoneVerified(false);
-      // No SMS provider is configured, so the backend returns the OTP in the
-      // response for testing. Auto-fill it so the user can verify directly.
-      setOtp(String(data?.otp ?? ""));
-      showToast("OTP sent successfully. Check your phone.", "success");
+      setOtp("");
+      showToast("OTP sent successfully. Please check your phone.", "success");
     } catch (err) {
       if (err.field === "phone") {
         setRegisterPhoneError(err.message);
@@ -325,21 +337,107 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
     }
   };
 
-  const handleForgotPassword = async () => {
-    const errEmail = getLoginEmailError(email);
+  const handleRequestResetOtp = async () => {
+    const isEmail = forgotMethod === "email";
+    const errEmail = isEmail ? getLoginEmailError(forgotEmail) : "";
+    const errPhone = !isEmail ? validatePhone(forgotPhone) : "";
+
+    setForgotEmailError(errEmail);
+    setForgotPhoneError(errPhone);
     setFormError("");
-    if (errEmail) {
-      setFormError(errEmail);
+    setForgotPasswordError("");
+
+    if (errEmail || errPhone) return;
+
+    setResetLoading(true);
+    try {
+      const payload = isEmail
+        ? { email: forgotEmail.trim() }
+        : { phone: forgotPhone.replace(PHONE_PREFIX, "").replace(/\D/g, "") };
+
+      const data = await forgotPassword(payload);
+      setForgotOtp("");
+      setForgotStep(2);
+      setResendCooldown(60);
+      showToast(data.message || "Reset OTP sent successfully. Please check your inbox.", "success");
+    } catch (err) {
+      setFormError(err.response?.data?.message || err.message || "Failed to process request. Please check and try again.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleVerifyResetOtp = async () => {
+    const isEmail = forgotMethod === "email";
+    const cleanOtp = String(forgotOtp ?? "").trim();
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      setForgotPasswordError("Please enter a valid 6-digit OTP code.");
       return;
     }
-    setLoading(true);
+
+    setForgotPasswordError("");
+    setResetLoading(true);
     try {
-      await forgotPassword({ email: email.trim() });
-      setSent(true);
+      const targetIdentifier = isEmail
+        ? forgotEmail.trim()
+        : forgotPhone.replace(PHONE_PREFIX, "").replace(/\D/g, "");
+
+      await verifyResetOtp({
+        identifier: targetIdentifier,
+        otp: cleanOtp,
+      });
+
+      showToast("OTP verified successfully! Please set your new password.", "success");
+      setForgotStep(3);
     } catch (err) {
-      setFormError(err.message || "Failed to process request. Please try again.");
+      setForgotPasswordError(err.response?.data?.message || err.message || "Invalid or expired OTP code.");
     } finally {
-      setLoading(false);
+      setResetLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async () => {
+    const isEmail = forgotMethod === "email";
+    const cleanOtp = String(forgotOtp ?? "").trim();
+
+    const errPass = validateRegisterPassword(forgotNewPassword);
+    if (errPass) {
+      setForgotPasswordError(errPass);
+      return;
+    }
+
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      setForgotPasswordError("Passwords do not match.");
+      return;
+    }
+
+    setForgotPasswordError("");
+    setResetLoading(true);
+    try {
+      const targetIdentifier = isEmail
+        ? forgotEmail.trim()
+        : forgotPhone.replace(PHONE_PREFIX, "").replace(/\D/g, "");
+
+      const data = await resetPassword({
+        identifier: targetIdentifier,
+        otp: cleanOtp,
+        newPassword: forgotNewPassword,
+      });
+
+      showToast(data.message || "Password reset successfully! Please sign in.", "success");
+      
+      // Reset state and redirect to login
+      setTimeout(() => {
+        setForgotStep(1);
+        setForgotOtp("");
+        setForgotNewPassword("");
+        setForgotConfirmPassword("");
+        onNav("login");
+      }, 1200);
+    } catch (err) {
+      setForgotPasswordError(err.response?.data?.message || err.message || "Failed to reset password. Please try again.");
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -415,212 +513,140 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
           </button>
 
           {view === "login" && (
-            loginRequireOtp ? (
+            <>
+              <h2 className="text-2xl font-bold text-slate-900 mb-1">
+                Welcome back
+              </h2>
+              <p className="text-sm text-slate-500 mb-6">
+                Sign in to your SmartBill account
+              </p>
               <div className="space-y-4">
-                <div className="text-center mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
-                    <Lock className="w-6 h-6" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-                    Two-Factor Verification
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Enter the 6-digit OTP code sent to your registered phone number ending in <span className="font-bold text-slate-700 dark:text-slate-200">+{login2faPhone ? login2faPhone.slice(-4) : "••••"}</span>
-                  </p>
-                </div>
-
-                {loginOtpError && (
+                {formError && (
                   <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    {loginOtpError}
+                    {formError}
                   </div>
                 )}
 
                 <div>
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
-                    6-Digit Security OTP
+                    Sign in with
                   </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    autoFocus
-                    placeholder="Enter 6-digit OTP"
-                    value={loginOtp}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "");
-                      setLoginOtp(val);
-                      if (loginOtpError) setLoginOtpError("");
-                    }}
-                    className="w-full text-center tracking-[0.35em] font-mono text-lg font-bold bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl py-3 text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                  {devOtpHint && (
-                    <div className="mt-2.5 p-2.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl text-center">
-                      <p className="text-[11px] text-blue-700 dark:text-blue-300">
-                        Demo OTP Code: <span className="font-mono font-bold tracking-widest text-blue-900 dark:text-blue-200 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">{devOtpHint}</span>
-                      </p>
-                    </div>
-                  )}
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                    {["email", "phone"].map((m) => {
+                      const active = loginMethod === m;
+                      return (
+                        <button
+                          key={m}
+                          onClick={() => {
+                            setLoginMethod(m);
+                            setLoginEmailError("");
+                            setLoginPhoneError("");
+                          }}
+                          className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${active ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-700"}`}
+                        >
+                          {m === "email" ? (
+                            <Mail
+                              className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
+                            />
+                          ) : (
+                            <Phone
+                              className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
+                            />
+                          )}
+                          {m === "email" ? "Email" : "Mobile"}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
+                {loginMethod === "email" ? (
+                  <Input
+                    label="Email Address"
+                    value={email}
+                    onChange={(v) => {
+                      const trimmed = String(v ?? "").trimStart();
+                      setEmail(trimmed);
+                      if (trimmed && isValidEmail(trimmed))
+                        setLoginEmailError("");
+                      else setLoginEmailError(getLoginEmailError(trimmed));
+                    }}
+                    icon={<Mail className="w-4 h-4" />}
+                    error={loginEmailError}
+                  />
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Mobile Number
+                    </label>
+                    <FixedPhoneInput
+                      icon={<Phone className="w-4 h-4" />}
+                      value={loginPhone}
+                      onChange={(value) => {
+                        setLoginPhone(value);
+                        setLoginPhoneError(validatePhone(value, false));
+                      }}
+                      error={loginPhoneError}
+                    />
+                  </div>
+                )}
+                <Input
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(v) => {
+                    setPassword(v);
+                    const err = validateLoginPassword(v);
+                    if (!err) setLoginPasswordError("");
+                    else setLoginPasswordError(err);
+                  }}
+                  icon={<Lock className="w-4 h-4" />}
+                  error={loginPasswordError}
+                />
+                <div className="flex justify-between items-center text-xs">
+                  <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="accent-blue-600"
+                    />
+                    Remember me
+                  </label>
+                  <button
+                    onClick={() => onNav("forgot")}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <Btn
                   variant="primary"
                   size="lg"
-                  onClick={handleVerify2FaLogin}
-                  className="w-full justify-center mt-2"
-                  disabled={loginOtpVerifying || loginOtp.length !== 6}
+                  onClick={handleLogin}
+                  className="w-full justify-center"
+                  disabled={loading}
+                  icon={
+                    loading ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <LogIn className="w-4 h-4" />
+                    )
+                  }
                 >
-                  {loginOtpVerifying ? "Verifying OTP..." : "Verify & Sign In"}
+                  {loading ? "Signing in..." : "Sign In"}
                 </Btn>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginRequireOtp(false);
-                    setLoginOtp("");
-                    setLoginOtpError("");
-                  }}
-                  className="w-full text-center text-xs text-slate-500 hover:text-slate-700 py-1 cursor-pointer"
-                >
-                  Cancel & Return to Login
-                </button>
-
               </div>
-            ) : (
-              <>
-                <h2 className="text-2xl font-bold text-slate-900 mb-1">
-                  Welcome back
-                </h2>
-                <p className="text-sm text-slate-500 mb-6">
-                  Sign in to your SmartBill account
-                </p>
-                <div className="space-y-4">
-                  {formError && (
-                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      {formError}
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
-                      Sign in with
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
-                      {["email", "phone"].map((m) => {
-                        const active = loginMethod === m;
-                        return (
-                          <button
-                            key={m}
-                            onClick={() => {
-                              setLoginMethod(m);
-                              setLoginEmailError("");
-                              setLoginPhoneError("");
-                            }}
-                            className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${active ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-700"}`}
-                          >
-                            {m === "email" ? (
-                              <Mail
-                                className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
-                              />
-                            ) : (
-                              <Phone
-                                className={`w-4 h-4 ${active ? "text-blue-600" : "text-slate-400"}`}
-                              />
-                            )}
-                            {m === "email" ? "Email" : "Mobile"}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {loginMethod === "email" ? (
-                    <Input
-                      label="Email Address"
-                      value={email}
-                      onChange={(v) => {
-                        const trimmed = String(v ?? "").trimStart();
-                        setEmail(trimmed);
-                        if (trimmed && isValidEmail(trimmed))
-                          setLoginEmailError("");
-                        else setLoginEmailError(getLoginEmailError(trimmed));
-                      }}
-                      icon={<Mail className="w-4 h-4" />}
-                      error={loginEmailError}
-                    />
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        Mobile Number
-                      </label>
-                      <FixedPhoneInput
-                        icon={<Phone className="w-4 h-4" />}
-                        value={loginPhone}
-                        onChange={(value) => {
-                          setLoginPhone(value);
-                          setLoginPhoneError(validatePhone(value, false));
-                        }}
-                        error={loginPhoneError}
-                      />
-                    </div>
-                  )}
-                  <Input
-                    label="Password"
-                    type="password"
-                    value={password}
-                    onChange={(v) => {
-                      setPassword(v);
-                      const err = validateLoginPassword(v);
-                      if (!err) setLoginPasswordError("");
-                      else setLoginPasswordError(err);
-                    }}
-                    icon={<Lock className="w-4 h-4" />}
-                    error={loginPasswordError}
-                  />
-                  <div className="flex justify-between items-center text-xs">
-                    <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="accent-blue-600"
-                      />
-                      Remember me
-                    </label>
-                    <button
-                      onClick={() => onNav("forgot")}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                  <Btn
-                    variant="primary"
-                    size="lg"
-                    onClick={handleLogin}
-                    className="w-full justify-center"
-                    disabled={loading}
-                    icon={
-                      loading ? (
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <LogIn className="w-4 h-4" />
-                      )
-                    }
-                  >
-                    {loading ? "Signing in..." : "Sign In"}
-                  </Btn>
-                </div>
-                <p className="text-xs text-center text-slate-500 mt-5">
-                  Don't have an account?{" "}
-                  <button
-                    onClick={() => onNav("register")}
-                    className="text-blue-600 font-medium hover:underline"
-                  >
-                    Register Business
-                  </button>
-                </p>
-              </>
-            )
+              <p className="text-xs text-center text-slate-500 mt-5">
+                Don't have an account?{" "}
+                <button
+                  onClick={() => onNav("register")}
+                  className="text-blue-600 font-medium hover:underline"
+                >
+                  Register Business
+                </button>
+              </p>
+            </>
           )}
 
 
@@ -817,68 +843,297 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
           )}
 
           {view === "forgot" && (
-            <>
-              <h2 className="text-2xl font-bold text-slate-900 mb-1">
-                Reset your password
-              </h2>
-              <p className="text-sm text-slate-500 mb-6">
-                Enter your email and we'll send a reset link.
-              </p>
-              {sent ? (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center">
-                  <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-                  <p className="font-semibold text-slate-900 mb-1">
-                    Check your email
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    We sent a password reset link to {email}
-                  </p>
+            <div>
+              <div className="mb-6">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                  <KeyRound className="w-5 h-5" />
                 </div>
-              ) : (
+                <h2 className="text-2xl font-bold text-slate-900 mb-1">
+                  {forgotStep === 1
+                    ? "Forgot Password"
+                    : forgotStep === 2
+                    ? "Verify Security Code"
+                    : "Set New Password"}
+                </h2>
+                <p className="text-sm text-slate-500">
+                  {forgotStep === 1
+                    ? "Choose your recovery method to receive a real 6-digit verification OTP."
+                    : forgotStep === 2
+                    ? `Enter the 6-digit code sent to ${forgotMethod === "email" ? forgotEmail : forgotPhone}.`
+                    : "Identity verified! Please enter and confirm your new password."}
+                </p>
+              </div>
+
+              {formError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2 mb-4">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {formError}
+                </div>
+              )}
+
+              {forgotPasswordError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2 mb-4">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {forgotPasswordError}
+                </div>
+              )}
+
+              {/* STEP 1: REQUEST OTP */}
+              {forgotStep === 1 && (
                 <div className="space-y-4">
-                  {formError && (
-                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      {formError}
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                      Recover via
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                      {["email", "phone"].map((m) => {
+                        const active = forgotMethod === m;
+                        return (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => {
+                              setForgotMethod(m);
+                              setForgotEmailError("");
+                              setForgotPhoneError("");
+                              setFormError("");
+                            }}
+                            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                              active
+                                ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            {m === "email" ? (
+                              <Mail
+                                className={`w-4 h-4 ${
+                                  active ? "text-blue-600" : "text-slate-400"
+                                }`}
+                              />
+                            ) : (
+                              <Phone
+                                className={`w-4 h-4 ${
+                                  active ? "text-blue-600" : "text-slate-400"
+                                }`}
+                              />
+                            )}
+                            {m === "email" ? "Email" : "Mobile"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {forgotMethod === "email" ? (
+                    <Input
+                      label="Registered Email Address"
+                      value={forgotEmail}
+                      onChange={(v) => {
+                        const trimmed = String(v ?? "").trimStart();
+                        setForgotEmail(trimmed);
+                        if (trimmed && isValidEmail(trimmed))
+                          setForgotEmailError("");
+                        else setForgotEmailError(getLoginEmailError(trimmed));
+                      }}
+                      placeholder="name@business.com"
+                      icon={<Mail className="w-4 h-4" />}
+                      error={forgotEmailError}
+                    />
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        Registered Mobile Number
+                      </label>
+                      <FixedPhoneInput
+                        icon={<Phone className="w-4 h-4" />}
+                        value={forgotPhone}
+                        onChange={(value) => {
+                          setForgotPhone(value);
+                          setForgotPhoneError(validatePhone(value, false));
+                        }}
+                        error={forgotPhoneError}
+                      />
                     </div>
                   )}
-                  <Input
-                    label="Email Address"
-                    value={email}
-                    onChange={(v) => {
-                      setEmail(v);
-                      setFormError("");
-                    }}
-                    placeholder=""
-                    icon={<Mail className="w-4 h-4" />}
-                  />
+
                   <Btn
                     variant="primary"
                     size="lg"
-                    onClick={handleForgotPassword}
-                    className="w-full justify-center"
-                    disabled={loading}
+                    onClick={handleRequestResetOtp}
+                    className="w-full justify-center mt-2"
+                    disabled={resetLoading}
                     icon={
-                      loading ? (
+                      resetLoading ? (
                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : (
                         <Send className="w-4 h-4" />
                       )
                     }
                   >
-                    {loading ? "Verifying..." : "Send Reset Link"}
+                    {resetLoading ? "Sending Code..." : "Send Verification OTP"}
                   </Btn>
                 </div>
               )}
-              <p className="text-xs text-center text-slate-500 mt-4">
+
+              {/* STEP 2: ENTER & VERIFY OTP FIRST */}
+              {forgotStep === 2 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between bg-blue-50/60 border border-blue-100 rounded-lg p-2.5 text-xs text-blue-900">
+                    <div>
+                      <span className="text-slate-500">Code sent to: </span>
+                      <span className="font-semibold">
+                        {forgotMethod === "email"
+                          ? forgotEmail
+                          : forgotPhone}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotStep(1);
+                        setForgotPasswordError("");
+                      }}
+                      className="text-blue-600 hover:underline font-medium ml-2 cursor-pointer"
+                    >
+                      Change
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                      6-Digit Verification Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      autoFocus
+                      placeholder="Enter 6-digit OTP"
+                      value={forgotOtp}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setForgotOtp(val);
+                        if (forgotPasswordError) setForgotPasswordError("");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && forgotOtp.length === 6 && !resetLoading) {
+                          handleVerifyResetOtp();
+                        }
+                      }}
+                      className="w-full text-center tracking-[0.35em] font-mono text-xl font-bold bg-slate-50 border border-slate-300 rounded-xl py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    <p className="text-[11px] text-slate-400 text-center mt-1.5">
+                      Please check your inbox (and spam folder) for the verification code.
+                    </p>
+                  </div>
+
+                  <Btn
+                    variant="primary"
+                    size="lg"
+                    onClick={handleVerifyResetOtp}
+                    className="w-full justify-center mt-2"
+                    disabled={resetLoading || forgotOtp.length !== 6}
+                    icon={
+                      resetLoading ? (
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4" />
+                      )
+                    }
+                  >
+                    {resetLoading ? "Verifying OTP..." : "Verify OTP Code"}
+                  </Btn>
+
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      onClick={handleRequestResetOtp}
+                      disabled={resetLoading || resendCooldown > 0}
+                      className={`text-xs ${
+                        resendCooldown > 0
+                          ? "text-slate-400 cursor-not-allowed"
+                          : "text-blue-600 hover:underline cursor-pointer"
+                      }`}
+                    >
+                      {resendCooldown > 0
+                        ? `Resend code in ${resendCooldown}s`
+                        : "Didn't receive code? Resend Code"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: SET NEW PASSWORD */}
+              {forgotStep === 3 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-lg p-2.5">
+                    <CheckCircle className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+                    <span>Identity verified! Enter your new password below.</span>
+                  </div>
+
+                  <Input
+                    label="New Password"
+                    type="password"
+                    autoFocus
+                    value={forgotNewPassword}
+                    onChange={(v) => {
+                      setForgotNewPassword(v);
+                      if (forgotPasswordError) setForgotPasswordError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !resetLoading) handleResetPasswordSubmit();
+                    }}
+                    placeholder="Min. 8 characters (Uppercase, number, symbol)"
+                    icon={<Lock className="w-4 h-4" />}
+                  />
+
+                  <Input
+                    label="Confirm New Password"
+                    type="password"
+                    value={forgotConfirmPassword}
+                    onChange={(v) => {
+                      setForgotConfirmPassword(v);
+                      if (forgotPasswordError) setForgotPasswordError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !resetLoading) handleResetPasswordSubmit();
+                    }}
+                    placeholder="Re-enter new password"
+                    icon={<Lock className="w-4 h-4" />}
+                  />
+
+                  <Btn
+                    variant="primary"
+                    size="lg"
+                    onClick={handleResetPasswordSubmit}
+                    className="w-full justify-center mt-2"
+                    disabled={resetLoading}
+                    icon={
+                      resetLoading ? (
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4" />
+                      )
+                    }
+                  >
+                    {resetLoading ? "Updating Password..." : "Set New Password & Sign In"}
+                  </Btn>
+                </div>
+              )}
+
+              <p className="text-xs text-center text-slate-500 mt-5">
                 <button
-                  onClick={() => onNav("login")}
-                  className="text-blue-600 font-medium hover:underline"
+                  onClick={() => {
+                    setForgotStep(1);
+                    setFormError("");
+                    setForgotPasswordError("");
+                    onNav("login");
+                  }}
+                  className="text-blue-600 font-medium hover:underline cursor-pointer"
                 >
                   ← Back to Sign In
                 </button>
               </p>
-            </>
+            </div>
           )}
         </div>
       </div>
