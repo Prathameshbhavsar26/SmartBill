@@ -10,6 +10,9 @@ import {
   Check,
   Phone,
   Star,
+  Mail,
+  MapPin,
+  Send,
 } from "lucide-react";
 
 import { FEATURES, TESTIMONIALS } from "@shared/constants/landing";
@@ -967,6 +970,91 @@ export default function LandingPage({ onNav }) {
         ...
       </section>
       */}
+
+      {/* ================================================================
+          Contact
+      ================================================================= */}
+
+      <section id="contact" className="py-20 px-6 bg-slate-50 border-t border-slate-200">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-12">
+          
+          <div className="flex-1 space-y-8">
+            <div>
+              <p className="text-xs text-blue-600 font-semibold uppercase tracking-widest mb-3">
+                Contact Us
+              </p>
+              <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
+                Get in touch
+              </h2>
+              <p className="text-slate-500">
+                Have questions about pricing, features, or need technical support? Our team is here to help you.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <div className="bg-blue-600 rounded-3xl p-8 text-white shadow-xl shadow-blue-600/20 relative overflow-hidden">
+                <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-2xl"></div>
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-sm border border-white/20">
+                  <Mail className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Chat with Sales</h3>
+                <p className="text-blue-100 mb-6">Speak to our friendly team about enterprise plans and custom solutions.</p>
+                <a href="mailto:prathameshbhavsar@gmail.com" className="font-bold text-lg hover:underline">prathameshbhavsar@gmail.com</a>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex-1">
+                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100">
+                    <Phone className="w-6 h-6 text-slate-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Call Support</h3>
+                  <p className="text-slate-500 mb-6">Mon-Fri from 9am to 6pm IST.</p>
+                  <a href="tel:+918830164600" className="font-bold text-lg text-slate-900 hover:text-blue-600 transition-colors">+91 88301 64600</a>
+                </div>
+
+                <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex-1">
+                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100">
+                    <MapPin className="w-6 h-6 text-slate-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Visit Us</h3>
+                  <p className="text-slate-500 mb-6 leading-relaxed">Nashik, Maharashtra, 422001</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 bg-white p-8 md:p-10 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 h-fit">
+            <h2 className="text-2xl font-bold text-slate-900 mb-8">Send us a message</h2>
+            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">First Name</label>
+                  <input type="text" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">Last Name</label>
+                  <input type="text" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all" />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">Email Address</label>
+                <input type="email" required className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">How can we help?</label>
+                <textarea rows="4" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 outline-none transition-all resize-none" placeholder="Tell us more about your inquiry..."></textarea>
+              </div>
+
+              <button className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2">
+                Send Message <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+
+        </div>
+      </section>
 
       {/* ================================================================
           CTA
