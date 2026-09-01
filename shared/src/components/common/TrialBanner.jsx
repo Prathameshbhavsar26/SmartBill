@@ -10,6 +10,94 @@ import {
 import subscriptionAPI from "@shared/api/subscriptionAPI";
 import { setUserToStorage } from "@shared/utils/userUtils";
 
+/*
+|--------------------------------------------------------------------------
+| Safely convert backend features into an array
+|--------------------------------------------------------------------------
+*/
+
+const normalizeFeatures = (features) => {
+  if (Array.isArray(features)) {
+    return features;
+  }
+
+  if (typeof features === "string") {
+    try {
+      const parsed = JSON.parse(features);
+
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+
+      if (parsed && typeof parsed === "object") {
+        return Object.entries(parsed).map(([key, value]) => {
+          if (typeof value === "boolean") {
+            return value ? key : null;
+          }
+
+          return `${key}: ${value}`;
+        }).filter(Boolean);
+      }
+
+      return [features];
+    } catch {
+      return features
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  if (features && typeof features === "object") {
+    return Object.entries(features)
+      .map(([key, value]) => {
+        if (typeof value === "boolean") {
+          return value ? key : null;
+        }
+
+        if (value === null || value === undefined) {
+          return null;
+        }
+
+        return `${key}: ${value}`;
+      })
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+/*
+|--------------------------------------------------------------------------
+| Normalize backend plans
+|--------------------------------------------------------------------------
+*/
+
+const normalizePlans = (response) => {
+  let fetchedPlans = [];
+
+  if (Array.isArray(response)) {
+    fetchedPlans = response;
+  } else if (Array.isArray(response?.plans)) {
+    fetchedPlans = response.plans;
+  } else if (Array.isArray(response?.data)) {
+    fetchedPlans = response.data;
+  } else if (Array.isArray(response?.data?.plans)) {
+    fetchedPlans = response.data.plans;
+  }
+
+  return fetchedPlans
+    .filter(Boolean)
+    .map((plan) => ({
+      ...plan,
+      name: plan.name || plan.plan || "Plan",
+      price: Number(plan.price || 0),
+      period: plan.period || "/month",
+      features: normalizeFeatures(plan.features),
+      badge: plan.badge || null,
+    }));
+};
+
 export default function TrialBanner({ user, onNav }) {
   const [subData, setSubData] = useState(null);
   const [plans, setPlans] = useState([]);
@@ -45,70 +133,53 @@ export default function TrialBanner({ user, onNav }) {
   |--------------------------------------------------------------------------
   | Get public subscription plans
   |--------------------------------------------------------------------------
-  |
-  | IMPORTANT:
-  | Do NOT use @shared/constants/landing here.
-  |
-  | The backend is the single source of truth for subscription plans.
-  |
   */
+
+  const fetchPlans = async () => {
+    try {
+      setPlansLoading(true);
+
+      const res = await subscriptionAPI.getPublicPlans();
+
+      const normalizedPlans = normalizePlans(res);
+
+      console.log(
+        "[TrialBanner] Subscription plans:",
+        normalizedPlans
+      );
+
+      setPlans(normalizedPlans);
+    } catch (err) {
+      console.warn(
+        "Could not fetch subscription plans:",
+        err?.message
+      );
+
+      setPlans([]);
+    } finally {
+      setPlansLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user || user.role === "superadmin") return;
 
-    setPlansLoading(true);
-
-    subscriptionAPI
-      .getPublicPlans()
-      .then((res) => {
-        /*
-         * Support the backend response structure used by the
-         * subscription plans API.
-         *
-         * Expected:
-         * {
-         *   success: true,
-         *   plans: [...]
-         * }
-         *
-         * Also safely handles an array response.
-         */
-
-        let fetchedPlans = [];
-
-        if (Array.isArray(res)) {
-          fetchedPlans = res;
-        } else if (Array.isArray(res?.plans)) {
-          fetchedPlans = res.plans;
-        } else if (Array.isArray(res?.data)) {
-          fetchedPlans = res.data;
-        }
-
-        setPlans(fetchedPlans);
-      })
-      .catch((err) => {
-        console.warn(
-          "Could not fetch subscription plans:",
-          err?.message
-        );
-        setPlans([]);
-      })
-      .finally(() => {
-        setPlansLoading(false);
-      });
+    fetchPlans();
   }, [user]);
 
   if (!user || user.role === "superadmin") return null;
 
   const trialState = subData?.trialState;
-  const subscription = subData?.subscription || user?.subscription;
+  const subscription =
+    subData?.subscription || user?.subscription;
 
   const planName = subscription?.plan
-    ? subscription.plan.toUpperCase()
+    ? String(subscription.plan).toUpperCase()
     : "STARTER";
 
   const isExpired =
-    trialState?.isExpired || subscription?.status === "expired";
+    trialState?.isExpired ||
+    subscription?.status === "expired";
 
   const daysLeft = trialState?.daysLeft ?? 14;
 
@@ -124,22 +195,27 @@ export default function TrialBanner({ user, onNav }) {
     try {
       setLoadingPlan(plan.name);
 
-      const res = await subscriptionAPI.createOrder(plan.name);
+      const res = await subscriptionAPI.createOrder(
+        plan.name
+      );
 
       const razorpayKey =
         res.keyId ||
         import.meta.env.VITE_RAZORPAY_KEY_ID ||
         "rzp_test_TPCMQcPRZqe62i";
 
-      const executePaymentVerification = async (payload) => {
+      const executePaymentVerification = async (
+        payload
+      ) => {
         try {
           const verifyRes =
             await subscriptionAPI.verifyPayment(payload);
 
           /*
-           * Fetch fresh profile from backend and update localStorage
-           * before reloading so the new plan is reflected immediately.
-           */
+          |--------------------------------------------------------------------------
+          | Refresh user profile after successful payment
+          |--------------------------------------------------------------------------
+          */
 
           try {
             const { getProfile } = await import(
@@ -155,10 +231,6 @@ export default function TrialBanner({ user, onNav }) {
                 new Event("userUpdated")
               );
             } else if (verifyRes?.subscription) {
-              /*
-               * Fallback: patch subscription into cached user.
-               */
-
               const cached =
                 localStorage.getItem("smartbill_user");
 
@@ -207,12 +279,16 @@ export default function TrialBanner({ user, onNav }) {
       };
 
       /*
-       * Razorpay payment options
-       */
+      |--------------------------------------------------------------------------
+      | Razorpay options
+      |--------------------------------------------------------------------------
+      */
 
       const options = {
         key: razorpayKey,
+
         amount: res.amount,
+
         currency: res.currency || "INR",
 
         name: "SmartBill",
@@ -292,7 +368,7 @@ export default function TrialBanner({ user, onNav }) {
   return (
     <>
       {/* ------------------------------------------------------------------
-          Expired Trial Banner
+          Trial / Subscription Banner
           ------------------------------------------------------------------ */}
 
       {isExpired ? (
@@ -366,7 +442,7 @@ export default function TrialBanner({ user, onNav }) {
       {showUpgradeModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95">
-            {/* Close button */}
+            {/* Close */}
 
             <button
               onClick={() =>
@@ -407,40 +483,7 @@ export default function TrialBanner({ user, onNav }) {
                 </p>
 
                 <button
-                  onClick={() => {
-                    setPlansLoading(true);
-
-                    subscriptionAPI
-                      .getPublicPlans()
-                      .then((res) => {
-                        let fetchedPlans = [];
-
-                        if (Array.isArray(res)) {
-                          fetchedPlans = res;
-                        } else if (
-                          Array.isArray(res?.plans)
-                        ) {
-                          fetchedPlans = res.plans;
-                        } else if (
-                          Array.isArray(res?.data)
-                        ) {
-                          fetchedPlans = res.data;
-                        }
-
-                        setPlans(fetchedPlans);
-                      })
-                      .catch((err) => {
-                        console.warn(
-                          "Could not fetch subscription plans:",
-                          err?.message
-                        );
-
-                        setPlans([]);
-                      })
-                      .finally(() => {
-                        setPlansLoading(false);
-                      });
-                  }}
+                  onClick={fetchPlans}
                   className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold"
                 >
                   Try Again
@@ -448,90 +491,98 @@ export default function TrialBanner({ user, onNav }) {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.name}
-                    className={`border-2 rounded-xl p-5 flex flex-col justify-between relative bg-white ${
-                      plan.badge
-                        ? "border-blue-500 shadow-md shadow-blue-50"
-                        : "border-slate-200"
-                    }`}
-                  >
-                    {/* Popular badge */}
+                {plans.map((plan) => {
+                  const features = normalizeFeatures(
+                    plan.features
+                  );
 
-                    {plan.badge && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-full">
-                        {plan.badge}
-                      </div>
-                    )}
-
-                    <div>
-                      {/* Plan name */}
-
-                      <h3 className="font-bold text-slate-900 text-lg">
-                        {plan.name}
-                      </h3>
-
-                      {/* Price */}
-
-                      <div className="flex items-baseline gap-1 my-3">
-                        <span className="text-2xl font-extrabold text-slate-900">
-                          ₹
-                          {Number(
-                            plan.price || 0
-                          ).toLocaleString("en-IN")}
-                        </span>
-
-                        <span className="text-slate-500 text-xs">
-                          {plan.period || "/month"}
-                        </span>
-                      </div>
-
-                      {/* Features */}
-
-                      <ul className="space-y-2 mb-6">
-                        {(plan.features || []).map(
-                          (feature, index) => (
-                            <li
-                              key={`${plan.name}-${index}`}
-                              className="flex items-center gap-2 text-xs text-slate-600"
-                            >
-                              <span className="text-emerald-500 font-bold">
-                                ✓
-                              </span>
-
-                              <span>{feature}</span>
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-
-                    {/* Upgrade button */}
-
-                    <button
-                      onClick={() =>
-                        handleBuyPlan(plan)
-                      }
-                      disabled={
-                        loadingPlan === plan.name
-                      }
-                      className={`w-full py-2 px-4 rounded-lg font-bold text-xs shadow transition-all cursor-pointer ${
+                  return (
+                    <div
+                      key={plan.name}
+                      className={`border-2 rounded-xl p-5 flex flex-col justify-between relative bg-white ${
                         plan.badge
-                          ? "bg-blue-600 hover:bg-blue-700 text-white"
-                          : "bg-slate-900 hover:bg-slate-800 text-white"
-                      } ${
-                        loadingPlan === plan.name
-                          ? "opacity-70 cursor-not-allowed"
-                          : ""
+                          ? "border-blue-500 shadow-md shadow-blue-50"
+                          : "border-slate-200"
                       }`}
                     >
-                      {loadingPlan === plan.name
-                        ? "Processing..."
-                        : `Upgrade to ${plan.name}`}
-                    </button>
-                  </div>
-                ))}
+                      {/* Popular badge */}
+
+                      {plan.badge && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-full">
+                          {plan.badge}
+                        </div>
+                      )}
+
+                      <div>
+                        {/* Plan name */}
+
+                        <h3 className="font-bold text-slate-900 text-lg">
+                          {plan.name}
+                        </h3>
+
+                        {/* Price */}
+
+                        <div className="flex items-baseline gap-1 my-3">
+                          <span className="text-2xl font-extrabold text-slate-900">
+                            ₹
+                            {Number(
+                              plan.price || 0
+                            ).toLocaleString("en-IN")}
+                          </span>
+
+                          <span className="text-slate-500 text-xs">
+                            {plan.period || "/month"}
+                          </span>
+                        </div>
+
+                        {/* Features */}
+
+                        <ul className="space-y-2 mb-6">
+                          {features.map(
+                            (feature, index) => (
+                              <li
+                                key={`${plan.name}-${index}`}
+                                className="flex items-center gap-2 text-xs text-slate-600"
+                              >
+                                <span className="text-emerald-500 font-bold">
+                                  ✓
+                                </span>
+
+                                <span>
+                                  {String(feature)}
+                                </span>
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      </div>
+
+                      {/* Upgrade button */}
+
+                      <button
+                        onClick={() =>
+                          handleBuyPlan(plan)
+                        }
+                        disabled={
+                          loadingPlan === plan.name
+                        }
+                        className={`w-full py-2 px-4 rounded-lg font-bold text-xs shadow transition-all cursor-pointer ${
+                          plan.badge
+                            ? "bg-blue-600 hover:bg-blue-700 text-white"
+                            : "bg-slate-900 hover:bg-slate-800 text-white"
+                        } ${
+                          loadingPlan === plan.name
+                            ? "opacity-70 cursor-not-allowed"
+                            : ""
+                        }`}
+                      >
+                        {loadingPlan === plan.name
+                          ? "Processing..."
+                          : `Upgrade to ${plan.name}`}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
