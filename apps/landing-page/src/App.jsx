@@ -1,4 +1,4 @@
-import { CustomizationProvider } from "@shared/context/CustomizationContext";
+import { CustomizationProvider } from "@shared/context/CustomizationContext.jsx";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import {

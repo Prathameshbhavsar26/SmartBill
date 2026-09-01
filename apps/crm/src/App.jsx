@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
-import AuthScreen from "@shared/components/AuthScreen";
+import AuthScreen from "@shared/components/AuthScreen.jsx";
 import AppShell from "./AppShell";
-import { CustomizationProvider, applyDOMCustomization } from "@shared/context/CustomizationContext";
-import { NotificationProvider } from "@shared/context/NotificationContext";
-import { useCustomization } from "@shared/hooks/useCustomization";
-import { setUserToStorage } from "@shared/utils/userUtils";
-import { AccountingProvider } from "@shared/context/AccountingContext";
+import { CustomizationProvider, applyDOMCustomization } from "@shared/context/CustomizationContext.jsx";
+import { NotificationProvider } from "@shared/context/NotificationContext.jsx";
+import { useCustomization } from "@shared/hooks/useCustomization.js";
+import { setUserToStorage } from "@shared/utils/userUtils.js";
+import { AccountingProvider } from "@shared/context/AccountingContext.jsx";
 
 const APP_PAGES = [
   "dashboard",
@@ -80,7 +80,7 @@ function AppRoutes() {
     };
     const token = localStorage.getItem("smartbill_token");
     if (token) {
-      import("@shared/api/authAPI").then(({ getProfile }) => {
+      import("@shared/api/authAPI.js").then(({ getProfile }) => {
         getProfile().then((res) => {
           if (res?.user) {
             setUser(res.user);
