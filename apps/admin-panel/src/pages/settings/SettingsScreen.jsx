@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useCustomization } from "@shared/hooks/useCustomization";
 import { updateProfile, getProfile } from "@shared/api/authAPI";
 import subscriptionAPI from "@shared/api/subscriptionAPI";
-import UpgradeModal from "./components/subscription/UpgradeModal";
+import UpgradeModal from "@shared/components/subscription/UpgradeModal";
 import {
   Building2,
   Percent,

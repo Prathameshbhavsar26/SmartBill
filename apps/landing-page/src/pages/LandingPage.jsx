@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import Footer from "../../components/common/Footer";
-import PublicNavbar from "../../components/common/PublicNavbar";
+import Footer from "@shared/components/common/Footer";
+import PublicNavbar from "@shared/components/common/PublicNavbar";
 
-import subscriptionAPI from "../../api/subscriptionAPI";
+import subscriptionAPI from "@shared/api/subscriptionAPI";
 
 import {
   ArrowRight,
@@ -12,8 +12,8 @@ import {
   Star,
 } from "lucide-react";
 
-import { FEATURES, TESTIMONIALS } from "../../constants/landing";
-import { Btn, Card } from "../../components/common/ui";
+import { FEATURES, TESTIMONIALS } from "@shared/constants/landing";
+import { Btn, Card } from "@shared/components/common/ui";
 
 /*
 |--------------------------------------------------------------------------
