@@ -26,13 +26,13 @@ export default function PublicNavbar({ onNav }) {
         </Link>
         <div className="hidden md:flex items-center gap-6 flex-1">
           {["Features", "Pricing", "Contact"].map((l) => (
-            <Link
+            <a
               key={l}
-              to={`/${l.toLowerCase()}`}
+              href={`/#${l.toLowerCase()}`}
               className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-medium"
             >
               {l}
-            </Link>
+            </a>
           ))}
         </div>
         <div className="hidden md:flex items-center gap-3 flex-shrink-0">
@@ -57,13 +57,14 @@ export default function PublicNavbar({ onNav }) {
       {mobileMenu && (
         <div className="md:hidden border-t border-slate-100 px-6 py-4 space-y-3 bg-white">
           {["Features", "Pricing", "Contact"].map((l) => (
-            <Link
+            <a
               key={l}
-              to={`/${l.toLowerCase()}`}
+              href={`/#${l.toLowerCase()}`}
               className="block text-sm text-slate-700 py-1.5"
+              onClick={() => setMobileMenu(false)}
             >
               {l}
-            </Link>
+            </a>
           ))}
           <div className="flex gap-3 pt-2">
             <Btn
