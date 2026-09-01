@@ -1069,7 +1069,7 @@ export default function LandingPage({ onNav }) {
 
           <p className="text-blue-100 mb-8">
             Join 50,000+ businesses already using
-            BillTrack Pro.
+            Smart bill.
           </p>
 
           <div className="flex flex-wrap gap-4 justify-center">
