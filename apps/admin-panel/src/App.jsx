@@ -2,11 +2,11 @@ import { useState, useCallback, useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import AdminLogin from "./pages/AdminLogin";
 import AppShell from "./AppShell";
-import { CustomizationProvider, applyDOMCustomization } from "@shared/context/CustomizationContext";
-import { NotificationProvider } from "@shared/context/NotificationContext";
-import { useCustomization } from "@shared/hooks/useCustomization";
-import { setUserToStorage } from "@shared/utils/userUtils";
-import { AccountingProvider } from "@shared/context/AccountingContext";
+import { CustomizationProvider, applyDOMCustomization } from "@shared/context/CustomizationContext.jsx";
+import { NotificationProvider } from "@shared/context/NotificationContext.jsx";
+import { useCustomization } from "@shared/hooks/useCustomization.js";
+import { setUserToStorage } from "@shared/utils/userUtils.js";
+import { AccountingProvider } from "@shared/context/AccountingContext.jsx";
 
 function ThemeRouteManager() {
   const location = useLocation();
@@ -39,7 +39,7 @@ function AppRoutes() {
   useEffect(() => {
     const token = localStorage.getItem("smartbill_token");
     if (token) {
-      import("@shared/api/authAPI").then(({ getProfile }) => {
+      import("@shared/api/authAPI.js").then(({ getProfile }) => {
         getProfile().then((res) => {
           if (res?.user) {
             setUser(res.user);
