@@ -49,18 +49,30 @@ const generatePlanKey = async (name, excludeId = null) => {
 };
 
 
+const isInternalAdmin = (user) => {
+  if (!user) return false;
+  const roleStr = String(user?.role || "").toLowerCase().replace(/[-_\s]/g, "");
+  return (
+    roleStr === "superadmin" ||
+    roleStr.includes("admin") ||
+    roleStr === "support" ||
+    roleStr === "billing" ||
+    (!user?.ownerId && roleStr !== "owner")
+  );
+};
+
 /*
 |--------------------------------------------------------------------------
 | GET /api/admin/subscription-plans
-| SuperAdmin only
+| Admin access
 |--------------------------------------------------------------------------
 */
 
 export const getSubscriptionPlans = async (req, res) => {
   try {
-    if (req.user?.role !== "superadmin") {
+    if (!isInternalAdmin(req.user)) {
       return res.status(403).json({
-        message: "Forbidden: SuperAdmin access required.",
+        message: "Forbidden: Admin access required.",
       });
     }
 
@@ -143,7 +155,7 @@ export const createSubscriptionPlan = async (
   res
 ) => {
   try {
-    if (req.user?.role !== "superadmin") {
+    if (!isInternalAdmin(req.user)) {
       return res.status(403).json({
         message: "Forbidden: SuperAdmin access required.",
       });
@@ -260,7 +272,7 @@ export const updateSubscriptionPlan = async (
   res
 ) => {
   try {
-    if (req.user?.role !== "superadmin") {
+    if (!isInternalAdmin(req.user)) {
       return res.status(403).json({
         message: "Forbidden: SuperAdmin access required.",
       });
@@ -423,7 +435,7 @@ export const deleteSubscriptionPlan = async (
   res
 ) => {
   try {
-    if (req.user?.role !== "superadmin") {
+    if (!isInternalAdmin(req.user)) {
       return res.status(403).json({
         message:
           "Forbidden: SuperAdmin access required.",

@@ -51,8 +51,14 @@ function AppRoutes() {
     }
   }, []);
 
+  const isAdminRole = (r) => {
+    if (!r) return false;
+    const norm = String(r).toLowerCase().replace(/[-_\s]/g, "");
+    return norm.includes("admin") || norm === "superadmin" || norm === "support" || norm === "billing";
+  };
+
   const handleLogin = (r, u) => {
-    if (r !== "superadmin") {
+    if (!isAdminRole(r)) {
        window.location.href = "http://localhost:5174/login";
        return;
     }
@@ -82,7 +88,7 @@ function AppRoutes() {
     else navigate(`/app/${p}`);
   }, [navigate]);
 
-  if (role !== "superadmin" && location.pathname.startsWith("/app")) {
+  if (!isAdminRole(role) && location.pathname.startsWith("/app")) {
      window.location.href = "http://localhost:5174/app";
      return null;
   }
