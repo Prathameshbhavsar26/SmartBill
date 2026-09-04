@@ -1,5 +1,15 @@
 import SubscriptionPlan from "../models/SubscriptionPlan.js";
 
+const LIMIT_FIELDS = ["maxUsers", "maxInvoicesPerMonth", "maxCustomers", "maxProducts"];
+
+const parseLimit = (value, field) => {
+  if (value === null || value === "unlimited") return null;
+  if (value === undefined || value === "" || !Number.isInteger(Number(value)) || Number(value) < 0) {
+    throw new Error(`${field} must be a non-negative integer or Unlimited.`);
+  }
+  return Number(value);
+};
+
 /*
 |--------------------------------------------------------------------------
 | Helper: Generate unique plan key
@@ -96,7 +106,7 @@ export const getPublicSubscriptionPlans = async (
       status: "active",
     })
       .select(
-        "key name price billingCycle features status"
+        "key name price billingCycle maxUsers maxInvoicesPerMonth maxCustomers maxProducts features status"
       )
       .sort({ price: 1 })
       .lean();
@@ -143,6 +153,10 @@ export const createSubscriptionPlan = async (
       name,
       price,
       billingCycle,
+      maxUsers,
+      maxInvoicesPerMonth,
+      maxCustomers,
+      maxProducts,
       features,
       status,
     } = req.body;
@@ -166,6 +180,15 @@ export const createSubscriptionPlan = async (
 
     const normalizedName = String(name).trim();
 
+    let parsedLimits;
+    try {
+      parsedLimits = Object.fromEntries(
+        LIMIT_FIELDS.map((field) => [field, parseLimit(req.body[field], field)])
+      );
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
     const key = await generatePlanKey(normalizedName);
 
     const plan = await SubscriptionPlan.create({
@@ -176,33 +199,29 @@ export const createSubscriptionPlan = async (
       billingCycle:
         billingCycle || "monthly",
 
+      ...parsedLimits,
+
       features: {
         basicReports:
           Boolean(features?.basicReports),
 
-        emailSupport:
-          Boolean(features?.emailSupport),
-
         advancedReports:
           Boolean(features?.advancedReports),
 
-        gstFiling:
-          Boolean(features?.gstFiling),
-
-        prioritySupport:
-          Boolean(features?.prioritySupport),
+        gstReports: Boolean(features?.gstReports),
 
         barcodeScanner:
           Boolean(features?.barcodeScanner),
 
+        expenses: Boolean(features?.expenses),
+        purchaseManagement: Boolean(features?.purchaseManagement),
+        inventory: Boolean(features?.inventory),
+        advancedInventory: Boolean(features?.advancedInventory),
+        dataExport: Boolean(features?.dataExport),
+
         apiAccess:
           Boolean(features?.apiAccess),
 
-        customIntegrations:
-          Boolean(features?.customIntegrations),
-
-        dedicatedManager:
-          Boolean(features?.dedicatedManager),
       },
 
       status: status || "active",
@@ -263,6 +282,10 @@ export const updateSubscriptionPlan = async (
       name,
       price,
       billingCycle,
+      maxUsers,
+      maxInvoicesPerMonth,
+      maxCustomers,
+      maxProducts,
       features,
       status,
     } = req.body;
@@ -317,34 +340,38 @@ export const updateSubscriptionPlan = async (
       plan.billingCycle = billingCycle;
     }
 
+    for (const [field, value] of Object.entries({ maxUsers, maxInvoicesPerMonth, maxCustomers, maxProducts })) {
+      if (value !== undefined) {
+        try {
+          plan[field] = parseLimit(value, field);
+        } catch (error) {
+          return res.status(400).json({ message: error.message });
+        }
+      }
+    }
+
     if (features !== undefined) {
       plan.features = {
         basicReports:
           Boolean(features.basicReports),
 
-        emailSupport:
-          Boolean(features.emailSupport),
-
         advancedReports:
           Boolean(features.advancedReports),
 
-        gstFiling:
-          Boolean(features.gstFiling),
-
-        prioritySupport:
-          Boolean(features.prioritySupport),
+        gstReports: Boolean(features.gstReports),
 
         barcodeScanner:
           Boolean(features.barcodeScanner),
 
+        expenses: Boolean(features.expenses),
+        purchaseManagement: Boolean(features.purchaseManagement),
+        inventory: Boolean(features.inventory),
+        advancedInventory: Boolean(features.advancedInventory),
+        dataExport: Boolean(features.dataExport),
+
         apiAccess:
           Boolean(features.apiAccess),
 
-        customIntegrations:
-          Boolean(features.customIntegrations),
-
-        dedicatedManager:
-          Boolean(features.dedicatedManager),
       };
     }
 
