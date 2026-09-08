@@ -51,14 +51,14 @@ const generateInvoiceNo = async (ownerId) => {
     yearStr = ""; 
   }
 
-  const count = await Order.countDocuments({ ownerId });
-  let candidate = count + startingNumber;
+  const totalCount = await Order.countDocuments();
+  const ownerCount = await Order.countDocuments({ ownerId });
+  let candidate = Math.max(totalCount + 1, ownerCount + startingNumber);
   let invoiceNo = `${prefix}${yearStr}-${String(candidate).padStart(4, "0")}`;
 
-  // Guard against rapid/duplicate creation races on the unique index.
-  for (let attempt = 0; attempt < 20; attempt++) {
-    // Check if exists for this owner
-    const existing = await Order.exists({ invoiceNo, ownerId });
+  // Guard against collision with ANY existing invoice across the database
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const existing = await Order.exists({ invoiceNo });
     if (!existing) return invoiceNo;
     candidate += 1;
     invoiceNo = `${prefix}${yearStr}-${String(candidate).padStart(4, "0")}`;

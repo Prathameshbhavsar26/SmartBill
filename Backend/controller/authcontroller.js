@@ -5,7 +5,7 @@ import User from "../models/User.js";
 import Verification from "../models/verifiy.js";
 import SystemSettings from "../models/SystemSettings.js";
 import { notifySuperAdmins } from "../services/notificationService.js";
-import { sendWelcomeEmail, sendPasswordResetEmail } from "../utils/emailService.js";
+import { sendWelcomeEmail, sendPasswordResetEmail, sendVerificationOtpEmail } from "../utils/emailService.js";
 
 // ======================================================
 // HELPER: BUILD AUTH RESPONSE
@@ -371,8 +371,12 @@ export const login = async (req, res) => {
       }
 
       if (userStatus === "Suspended" || ownerStatus === "Suspended") {
-        const reason = user.suspensionReason || ownerUser?.suspensionReason;
+        const reason = user.suspensionReason || ownerUser?.suspensionReason || "";
         return res.status(403).json({
+          code: "ACCOUNT_SUSPENDED",
+          status: "Suspended",
+          isSuspended: true,
+          suspensionReason: reason,
           message: reason
             ? `Your account has been suspended by administration. Reason: ${reason}`
             : "Your account has been suspended by administration. Please contact support.",
@@ -661,7 +665,7 @@ const generateOtp = () =>
 
 export const sendOtp = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, email } = req.body;
 
     const normalizedPhone = normalizePhone(phone);
 
@@ -686,12 +690,9 @@ export const sendOtp = async (req, res) => {
     }
 
     const otp = generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    const expiresAt = new Date(
-      Date.now() + 5 * 60 * 1000
-    );
-
-    await Verification.findOneAndDelete({
+    await Verification.deleteMany({
       phone: normalizedPhone,
     });
 
@@ -701,11 +702,25 @@ export const sendOtp = async (req, res) => {
       expiresAt,
     });
 
-    // Development only
-    console.log(`[OTP] For ${normalizedPhone}: ${otp}`);
+    console.log(`[REGISTRATION OTP] Generated OTP ${otp} for phone ${normalizedPhone}${email ? ` and email ${email}` : ""}`);
+
+    // If email is provided, send OTP to email as well
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
+      try {
+        await sendVerificationOtpEmail({
+          toEmail: String(email).trim().toLowerCase(),
+          otp,
+          phone: normalizedPhone,
+        });
+      } catch (mailErr) {
+        console.warn("[REGISTRATION OTP] Email dispatch warning:", mailErr.message);
+      }
+    }
 
     return res.status(200).json({
+      success: true,
       message: "OTP sent successfully.",
+      otp,
     });
   } catch (error) {
     console.error("SEND OTP ERROR:", error);
@@ -1183,8 +1198,12 @@ export const verifyLoginOtp = async (req, res) => {
 
     if (user.role !== "superadmin") {
       if (userStatus === "Suspended" || ownerStatus === "Suspended") {
-        const reason = user.suspensionReason || ownerUser?.suspensionReason;
+        const reason = user.suspensionReason || ownerUser?.suspensionReason || "";
         return res.status(403).json({
+          code: "ACCOUNT_SUSPENDED",
+          status: "Suspended",
+          isSuspended: true,
+          suspensionReason: reason,
           message: reason
             ? `Your account has been suspended by administration. Reason: ${reason}`
             : "Your account has been suspended by administration. Please contact support.",
