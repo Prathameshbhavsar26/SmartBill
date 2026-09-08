@@ -310,32 +310,59 @@ export const login = async (req, res) => {
   try {
     const { email, phone, password } = req.body;
 
-    const rawIdentifier = (email && String(email).trim()) ? email : phone;
-    const identifier = detectIdentifier(rawIdentifier);
+    const rawIdentifier = (email && String(email).trim()) ? String(email).trim() : (phone && String(phone).trim() ? String(phone).trim() : "");
 
-    if (identifier.type === "none" || !password) {
+    if (!rawIdentifier || !password) {
       return res.status(400).json({
-        message:
-          "A valid email or mobile number and password are required.",
+        message: "A valid email or mobile number and password are required.",
       });
     }
 
     const systemSettings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
-    const maxAttempts = systemSettings?.maxLoginAttempts || 5;
 
+    // Resilient Lookup: Search both by case-insensitive Email AND normalized Phone number
     let candidates = [];
-    if (identifier.type === "email") {
-      const candidate = await User.findOne({ email: identifier.value });
-      if (candidate) candidates.push(candidate);
-    } else {
-      candidates = await User.find({ phone: identifier.value });
+
+    // 1. Case-insensitive email search
+    const cleanEmail = rawIdentifier.toLowerCase();
+    const emailCandidate = await User.findOne({
+      email: { $regex: `^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" }
+    });
+    if (emailCandidate) {
+      candidates.push(emailCandidate);
+    }
+
+    // 2. 10-digit normalized phone search
+    const digits = rawIdentifier.replace(/\D/g, "");
+    const normalizedPhone = digits.length >= 10 ? digits.slice(-10) : digits;
+    if (normalizedPhone && normalizedPhone.length === 10) {
+      const phoneCandidates = await User.find({
+        $or: [
+          { phone: normalizedPhone },
+          { phone: `+91${normalizedPhone}` },
+          { phone: `+91 ${normalizedPhone}` }
+        ]
+      });
+      for (const pc of phoneCandidates) {
+        if (!candidates.some((c) => c._id.toString() === pc._id.toString())) {
+          candidates.push(pc);
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
+      return res.status(400).json({
+        message: "No account found with this email or mobile number. Please check your credentials or register.",
+      });
     }
 
     let user = null;
+    let passwordMatched = false;
 
     for (const candidate of candidates) {
       const match = await bcrypt.compare(password, candidate.password);
       if (match) {
+        passwordMatched = true;
         user = candidate;
         if (user.failedLoginAttempts > 0 || user.lockoutUntil) {
           user.failedLoginAttempts = 0;
@@ -347,11 +374,8 @@ export const login = async (req, res) => {
     }
 
     if (!user) {
-      const label =
-        identifier.type === "email" ? "email" : "mobile number";
-
       return res.status(400).json({
-        message: `Invalid ${label} or password.`,
+        message: "Incorrect password. Please try again or click 'Forgot Password?' to reset.",
       });
     }
 
