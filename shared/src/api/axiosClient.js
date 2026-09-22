@@ -1,13 +1,27 @@
 import axios from "axios";
 
-// Base URL resolution order:
-// 1. VITE_API_BASE_URL or VITE_API_URL (if configured in .env) e.g. http://localhost:5000/api
-// 2. Fall back to same-origin proxy /api
-const rawBaseUrl =
-  (typeof import.meta !== "undefined" && import.meta.env
-    ? import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL
-    : "") || "/api";
-const BASE_URL = rawBaseUrl.replace(/\/+$/, "");
+// Robust Base URL resolution:
+// Automatically normalizes full URLs, strips quotes/trailing slashes, and appends /api if missing
+export const resolveApiBaseUrl = () => {
+  let raw = "";
+  if (typeof import.meta !== "undefined" && import.meta.env) {
+    raw = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "";
+  }
+
+  let base = String(raw || "").trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+
+  if (!base) {
+    return "/api";
+  }
+
+  if ((base.startsWith("http://") || base.startsWith("https://")) && !base.endsWith("/api")) {
+    base = `${base}/api`;
+  }
+
+  return base;
+};
+
+const BASE_URL = resolveApiBaseUrl();
 
 const axiosClient = axios.create({
   baseURL: BASE_URL,
@@ -148,9 +162,10 @@ axiosClient.interceptors.response.use(
       } else {
         const isLocal = typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
         if (isLocal) {
-          message = "Cannot reach the local backend server at http://localhost:5000. Please ensure the backend server is running.";
+          message = "Cannot reach local backend at http://localhost:5000. Please ensure npm run dev / backend server is running.";
         } else {
-          message = "Cannot connect to the backend server. Please verify that your Backend (Render) is running and VITE_API_URL is configured in Vercel Environment Variables.";
+          const targetUrl = axiosClient.defaults.baseURL || "/api";
+          message = `Cannot connect to backend (${targetUrl}). If your Render server was sleeping, please wait 45s and retry, or check if Render service is Live.`;
         }
       }
     }
