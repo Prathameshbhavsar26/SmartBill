@@ -1,0 +1,6 @@
+# Netlify Global Configuration for SmartBill
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

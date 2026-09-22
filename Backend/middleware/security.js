@@ -72,30 +72,40 @@ export const configuredCors = () => {
   const isProduction = process.env.NODE_ENV === "production";
 
   // Production whitelist from environment variable, with fallback defaults
-  const allowedOrigins = process.env.ALLOWED_ORIGINS
+  const rawOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
     : [
+        "*",
         "https://smartbill.com",
         "https://www.smartbill.com",
         "https://app.smartbill.com",
         "https://admin.smartbill.com",
       ];
 
+  const allowAll = rawOrigins.includes("*") || !isProduction;
+
   return cors({
     origin: (origin, callback) => {
-      // In development, accept all local origins (localhost, 127.0.0.1, any port)
-      if (!isProduction) {
-        return callback(null, true);
+      // In development or when wildcard * is configured, accept origin
+      if (allowAll || !origin) {
+        return callback(null, origin || true);
       }
 
-      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server webhooks)
-      if (!origin) {
-        return callback(null, true);
+      // Check if origin exactly matches production whitelist
+      if (rawOrigins.includes(origin)) {
+        return callback(null, origin);
       }
 
-      // Check if origin matches production whitelist
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
+      // Allow preview / deployment domains on common hosting providers
+      if (
+        origin.endsWith(".vercel.app") ||
+        origin.endsWith(".onrender.com") ||
+        origin.endsWith(".netlify.app") ||
+        origin.endsWith(".railway.app") ||
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1")
+      ) {
+        return callback(null, origin);
       }
 
       return callback(new Error(`CORS policy violation: Origin ${origin} not allowed.`));
