@@ -144,11 +144,14 @@ axiosClient.interceptors.response.use(
       }
     } else if (error.request) {
       if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
-        message = "Server request timed out. Please try again.";
+        message = "Server request timed out. Please check if your backend is active and try again.";
       } else {
-        const hostName = typeof window !== "undefined" && window.location && window.location.hostname ? window.location.hostname : "localhost";
-        message =
-          `Cannot reach the backend server at ${hostName}:5000. Please ensure the backend server is running and accessible.`;
+        const isLocal = typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+        if (isLocal) {
+          message = "Cannot reach the local backend server at http://localhost:5000. Please ensure the backend server is running.";
+        } else {
+          message = "Cannot connect to the backend server. Please verify that your Backend (Render) is running and VITE_API_URL is configured in Vercel Environment Variables.";
+        }
       }
     }
 

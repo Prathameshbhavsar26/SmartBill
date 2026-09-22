@@ -45,7 +45,7 @@ export const clearAllNotifications = async () => {
  */
 export const getNotificationStreamUrl = () => {
   const token = localStorage.getItem("smartbill_token") || "";
-  const rawBase = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/+$/, "");
+  const rawBase = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/+$/, "");
   const url = `${rawBase}/notifications/stream?token=${encodeURIComponent(token)}`;
   return url;
 };
