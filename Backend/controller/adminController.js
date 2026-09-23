@@ -8,10 +8,31 @@ import VendorSettings from "../models/VendorSettings.js";
 import { createNotification, notifySuperAdmins, broadcastToOwner } from "../services/notificationService.js";
 import { sendSystemEmail } from "../utils/emailService.js";
 
+const INTERNAL_ADMIN_ROLES = ["superadmin", "admin", "support", "billing", "super_admin", "support_admin", "billing_admin"];
+
 const isInternalAdmin = (user) => {
   if (!user) return false;
   const roleStr = String(user?.role || "").toLowerCase().trim();
-  return ["superadmin", "admin", "support", "billing", "super_admin"].includes(roleStr);
+  return INTERNAL_ADMIN_ROLES.includes(roleStr);
+};
+
+export const getBusinessOwnerQuery = (additionalFilters = {}) => {
+  const query = {
+    $and: [
+      { role: { $nin: INTERNAL_ADMIN_ROLES } },
+      {
+        $or: [
+          { role: "owner" },
+          { ownerId: null },
+          { ownerId: { $exists: false } },
+        ],
+      },
+    ],
+  };
+  if (additionalFilters && Object.keys(additionalFilters).length > 0) {
+    query.$and.push(additionalFilters);
+  }
+  return query;
 };
 
 let businessesCache = null;
@@ -48,19 +69,7 @@ export const getAllBusinesses = async (req, res) => {
     }
 
     // Run all 3 DB queries in parallel for maximum speed
-    const internalAdminRoles = ["superadmin", "admin", "support", "billing", "super_admin", "support_admin", "billing_admin"];
-    const ownerQuery = {
-      $and: [
-        { role: { $nin: internalAdminRoles } },
-        {
-          $or: [
-            { role: "owner" },
-            { ownerId: null },
-            { ownerId: { $exists: false } },
-          ],
-        },
-      ],
-    };
+    const ownerQuery = getBusinessOwnerQuery();
 
     const [owners, orderStatsByOwner, employeeCounts] = await Promise.all([
       User.find(ownerQuery)
@@ -455,15 +464,8 @@ export const getAdminRevenueAnalytics = async (req, res) => {
     const { timeframe = "6M", businessId } = req.query;
 
     // 1. Fetch all business owners
-    const ownerQuery = {
-      $or: [
-        { role: "owner" },
-        { ownerId: null, role: { $ne: "superadmin" } },
-      ],
-    };
-    if (businessId && businessId !== "all" && businessId !== "undefined") {
-      ownerQuery._id = businessId;
-    }
+    const filter = (businessId && businessId !== "all" && businessId !== "undefined") ? { _id: businessId } : {};
+    const ownerQuery = getBusinessOwnerQuery(filter);
 
     const owners = await User.find(ownerQuery)
       .select("firstName lastName businessName businessType email phone city status subscription createdAt")
@@ -853,12 +855,8 @@ export const getSuperAdminDashboardStats = async (req, res) => {
 
     const { range = "6M" } = req.query;
 
-    const owners = await User.find({
-      $or: [
-        { role: "owner" },
-        { ownerId: null, role: { $ne: "superadmin" } },
-      ],
-    }).select("subscription createdAt").lean();
+    const ownerQuery = getBusinessOwnerQuery();
+    const owners = await User.find(ownerQuery).select("subscription createdAt").lean();
 
     const totalUsers = await User.countDocuments();
     const totalBusinesses = owners.length;
