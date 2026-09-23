@@ -177,17 +177,12 @@ axiosClient.interceptors.response.use(
       if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
         message = "Server request timed out. Please check if your backend is active and try again.";
       } else {
-<<<<<<< HEAD
         const isLocal = typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
         if (isLocal) {
           message = "Cannot reach local backend at http://localhost:5000. Please ensure npm run dev / backend server is running.";
         } else {
-          const targetUrl = axiosClient.defaults.baseURL || "/api";
-          message = `Cannot connect to backend (${targetUrl}). If your Render server was sleeping, please wait 45s and retry, or check if Render service is Live.`;
+          message = "Unable to reach the SmartBill server. Please check your network connection or try again.";
         }
-=======
-        message = "Unable to reach the SmartBill server. Please check your internet connection or try again.";
->>>>>>> c506a4ca (feat: unify invoice template across POS and customer ledger, fix currency formatting, and optimize Vercel serverless deployment)
       }
     }
 
