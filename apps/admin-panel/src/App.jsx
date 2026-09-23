@@ -29,13 +29,22 @@ function AppRoutes() {
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   });
-  const [role, setRole] = useState(() => user?.role || "owner");
+  const [role, setRole] = useState(() => user?.role || "");
   const [page, setPage] = useState("super-dashboard");
+
+  const isAdminRole = (r) => {
+    if (!r) return false;
+    const norm = String(r).toLowerCase().replace(/[-_\s]/g, "");
+    return norm.includes("admin") || norm === "superadmin" || norm === "support" || norm === "billing";
+  };
 
   useEffect(() => {
     const segments = location.pathname.split("/").filter(Boolean);
     const routePage = segments[0] === "admin" || segments[0] === "app" ? segments[1] : segments[0];
-    if (location.pathname === "/app" || location.pathname === "/admin") { setPage("super-dashboard"); return; }
+    if (location.pathname === "/app" || location.pathname === "/admin") {
+      setPage("super-dashboard");
+      return;
+    }
     if (routePage && routePage !== "login") setPage(routePage);
   }, [location.pathname]);
 
@@ -60,6 +69,21 @@ function AppRoutes() {
   }, []);
 
   useEffect(() => {
+    const syncUser = () => {
+      try {
+        const token = localStorage.getItem("smartbill_token");
+        const raw = localStorage.getItem("smartbill_user");
+        if (!token || !raw) {
+          setUser(null);
+          setRole("");
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        setUser(parsed);
+        if (parsed.role) setRole(parsed.role);
+      } catch {}
+    };
+
     const token = localStorage.getItem("smartbill_token");
     if (token) {
       import("@shared/api/authAPI.js").then(({ getProfile }) => {
@@ -72,18 +96,19 @@ function AppRoutes() {
         }).catch(() => {});
       });
     }
-  }, []);
 
-  const isAdminRole = (r) => {
-    if (!r) return false;
-    const norm = String(r).toLowerCase().replace(/[-_\s]/g, "");
-    return norm.includes("admin") || norm === "superadmin" || norm === "support" || norm === "billing";
-  };
+    window.addEventListener("userUpdated", syncUser);
+    window.addEventListener("storage", syncUser);
+    return () => {
+      window.removeEventListener("userUpdated", syncUser);
+      window.removeEventListener("storage", syncUser);
+    };
+  }, []);
 
   const handleLogin = (r, u) => {
     if (!isAdminRole(r)) {
-       window.location.href = getCrmUrl("/login");
-       return;
+      window.location.href = getCrmUrl("/app");
+      return;
     }
     setRole(r);
     if (u) setUser(u);
@@ -95,9 +120,10 @@ function AppRoutes() {
     localStorage.removeItem("smartbill_token");
     localStorage.removeItem("smartbill_user");
     setUser(null);
+    setRole("");
     setPage("super-dashboard");
     applyDOMCustomization(null, false);
-    navigate("/login");
+    navigate("/admin/login");
   };
 
   const navAuth = useCallback((v) => {
@@ -111,23 +137,62 @@ function AppRoutes() {
     else navigate(`/admin/${p}`);
   }, [navigate]);
 
-  if (!isAdminRole(role) && (location.pathname.startsWith("/app") || location.pathname.startsWith("/admin"))) {
-     window.location.href = getCrmUrl("/app");
-     return null;
+  // If a logged-in non-admin visits /admin, redirect to CRM
+  if (user && !isAdminRole(role) && (location.pathname.startsWith("/app") || location.pathname.startsWith("/admin"))) {
+    window.location.href = getCrmUrl("/app");
+    return null;
   }
+
+  const isAuthenticatedAdmin = Boolean(user && isAdminRole(role));
 
   return (
     <NotificationProvider onNav={navApp}>
       <ThemeRouteManager />
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to="/admin/login" replace />} />
         <Route path="/login" element={<AdminLogin onLogin={handleLogin} />} />
         <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
-        <Route path="/admin" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
-        <Route path="/admin/:pageKey" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
-        <Route path="/app" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
-        <Route path="/app/:pageKey" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/admin"
+          element={
+            isAuthenticatedAdmin ? (
+              <AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />
+            ) : (
+              <Navigate to="/admin/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/:pageKey"
+          element={
+            isAuthenticatedAdmin ? (
+              <AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />
+            ) : (
+              <Navigate to="/admin/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/app"
+          element={
+            isAuthenticatedAdmin ? (
+              <AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />
+            ) : (
+              <Navigate to="/admin/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/app/:pageKey"
+          element={
+            isAuthenticatedAdmin ? (
+              <AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />
+            ) : (
+              <Navigate to="/admin/login" replace />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to="/admin/login" replace />} />
       </Routes>
     </NotificationProvider>
   );
