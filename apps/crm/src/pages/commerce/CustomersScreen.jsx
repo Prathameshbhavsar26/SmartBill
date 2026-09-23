@@ -543,7 +543,7 @@ export default function CustomersScreen() {
               <div>
                 <p className="text-xs text-rose-700 font-medium">Current Balance Due (Credit Left)</p>
                 <p className="text-lg font-bold font-mono text-rose-600 mt-0.5">
-                  ₹{fmt(Math.max(0, Number(paymentCustomer.balance || 0)))}
+                  {fmt(Math.max(0, Number(paymentCustomer.balance || 0)))}
                 </p>
               </div>
               {Number(paymentCustomer.balance || 0) > 0 && (
@@ -557,7 +557,7 @@ export default function CustomersScreen() {
                   }
                   className="text-xs font-semibold text-rose-700 hover:text-rose-900 bg-white border border-rose-300 px-2.5 py-1 rounded-lg transition shadow-xs cursor-pointer"
                 >
-                  Pay Full Due (₹{fmt(Math.max(0, Number(paymentCustomer.balance || 0)))})
+                  Pay Full Due ({fmt(Math.max(0, Number(paymentCustomer.balance || 0)))})
                 </button>
               )}
             </div>
@@ -723,7 +723,7 @@ export default function CustomersScreen() {
                       <span className="text-sm font-bold text-slate-900 flex items-center gap-1.5 mt-0.5">
                         {Number(detailsCustomer.balance || 0) > 0 ? (
                           <span className="text-rose-600 font-mono">
-                            ₹{fmt(detailsCustomer.balance)} Outstanding Credit Left
+                            {fmt(detailsCustomer.balance)} Outstanding Credit Left
                           </span>
                         ) : (
                           <span className="text-emerald-700 font-semibold flex items-center gap-1">
@@ -822,7 +822,7 @@ export default function CustomersScreen() {
                                       <td className="px-4 py-3 font-medium text-slate-900 font-mono">{fmt(total)}</td>
                                       <td className="px-4 py-3 text-emerald-700 font-medium font-mono">{fmt(amtPaid)}</td>
                                       <td className="px-4 py-3 text-rose-600 font-semibold font-mono">
-                                        {balanceDue > 0 ? `₹${fmt(balanceDue)}` : "₹0"}
+                                        {balanceDue > 0 ? fmt(balanceDue) : "₹0"}
                                       </td>
                                       <td className="px-4 py-3">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -876,7 +876,7 @@ export default function CustomersScreen() {
                                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                       <td className="px-4 py-3 text-slate-500 text-xs">{pDate}</td>
                                       <td className="px-4 py-3 font-mono font-bold text-emerald-700">
-                                        +₹{fmt(pmt.amount)}
+                                        +{fmt(pmt.amount)}
                                       </td>
                                       <td className="px-4 py-3">
                                         <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded font-medium">
@@ -1107,7 +1107,7 @@ export default function CustomersScreen() {
                 <p className="text-sm font-semibold font-mono">
                   {Number(viewCustomer.balance || 0) > 0 ? (
                     <span className="text-rose-600 font-bold">
-                      ₹{fmt(viewCustomer.balance)} (Pending Credit)
+                      {fmt(viewCustomer.balance)} (Pending Credit)
                     </span>
                   ) : (
                     <span className="text-emerald-600 font-bold">
@@ -1380,7 +1380,7 @@ export default function CustomersScreen() {
             <Wallet className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xl font-bold text-rose-600 font-mono">₹{fmt(totalBalanceDue)}</p>
+            <p className="text-xl font-bold text-rose-600 font-mono">{fmt(totalBalanceDue)}</p>
             <p className="text-xs text-slate-500 font-medium">
               Total Balance Due ({customersWithDue} with credit)
             </p>
@@ -1392,7 +1392,7 @@ export default function CustomersScreen() {
             <CheckCircle2 className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xl font-bold text-emerald-700 font-mono">₹{fmt(totalPaidByCustomers)}</p>
+            <p className="text-xl font-bold text-emerald-700 font-mono">{fmt(totalPaidByCustomers)}</p>
             <p className="text-xs text-slate-500 font-medium">Total Paid / Cleared</p>
           </div>
         </Card>
@@ -1489,7 +1489,7 @@ export default function CustomersScreen() {
                           <div className="flex flex-col">
                             {balanceDue > 0 ? (
                               <span className="font-bold font-mono text-sm text-rose-600 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md inline-block">
-                                ₹{fmt(balanceDue)}
+                                {fmt(balanceDue)}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md">
