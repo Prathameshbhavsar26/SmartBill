@@ -8,7 +8,21 @@ export const resolveApiBaseUrl = () => {
     raw = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "";
   }
 
-  let base = String(raw || "").trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+  let base = String(raw || "").trim();
+  if (base.includes("\n")) {
+    const lines = base.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+    const found = lines.find((l) => (l.includes("http://") || l.includes("https://")) && (l.includes("api") || l.includes("5000") || l.includes("render")));
+    if (found) {
+      base = found.includes("=") ? found.split("=").slice(1).join("=") : found;
+    } else {
+      base = lines[0] || "";
+    }
+  }
+  const httpMatch = base.match(/https?:\/\/[^\s"']+/);
+  if (httpMatch) {
+    base = httpMatch[0];
+  }
+  base = base.replace(/#.*$/, "").trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "");
 
   if (!base) {
     return "/api";
