@@ -22,6 +22,7 @@ import {
   History,
   AlertCircle,
   Check,
+  Printer,
 } from "lucide-react";
 
 import { fmt, fmtK } from "@shared/utils/format";
@@ -48,6 +49,7 @@ import {
 import { fetchOrder } from "@shared/api/orderAPI";
 import { fetchPartySettings } from "@shared/api/partySettingsAPI";
 import { exportToCsv } from "@shared/utils/csvHelper";
+import InvoiceModal from "@shared/components/invoice/InvoiceModal";
 
 export default function CustomersScreen() {
   // =========================
@@ -396,16 +398,23 @@ export default function CustomersScreen() {
   // OPEN INVOICE VIEW
   // =========================
 
-  const handleOpenInvoice = async (orderId) => {
-    setInvoiceModal({ loading: true });
+  const handleOpenInvoice = async (orderId, cachedOrder = null) => {
+    if (cachedOrder && cachedOrder.items && cachedOrder.items.length > 0) {
+      setInvoiceModal({ order: cachedOrder });
+    } else {
+      setInvoiceModal({ loading: true });
+    }
+
     try {
       const data = await fetchOrder(orderId);
       const order = data?.order || data;
       setInvoiceModal({ order });
     } catch (error) {
       console.error("FETCH ORDER ERROR:", error);
-      showToast(error?.message || "Failed to load invoice", "error");
-      setInvoiceModal(null);
+      if (!cachedOrder) {
+        showToast(error?.message || "Failed to load invoice", "error");
+        setInvoiceModal(null);
+      }
     }
   };
 
@@ -791,7 +800,7 @@ export default function CustomersScreen() {
                             <table className="w-full text-sm">
                               <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200">
-                                  {["Invoice #", "Date", "Total", "Paid", "Balance Due", "Status"].map((h) => (
+                                  {["Invoice #", "Date", "Total", "Paid", "Balance Due", "Status", "Action"].map((h) => (
                                     <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                                       {h}
                                     </th>
@@ -812,7 +821,8 @@ export default function CustomersScreen() {
                                     <tr key={orderId} className="hover:bg-blue-50/50 transition-colors">
                                       <td className="px-4 py-3">
                                         <button
-                                          onClick={() => handleOpenInvoice(orderId)}
+                                          type="button"
+                                          onClick={() => handleOpenInvoice(orderId, order)}
                                           className="font-mono text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline underline-offset-2 transition-colors cursor-pointer"
                                         >
                                           {invoiceNo}
@@ -822,7 +832,11 @@ export default function CustomersScreen() {
                                       <td className="px-4 py-3 font-medium text-slate-900 font-mono">{fmt(total)}</td>
                                       <td className="px-4 py-3 text-emerald-700 font-medium font-mono">{fmt(amtPaid)}</td>
                                       <td className="px-4 py-3 text-rose-600 font-semibold font-mono">
+<<<<<<< HEAD
                                         {balanceDue > 0 ? fmt(balanceDue) : "₹0"}
+=======
+                                        {balanceDue > 0 ? fmt(balanceDue) : fmt(0)}
+>>>>>>> c506a4ca (feat: unify invoice template across POS and customer ledger, fix currency formatting, and optimize Vercel serverless deployment)
                                       </td>
                                       <td className="px-4 py-3">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -832,6 +846,17 @@ export default function CustomersScreen() {
                                         }`}>
                                           {status}
                                         </span>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenInvoice(orderId, order)}
+                                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-400 rounded-lg border border-blue-200 dark:border-blue-900 transition-all cursor-pointer"
+                                          title="View and print invoice"
+                                        >
+                                          <Printer className="w-3.5 h-3.5" />
+                                          <span>Invoice</span>
+                                        </button>
                                       </td>
                                     </tr>
                                   );
@@ -903,146 +928,22 @@ export default function CustomersScreen() {
               ) : null}
             </div>
 
-            {/* ========================= INVOICE VIEW OVERLAY ========================= */}
+            {/* ========================= INVOICE VIEW MODAL ========================= */}
             {invoiceModal && (
-              <div className="absolute inset-0 z-10 bg-white flex flex-col" style={{ animation: "slideInRight 0.2s ease" }}>
-                {/* Invoice header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
-                  <button
-                    onClick={() => setInvoiceModal(null)}
-                    className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Back to invoices
-                  </button>
-                  {!invoiceModal.loading && (
-                    <button
-                      onClick={() => window.print()}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                      </svg>
-                      Print
-                    </button>
-                  )}
-                </div>
-
-                {/* Invoice body */}
-                <div className="flex-1 overflow-y-auto p-6">
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+                <div className="w-full max-w-6xl h-[95vh] max-h-[96vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
                   {invoiceModal.loading ? (
-                    <div className="flex flex-col items-center justify-center py-24">
+                    <div className="flex-1 flex flex-col items-center justify-center py-24 bg-white dark:bg-slate-900 rounded-2xl">
                       <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4" />
-                      <p className="text-sm text-slate-500">Loading invoice...</p>
+                      <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Loading invoice details...</p>
                     </div>
-                  ) : invoiceModal.order ? (() => {
-                    const inv = invoiceModal.order;
-                    const invDate = inv.date
-                      ? new Date(inv.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-                      : new Date().toLocaleDateString("en-IN");
-                    const invStatus = inv.status || (inv.balanceDue <= 0 ? "Paid" : inv.balanceDue < inv.totalOrderValue ? "Partial" : "Due");
-
-                    return (
-                      <div className="max-w-lg mx-auto">
-                        {/* Invoice header block */}
-                        <div className="flex items-start justify-between mb-8">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-                                <FileText className="w-3.5 h-3.5 text-white" />
-                              </div>
-                              <span className="font-bold text-slate-900">SmartBill</span>
-                            </div>
-                            <p className="text-xs text-slate-500">Invoice generated by SmartBill</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-blue-600 font-mono text-lg">{inv.invoiceNo || "—"}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">Date: {invDate}</p>
-                            <span className={`inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              invStatus === "Paid" ? "bg-emerald-100 text-emerald-700" :
-                              invStatus === "Partial" ? "bg-amber-100 text-amber-700" :
-                              "bg-rose-100 text-rose-700"
-                            }`}>
-                              {invStatus}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Bill To */}
-                        <div className="mb-5 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                          <p className="text-xs text-slate-500 mb-0.5">Bill To</p>
-                          <p className="font-semibold text-slate-900">{inv.customerName || detailsCustomer?.name || "—"}</p>
-                          {inv.paymentMode && (
-                            <p className="text-xs text-slate-400 mt-0.5">Payment: {inv.paymentMode}</p>
-                          )}
-                        </div>
-
-                        {/* Items table */}
-                        <table className="w-full text-sm mb-6">
-                          <thead>
-                            <tr className="border-b border-slate-200">
-                              <th className="text-left pb-2 text-xs font-semibold text-slate-500">Item</th>
-                              <th className="text-center pb-2 text-xs font-semibold text-slate-500">Qty</th>
-                              <th className="text-right pb-2 text-xs font-semibold text-slate-500">Rate</th>
-                              <th className="text-right pb-2 text-xs font-semibold text-slate-500">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {(inv.items || []).map((item, idx) => (
-                              <tr key={idx}>
-                                <td className="py-2.5 text-slate-800">
-                                  {item.name}
-                                  {item.sku && <span className="block text-[10px] text-slate-400 font-mono">{item.sku}</span>}
-                                </td>
-                                <td className="py-2.5 text-center text-slate-600">{item.qty}</td>
-                                <td className="py-2.5 text-right font-mono text-slate-700">{fmt(item.price)}</td>
-                                <td className="py-2.5 text-right font-mono font-semibold text-slate-900">{fmt(item.amount ?? item.price * item.qty)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-
-                        {/* Totals */}
-                        <div className="flex justify-end">
-                          <div className="w-56 space-y-2 text-sm">
-                            {inv.subtotal != null && (
-                              <div className="flex justify-between text-slate-600">
-                                <span>Subtotal</span>
-                                <span className="font-mono">{fmt(inv.subtotal)}</span>
-                              </div>
-                            )}
-                            {inv.gst != null && inv.gst > 0 && (
-                              <div className="flex justify-between text-slate-600">
-                                <span>GST ({inv.gstRate ?? 0}%)</span>
-                                <span className="font-mono">+{fmt(inv.gst)}</span>
-                              </div>
-                            )}
-                            <div className="flex justify-between font-bold text-slate-900 text-base border-t border-slate-200 pt-2 mt-2">
-                              <span>Total</span>
-                              <span className="font-mono text-blue-600">{fmt(inv.totalOrderValue)}</span>
-                            </div>
-                            <div className="flex justify-between text-slate-600">
-                              <span>Amount Paid</span>
-                              <span className="font-mono text-emerald-600">{fmt(inv.amountPaid)}</span>
-                            </div>
-                            <div className="flex justify-between font-semibold">
-                              <span>Balance Due</span>
-                              <span className={`font-mono ${Number(inv.balanceDue) > 0 ? "text-rose-600" : "text-emerald-600"}`}>
-                                {fmt(inv.balanceDue)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="mt-8 pt-4 border-t border-slate-100 text-center">
-                          <p className="text-xs text-slate-400">Thank you for your business!</p>
-                        </div>
-                      </div>
-                    );
-                  })() : null}
+                  ) : invoiceModal.order ? (
+                    <InvoiceModal
+                      order={invoiceModal.order}
+                      backLabel="Back to Customer Ledger"
+                      onClose={() => setInvoiceModal(null)}
+                    />
+                  ) : null}
                 </div>
               </div>
             )}
@@ -1111,7 +1012,7 @@ export default function CustomersScreen() {
                     </span>
                   ) : (
                     <span className="text-emerald-600 font-bold">
-                      ₹0 (All Settled)
+                      {fmt(0)} (All Settled)
                     </span>
                   )}
                 </p>
@@ -1494,7 +1395,7 @@ export default function CustomersScreen() {
                             ) : (
                               <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                ₹0 (All Cleared)
+                                {fmt(0)} (All Cleared)
                               </span>
                             )}
                             <p className="text-[10px] text-slate-400 mt-0.5">

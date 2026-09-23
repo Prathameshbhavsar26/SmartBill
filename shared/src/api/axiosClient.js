@@ -48,7 +48,7 @@ const axiosClient = axios.create({
 // Request interceptor: attach JWT token if present in localStorage.
 axiosClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("smartbill_token");
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("smartbill_token") : null;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -57,13 +57,13 @@ axiosClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor with auto-fallback between proxy and direct host
+// Response interceptor with auto-fallback between proxy and direct host in development
 axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If request was canceled by AbortController or axios cancel, do not retry or treat as network error
+    // If request was canceled by AbortController or axios cancel, do not retry
     if (
       axios.isCancel(error) ||
       error?.name === "CanceledError" ||
@@ -80,14 +80,18 @@ axiosClient.interceptors.response.use(
       });
     }
 
-    // If network error occurred and we haven't tried the alternate fallback URL yet
-    if (!error.response && originalRequest && !originalRequest._retryFallback) {
+    // In local development, if request to /api fails due to network error, try fallback to localhost:5000/api
+    const isLocalDev =
+      typeof window !== "undefined" &&
+      window.location &&
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+    if (!error.response && originalRequest && !originalRequest._retryFallback && isLocalDev) {
       originalRequest._retryFallback = true;
       try {
-        const currentHost = typeof window !== "undefined" && window.location && window.location.hostname ? window.location.hostname : "127.0.0.1";
         const fallbackBase =
           originalRequest.baseURL === "/api" || !originalRequest.baseURL
-            ? `${window.location.protocol}//${currentHost}:5000/api`
+            ? `${window.location.protocol}//${window.location.hostname}:5000/api`
             : "/api";
         originalRequest.baseURL = fallbackBase;
         const token = typeof localStorage !== "undefined" ? localStorage.getItem("smartbill_token") : null;
@@ -129,7 +133,6 @@ axiosClient.interceptors.response.use(
     let suspensionReason = null;
 
     if (error.response) {
-      // Server responded with a non-2xx status.
       status = error.response.status;
       data = error.response.data || {};
       message = data.message || `Request failed with status ${status}`;
@@ -174,6 +177,7 @@ axiosClient.interceptors.response.use(
       if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
         message = "Server request timed out. Please check if your backend is active and try again.";
       } else {
+<<<<<<< HEAD
         const isLocal = typeof window !== "undefined" && window.location && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
         if (isLocal) {
           message = "Cannot reach local backend at http://localhost:5000. Please ensure npm run dev / backend server is running.";
@@ -181,6 +185,9 @@ axiosClient.interceptors.response.use(
           const targetUrl = axiosClient.defaults.baseURL || "/api";
           message = `Cannot connect to backend (${targetUrl}). If your Render server was sleeping, please wait 45s and retry, or check if Render service is Live.`;
         }
+=======
+        message = "Unable to reach the SmartBill server. Please check your internet connection or try again.";
+>>>>>>> c506a4ca (feat: unify invoice template across POS and customer ledger, fix currency formatting, and optimize Vercel serverless deployment)
       }
     }
 
@@ -198,7 +205,3 @@ axiosClient.interceptors.response.use(
 );
 
 export default axiosClient;
-
-
-
-

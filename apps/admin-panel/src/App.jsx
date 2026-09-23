@@ -14,7 +14,7 @@ function ThemeRouteManager() {
   const location = useLocation();
   const { tempSettings } = useCustomization();
   useEffect(() => {
-    const isAppRoute = location.pathname.startsWith("/app");
+    const isAppRoute = location.pathname.startsWith("/app") || location.pathname.startsWith("/admin");
     applyDOMCustomization(tempSettings, isAppRoute);
   }, [location.pathname, tempSettings]);
   return null;
@@ -33,9 +33,10 @@ function AppRoutes() {
   const [page, setPage] = useState("super-dashboard");
 
   useEffect(() => {
-    const routePage = location.pathname.split("/").filter(Boolean)[1];
-    if (location.pathname === "/app") { setPage("super-dashboard"); return; }
-    if (routePage) setPage(routePage);
+    const segments = location.pathname.split("/").filter(Boolean);
+    const routePage = segments[0] === "admin" || segments[0] === "app" ? segments[1] : segments[0];
+    if (location.pathname === "/app" || location.pathname === "/admin") { setPage("super-dashboard"); return; }
+    if (routePage && routePage !== "login") setPage(routePage);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -87,7 +88,7 @@ function AppRoutes() {
     setRole(r);
     if (u) setUser(u);
     setPage("super-dashboard");
-    navigate("/app");
+    navigate("/admin");
   };
 
   const handleLogout = () => {
@@ -106,11 +107,11 @@ function AppRoutes() {
 
   const navApp = useCallback((p) => {
     setPage(p);
-    if (p === "super-dashboard") navigate("/app");
-    else navigate(`/app/${p}`);
+    if (p === "super-dashboard") navigate("/admin");
+    else navigate(`/admin/${p}`);
   }, [navigate]);
 
-  if (!isAdminRole(role) && location.pathname.startsWith("/app")) {
+  if (!isAdminRole(role) && (location.pathname.startsWith("/app") || location.pathname.startsWith("/admin"))) {
      window.location.href = getCrmUrl("/app");
      return null;
   }
@@ -121,6 +122,9 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<AdminLogin onLogin={handleLogin} />} />
+        <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
+        <Route path="/admin" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
+        <Route path="/admin/:pageKey" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
         <Route path="/app" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
         <Route path="/app/:pageKey" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
@@ -142,6 +146,3 @@ export default function App() {
     </ErrorBoundary>
   );
 }
-
-
-

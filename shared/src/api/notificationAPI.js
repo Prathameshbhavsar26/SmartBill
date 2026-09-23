@@ -44,11 +44,14 @@ export const clearAllNotifications = async () => {
  * Resolves the absolute URL for the Server-Sent Events real-time stream.
  */
 export const getNotificationStreamUrl = () => {
-  const token = localStorage.getItem("smartbill_token") || "";
-  const rawBase = resolveApiBaseUrl().replace(/\/+$/, "");
+  const token = (typeof localStorage !== "undefined" ? localStorage.getItem("smartbill_token") : "") || "";
+  let rawBase = resolveApiBaseUrl().replace(/\/+$/, "");
+
+  // If relative path (e.g. /api), resolve against current window origin
+  if (rawBase.startsWith("/") && typeof window !== "undefined" && window.location) {
+    rawBase = `${window.location.origin}${rawBase}`;
+  }
+
   const url = `${rawBase}/notifications/stream?token=${encodeURIComponent(token)}`;
   return url;
 };
-
-
-

@@ -34,8 +34,9 @@ const APP_PAGES = [
 
 function getPageFromPath(pathname) {
   const segments = pathname.split("/").filter(Boolean);
-  if (segments[0] !== "app") return null;
+  if (segments[0] !== "app" && segments[0] !== "crm") return null;
   const pageKey = segments[1];
+  if (pageKey === "login" || pageKey === "register" || pageKey === "forgot") return null;
   if (pageKey === "sales" || pageKey === "billing" || pageKey === "sales-billing") {
     return "pos";
   }
@@ -46,7 +47,7 @@ function ThemeRouteManager() {
   const location = useLocation();
   const { tempSettings } = useCustomization();
   useEffect(() => {
-    const isAppRoute = location.pathname.startsWith("/app");
+    const isAppRoute = location.pathname.startsWith("/app") || location.pathname.startsWith("/crm");
     applyDOMCustomization(tempSettings, isAppRoute);
   }, [location.pathname, tempSettings]);
   return null;
@@ -66,7 +67,7 @@ function AppRoutes() {
 
   useEffect(() => {
     const routePage = getPageFromPath(location.pathname);
-    if (location.pathname === "/app") { setPage("dashboard"); return; }
+    if (location.pathname === "/app" || location.pathname === "/crm") { setPage("dashboard"); return; }
     if (routePage) setPage(routePage);
   }, [location.pathname, role]);
 
@@ -178,12 +179,20 @@ function AppRoutes() {
         <Route path="/login" element={<AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />} />
         <Route path="/register" element={<AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />} />
         <Route path="/forgot" element={<AuthScreen view="forgot" onNav={navAuth} />} />
+        <Route path="/app/login" element={<AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />} />
+        <Route path="/app/register" element={<AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />} />
+        <Route path="/app/forgot" element={<AuthScreen view="forgot" onNav={navAuth} />} />
+        <Route path="/crm/login" element={<AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />} />
+        <Route path="/crm/register" element={<AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />} />
+        <Route path="/crm/forgot" element={<AuthScreen view="forgot" onNav={navAuth} />} />
         <Route path="/pos" element={<Navigate to="/app/pos" replace />} />
         <Route path="/sales" element={<Navigate to="/app/pos" replace />} />
         <Route path="/billing" element={<Navigate to="/app/pos" replace />} />
         <Route path="/sales-billing" element={<Navigate to="/app/pos" replace />} />
         <Route path="/app" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
         <Route path="/app/:pageKey" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
+        <Route path="/crm" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
+        <Route path="/crm/:pageKey" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </NotificationProvider>
@@ -203,6 +212,3 @@ export default function App() {
     </ErrorBoundary>
   );
 }
-
-
-
