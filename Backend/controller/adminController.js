@@ -5,6 +5,7 @@ import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
 import SystemSettings from "../models/SystemSettings.js";
 import VendorSettings from "../models/VendorSettings.js";
+import SubscriptionPlan from "../models/SubscriptionPlan.js";
 import { createNotification, notifySuperAdmins, broadcastToOwner } from "../services/notificationService.js";
 import { sendSystemEmail } from "../utils/emailService.js";
 
@@ -474,8 +475,13 @@ export const getAdminRevenueAnalytics = async (req, res) => {
     const allOwnerIds = owners.map((o) => o._id);
 
     // 2. Platform Subscription Revenue & MRR calculations
-    const PLAN_PRICES = { starter: 0, pro: 999, enterprise: 2499 };
-    let platformMRR = 50000;
+    const dbPlans = await SubscriptionPlan.find({ status: "active" }).lean();
+    const planPriceMap = { starter: 0, pro: 999, enterprise: 2499 };
+    dbPlans.forEach((p) => {
+      if (p.key) planPriceMap[p.key.toLowerCase()] = Number(p.price) || 0;
+    });
+
+    let platformMRR = 0;
     let activeSubscribersCount = 0;
     let trialingCount = 0;
     let starterCount = 0;
@@ -491,8 +497,11 @@ export const getAdminRevenueAnalytics = async (req, res) => {
       else starterCount++;
 
       if (status === "active") {
-        const price = PLAN_PRICES[plan] || 0;
-        if (price > 0) activeSubscribersCount++;
+        const price = planPriceMap[plan] || 0;
+        if (price > 0) {
+          activeSubscribersCount++;
+          platformMRR += price;
+        }
       } else if (status === "trialing") {
         trialingCount++;
       }
@@ -502,9 +511,9 @@ export const getAdminRevenueAnalytics = async (req, res) => {
 
     // Plan distribution dataset for charts
     const planDistribution = [
-      { name: "Starter", count: starterCount, price: 0, revenue: 0, color: "#94A3B8" },
-      { name: "Pro", count: proCount, price: 999, revenue: proCount * 999, color: "#2563EB" },
-      { name: "Enterprise", count: enterpriseCount, price: 2499, revenue: enterpriseCount * 2499, color: "#7C3AED" },
+      { name: "Starter", count: starterCount, price: planPriceMap.starter || 0, revenue: starterCount * (planPriceMap.starter || 0), color: "#94A3B8" },
+      { name: "Pro", count: proCount, price: planPriceMap.pro || 999, revenue: proCount * (planPriceMap.pro || 999), color: "#2563EB" },
+      { name: "Enterprise", count: enterpriseCount, price: planPriceMap.enterprise || 2499, revenue: enterpriseCount * (planPriceMap.enterprise || 2499), color: "#7C3AED" },
     ];
 
     // 3. Ecosystem Orders & GMV Aggregation
@@ -861,8 +870,13 @@ export const getSuperAdminDashboardStats = async (req, res) => {
     const totalUsers = await User.countDocuments();
     const totalBusinesses = owners.length;
 
-    const PLAN_PRICES = { starter: 0, pro: 999, enterprise: 2499 };
-    let mrr = 50000;
+    const dbPlans = await SubscriptionPlan.find({ status: "active" }).lean();
+    const planPriceMap = { starter: 0, pro: 999, enterprise: 2499 };
+    dbPlans.forEach((p) => {
+      if (p.key) planPriceMap[p.key.toLowerCase()] = Number(p.price) || 0;
+    });
+
+    let mrr = 0;
     let activeSubs = 0;
     let starter = 0;
     let pro = 0;
@@ -876,8 +890,11 @@ export const getSuperAdminDashboardStats = async (req, res) => {
       else starter++;
 
       if (status === "active") {
-        const price = PLAN_PRICES[plan] || 0;
-        if (price > 0) activeSubs++;
+        const price = planPriceMap[plan] || 0;
+        if (price > 0) {
+          activeSubs++;
+          mrr += price;
+        }
       }
     });
 
