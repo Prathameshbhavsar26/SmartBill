@@ -855,6 +855,15 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
                   Register Business
                 </button>
               </p>
+              <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+                <a
+                  href={getAdminUrl("/admin/login")}
+                  className="text-xs text-slate-500 hover:text-slate-900 transition-colors inline-flex items-center gap-1 font-medium"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />
+                  SuperAdmin Portal &rarr;
+                </a>
+              </div>
             </>
           )}
 

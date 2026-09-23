@@ -1,6 +1,7 @@
 import React from 'react';
 import { BarChart2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getAdminUrl } from '../../utils/urlUtils';
 
 export default function Footer() {
   const footerSections = [
@@ -19,10 +20,11 @@ export default function Footer() {
       ]
     },
     {
-      title: "Support",
+      title: "Support & Portals",
       links: [
         { label: "Help Center", key: "help-center" },
         { label: "Contact", key: "contact" },
+        { label: "SuperAdmin Portal", href: getAdminUrl("/admin/login") },
       ]
     }
   ];
@@ -48,12 +50,21 @@ export default function Footer() {
             <ul className="space-y-3 text-sm">
               {section.links.map((link, linkIdx) => (
                 <li key={linkIdx}>
-                  <Link
-                    to={`/${link.key}`}
-                    className="hover:text-white transition-colors cursor-pointer text-left block"
-                  >
-                    {link.label}
-                  </Link>
+                  {link.href ? (
+                    <a
+                      href={link.href}
+                      className="hover:text-white transition-colors cursor-pointer text-left block text-blue-400 font-medium hover:underline"
+                    >
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link
+                      to={`/${link.key}`}
+                      className="hover:text-white transition-colors cursor-pointer text-left block"
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

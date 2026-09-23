@@ -68,4 +68,44 @@ for (const appDist of [landingDist, crmDist, adminDist]) {
 }
 console.log(" ✓ Merged shared asset bundles into dist/assets/");
 
+// 5. Generate _redirects files for Static Hosts (Render, Netlify, Cloudflare Pages)
+const rootRedirects = [
+  "/admin/* /admin/index.html 200",
+  "/admin /admin/index.html 200",
+  "/app/* /app/index.html 200",
+  "/app /app/index.html 200",
+  "/crm/* /crm/index.html 200",
+  "/crm /crm/index.html 200",
+  "/login /app/index.html 200",
+  "/register /app/index.html 200",
+  "/forgot /app/index.html 200",
+  "/pos /app/index.html 200",
+  "/sales /app/index.html 200",
+  "/billing /app/index.html 200",
+  "/customers /app/index.html 200",
+  "/suppliers /app/index.html 200",
+  "/products /app/index.html 200",
+  "/inventory /app/index.html 200",
+  "/dashboard /app/index.html 200",
+  "/* /index.html 200",
+].join("\n");
+
+fs.writeFileSync(path.join(distDir, "_redirects"), rootRedirects, "utf8");
+
+const appRedirects = "/app/* /app/index.html 200\n/* /app/index.html 200\n";
+const crmRedirects = "/crm/* /crm/index.html 200\n/* /crm/index.html 200\n";
+const adminRedirects = "/admin/* /admin/index.html 200\n/* /admin/index.html 200\n";
+
+if (fs.existsSync(path.join(distDir, "app"))) {
+  fs.writeFileSync(path.join(distDir, "app", "_redirects"), appRedirects, "utf8");
+}
+if (fs.existsSync(path.join(distDir, "crm"))) {
+  fs.writeFileSync(path.join(distDir, "crm", "_redirects"), crmRedirects, "utf8");
+}
+if (fs.existsSync(path.join(distDir, "admin"))) {
+  fs.writeFileSync(path.join(distDir, "admin", "_redirects"), adminRedirects, "utf8");
+}
+console.log(" ✓ Generated routing _redirects for Render, Netlify, and Cloudflare Pages");
+
 console.log("[BUILD-ROOT] Unified production bundle created successfully in dist/.");
+

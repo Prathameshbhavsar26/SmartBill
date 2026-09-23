@@ -36,8 +36,17 @@ services:
     autoDeploy: true
     routes:
       - type: rewrite
+        source: /app/*
+        destination: /app/index.html
+      - type: rewrite
+        source: /crm/*
+        destination: /crm/index.html
+      - type: rewrite
+        source: /admin/*
+        destination: /admin/index.html
+      - type: rewrite
         source: /*
-        destination: /index.html
+        destination: /app/index.html
     envVars:
       - key: VITE_API_BASE_URL
         fromService:
@@ -45,6 +54,7 @@ services:
           name: smartbill-backend
           property: host
         value: https://${smartbill-backend.host}/api
+
 
   # ── SmartBill SuperAdmin Panel ──
   - type: web

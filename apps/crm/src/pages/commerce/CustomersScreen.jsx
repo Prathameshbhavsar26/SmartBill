@@ -832,11 +832,7 @@ export default function CustomersScreen() {
                                       <td className="px-4 py-3 font-medium text-slate-900 font-mono">{fmt(total)}</td>
                                       <td className="px-4 py-3 text-emerald-700 font-medium font-mono">{fmt(amtPaid)}</td>
                                       <td className="px-4 py-3 text-rose-600 font-semibold font-mono">
-<<<<<<< HEAD
-                                        {balanceDue > 0 ? fmt(balanceDue) : "₹0"}
-=======
                                         {balanceDue > 0 ? fmt(balanceDue) : fmt(0)}
->>>>>>> c506a4ca (feat: unify invoice template across POS and customer ledger, fix currency formatting, and optimize Vercel serverless deployment)
                                       </td>
                                       <td className="px-4 py-3">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${

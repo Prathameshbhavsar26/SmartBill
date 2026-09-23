@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { BarChart2, X, Menu } from "lucide-react";
+import { BarChart2, X, Menu, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { getCrmUrl } from "../../utils/urlUtils";
+import { getCrmUrl, getAdminUrl } from "../../utils/urlUtils";
 import { Btn } from "./ui";
 
 export default function PublicNavbar({ onNav }) {
@@ -35,6 +35,13 @@ export default function PublicNavbar({ onNav }) {
                 {l}
               </a>
             ))}
+            <a
+              href={getAdminUrl("/admin/login")}
+              className="text-sm text-slate-500 hover:text-blue-600 transition-colors font-medium inline-flex items-center gap-1"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
+              Admin
+            </a>
           </div>
           <div className="hidden md:flex items-center gap-3 flex-shrink-0">
             <Btn variant="ghost" onClick={() => handleAuthNav("login")}>

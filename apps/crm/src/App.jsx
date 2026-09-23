@@ -34,9 +34,11 @@ const APP_PAGES = [
 
 function getPageFromPath(pathname) {
   const segments = pathname.split("/").filter(Boolean);
-  if (segments[0] !== "app" && segments[0] !== "crm") return null;
-  const pageKey = segments[1];
-  if (pageKey === "login" || pageKey === "register" || pageKey === "forgot") return null;
+  if (segments.length === 0) return "dashboard";
+  const first = segments[0];
+  const second = segments[1];
+  const pageKey = (first === "app" || first === "crm") ? second : first;
+  if (!pageKey || pageKey === "login" || pageKey === "register" || pageKey === "forgot") return null;
   if (pageKey === "sales" || pageKey === "billing" || pageKey === "sales-billing") {
     return "pos";
   }
@@ -47,7 +49,7 @@ function ThemeRouteManager() {
   const location = useLocation();
   const { tempSettings } = useCustomization();
   useEffect(() => {
-    const isAppRoute = location.pathname.startsWith("/app") || location.pathname.startsWith("/crm");
+    const isAppRoute = location.pathname.startsWith("/app") || location.pathname.startsWith("/crm") || APP_PAGES.includes(location.pathname.slice(1));
     applyDOMCustomization(tempSettings, isAppRoute);
   }, [location.pathname, tempSettings]);
   return null;
@@ -67,7 +69,10 @@ function AppRoutes() {
 
   useEffect(() => {
     const routePage = getPageFromPath(location.pathname);
-    if (location.pathname === "/app" || location.pathname === "/crm") { setPage("dashboard"); return; }
+    if (location.pathname === "/" || location.pathname === "/app" || location.pathname === "/crm") {
+      setPage("dashboard");
+      return;
+    }
     if (routePage) setPage(routePage);
   }, [location.pathname, role]);
 
@@ -127,7 +132,7 @@ function AppRoutes() {
 
   const handleLogin = (r, u) => {
     if (isAdminRole(r)) {
-      window.location.href = getAdminUrl("/app");
+      window.location.href = getAdminUrl("/admin");
       return;
     }
     setRole(r);
@@ -166,8 +171,8 @@ function AppRoutes() {
     return norm.includes("admin") || norm === "superadmin" || norm === "support" || norm === "billingadmin";
   };
 
-  if (isAdminRole(role) && location.pathname.startsWith("/app")) {
-     window.location.href = getAdminUrl("/app");
+  if (user && isAdminRole(role) && location.pathname.startsWith("/app")) {
+     window.location.href = getAdminUrl("/admin");
      return null;
   }
 
@@ -175,7 +180,7 @@ function AppRoutes() {
     <NotificationProvider onNav={navApp}>
       <ThemeRouteManager />
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={user ? <Navigate to="/app" replace /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={<AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />} />
         <Route path="/register" element={<AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />} />
         <Route path="/forgot" element={<AuthScreen view="forgot" onNav={navAuth} />} />
@@ -193,6 +198,18 @@ function AppRoutes() {
         <Route path="/app/:pageKey" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
         <Route path="/crm" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
         <Route path="/crm/:pageKey" element={<AppShell role={role} user={user} onLogout={handleLogout} page={page} onNav={navApp} />} />
+        {/* Standalone sub-routes */}
+        <Route path="/dashboard" element={<AppShell role={role} user={user} onLogout={handleLogout} page="dashboard" onNav={navApp} />} />
+        <Route path="/customers" element={<AppShell role={role} user={user} onLogout={handleLogout} page="customers" onNav={navApp} />} />
+        <Route path="/suppliers" element={<AppShell role={role} user={user} onLogout={handleLogout} page="suppliers" onNav={navApp} />} />
+        <Route path="/products" element={<AppShell role={role} user={user} onLogout={handleLogout} page="products" onNav={navApp} />} />
+        <Route path="/inventory" element={<AppShell role={role} user={user} onLogout={handleLogout} page="inventory" onNav={navApp} />} />
+        <Route path="/reports" element={<AppShell role={role} user={user} onLogout={handleLogout} page="reports" onNav={navApp} />} />
+        <Route path="/expenses" element={<AppShell role={role} user={user} onLogout={handleLogout} page="expenses" onNav={navApp} />} />
+        <Route path="/settings" element={<AppShell role={role} user={user} onLogout={handleLogout} page="settings" onNav={navApp} />} />
+        <Route path="/subscription" element={<AppShell role={role} user={user} onLogout={handleLogout} page="subscription" onNav={navApp} />} />
+        <Route path="/notifications" element={<AppShell role={role} user={user} onLogout={handleLogout} page="notifications" onNav={navApp} />} />
+        <Route path="/profile" element={<AppShell role={role} user={user} onLogout={handleLogout} page="profile" onNav={navApp} />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </NotificationProvider>

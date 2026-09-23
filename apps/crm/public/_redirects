@@ -1,0 +1,16 @@
+/app/* /index.html 200
+/app /index.html 200
+/crm/* /index.html 200
+/crm /index.html 200
+/login /index.html 200
+/register /index.html 200
+/forgot /index.html 200
+/pos /index.html 200
+/sales /index.html 200
+/billing /index.html 200
+/customers /index.html 200
+/products /index.html 200
+/suppliers /index.html 200
+/inventory /index.html 200
+/dashboard /index.html 200
+/* /index.html 200
