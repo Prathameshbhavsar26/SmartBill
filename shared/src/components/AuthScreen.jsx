@@ -282,7 +282,7 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
       if (isAdmin(loggedInUser?.role) && fixedRole !== "superadmin") {
         showToast("Admin account detected. Redirecting to Admin Panel...", "success");
         setTimeout(() => {
-          window.location.href = getAdminUrl(`/app?token=${encodeURIComponent(data.token)}&user=${encodeURIComponent(JSON.stringify(loggedInUser))}`);
+          window.location.href = getAdminUrl(`/admin?token=${encodeURIComponent(data.token)}&user=${encodeURIComponent(JSON.stringify(loggedInUser))}`);
         }, 500);
         return;
       }

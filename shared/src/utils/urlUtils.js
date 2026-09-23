@@ -1,7 +1,7 @@
 /**
  * Dynamic URL Resolution Utility for Multi-App SmartBill Architecture.
- * Resolves URLs dynamically based on environment variables (e.g. VITE_ADMIN_URL, VITE_CRM_URL, VITE_LANDING_URL)
- * or intelligent runtime detection, eliminating broken localhost URLs in cloud/production deployments.
+ * Resolves URLs dynamically based on environment variables or intelligent runtime detection,
+ * eliminating broken cross-host redirects in cloud/production deployments.
  */
 
 export const sanitizeUrl = (val) => {
@@ -25,46 +25,63 @@ export const sanitizeUrl = (val) => {
 
 export const getLandingUrl = () => {
   if (typeof window === "undefined") return "/";
-  const rawLanding = sanitizeUrl(import.meta.env?.VITE_LANDING_URL);
-  if (rawLanding) {
-    return rawLanding;
-  }
-  // In development, default to port 5173 if running on localhost
+  // In local development, port 5173 hosts the landing page
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
     return `${window.location.protocol}//${window.location.hostname}:5173/`;
   }
+  // In production (Vercel, custom domain, etc.), always stay on current domain root
   return "/";
 };
 
 export const getCrmUrl = (path = "") => {
-  const cleanPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
-  const rawCrm = sanitizeUrl(import.meta.env?.VITE_CRM_URL);
-  if (rawCrm) {
-    return `${rawCrm}${cleanPath}`;
+  let cleanPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
+  if (cleanPath.startsWith("/admin")) {
+    cleanPath = cleanPath.replace(/^\/admin/, "/app");
   }
-  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-    return `${window.location.protocol}//${window.location.hostname}:5174${cleanPath}`;
+  if (!cleanPath || cleanPath === "/") {
+    cleanPath = "/app";
   }
-  if (cleanPath.startsWith("/app") || cleanPath.startsWith("/crm")) {
-    return cleanPath;
+  
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    // In local development, port 5174 hosts the CRM
+    if (host === "localhost" || host === "127.0.0.1") {
+      return `${window.location.protocol}//${host}:5174${cleanPath}`;
+    }
+    // In production unified deployment, stay on the same domain!
+    if (cleanPath.startsWith("/app") || cleanPath.startsWith("/crm")) {
+      return cleanPath;
+    }
+    if (cleanPath === "/login" || cleanPath === "/register" || cleanPath === "/forgot") {
+      return cleanPath;
+    }
+    return `/app${cleanPath}`;
   }
-  if (cleanPath === "/login" || cleanPath === "/register" || cleanPath === "/forgot") {
-    return cleanPath;
-  }
-  return `/app${cleanPath}`;
+
+  return cleanPath;
 };
 
 export const getAdminUrl = (path = "") => {
-  const cleanPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
-  const rawAdmin = sanitizeUrl(import.meta.env?.VITE_ADMIN_URL);
-  if (rawAdmin) {
-    return `${rawAdmin}${cleanPath}`;
+  let cleanPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
+  if (cleanPath.startsWith("/app")) {
+    cleanPath = cleanPath.replace(/^\/app/, "/admin");
   }
-  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-    return `${window.location.protocol}//${window.location.hostname}:5175${cleanPath}`;
+  if (!cleanPath || cleanPath === "/") {
+    cleanPath = "/admin";
   }
-  if (cleanPath.startsWith("/admin")) {
-    return cleanPath;
+  
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    // In local development, port 5175 hosts the Admin Panel
+    if (host === "localhost" || host === "127.0.0.1") {
+      return `${window.location.protocol}//${host}:5175${cleanPath}`;
+    }
+    // In production unified deployment, stay on the same domain!
+    if (cleanPath.startsWith("/admin")) {
+      return cleanPath;
+    }
+    return `/admin${cleanPath}`;
   }
-  return `/admin${cleanPath}`;
+
+  return cleanPath;
 };

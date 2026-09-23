@@ -24,8 +24,12 @@ export const resolveApiBaseUrl = () => {
   }
   base = base.replace(/#.*$/, "").trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "");
 
+  if (base.includes("smartbill-crm.onrender.com")) {
+    base = "https://smartbill-backend-tqf5.onrender.com/api";
+  }
+
   if (!base) {
-    return "/api";
+    return "https://smartbill-backend-tqf5.onrender.com/api";
   }
 
   if ((base.startsWith("http://") || base.startsWith("https://")) && !base.endsWith("/api")) {

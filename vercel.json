@@ -6,11 +6,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "https://smartbill-backend-tqf5.onrender.com/api/$1"
     },
     {
       "source": "/health",
-      "destination": "/api/index.js"
+      "destination": "https://smartbill-backend-tqf5.onrender.com/health"
     },
     {
       "source": "/admin/(.*)",
@@ -58,6 +58,50 @@
     },
     {
       "source": "/billing",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/customers",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/suppliers",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/products",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/inventory",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/reports",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/expenses",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/settings",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/subscription",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/notifications",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/profile",
       "destination": "/app/index.html"
     },
     {

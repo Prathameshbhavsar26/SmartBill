@@ -137,8 +137,14 @@ function AppRoutes() {
     else navigate(`/admin/${p}`);
   }, [navigate]);
 
-  // If a logged-in non-admin visits /admin, redirect to CRM
-  if (user && !isAdminRole(role) && (location.pathname.startsWith("/app") || location.pathname.startsWith("/admin"))) {
+  // If a logged-in non-admin visits /admin protected routes (excluding login), redirect to CRM
+  if (
+    user &&
+    !isAdminRole(role) &&
+    location.pathname !== "/admin/login" &&
+    location.pathname !== "/login" &&
+    (location.pathname.startsWith("/app") || location.pathname.startsWith("/admin"))
+  ) {
     window.location.href = getCrmUrl("/app");
     return null;
   }
