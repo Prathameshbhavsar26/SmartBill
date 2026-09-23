@@ -12,19 +12,20 @@ function getActiveSettings() {
 
 export const fmt = (n) => {
   const { currency, numberFormat } = getActiveSettings();
-  return formatCurrency(n, currency, numberFormat);
+  const res = formatCurrency(n, currency, numberFormat);
+  return String(res).replace(/^([₹$€£])\s*\1+/g, "$1");
 };
 
 export const fmtK = (n) => {
   const { currency, numberFormat } = getActiveSettings();
-  const num = Number(n) || 0;
+  const num = Number(typeof n === "string" ? n.replace(/^[₹$€£\s]+/, "") : n) || 0;
   if (num >= 100000) {
-    return `${formatCurrency((num / 100000).toFixed(1), currency, numberFormat)}L`;
+    return `${String(formatCurrency((num / 100000).toFixed(1), currency, numberFormat)).replace(/^([₹$€£])\s*\1+/g, "$1")}L`;
   }
   if (num >= 1000) {
-    return `${formatCurrency((num / 1000).toFixed(1), currency, numberFormat)}K`;
+    return `${String(formatCurrency((num / 1000).toFixed(1), currency, numberFormat)).replace(/^([₹$€£])\s*\1+/g, "$1")}K`;
   }
-  return formatCurrency(num, currency, numberFormat);
+  return String(formatCurrency(num, currency, numberFormat)).replace(/^([₹$€£])\s*\1+/g, "$1");
 };
 
 

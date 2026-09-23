@@ -37,7 +37,9 @@ export const AccountingProvider = ({ children }) => {
   };
 
   const formatCurrency = (amount) => {
-    if (amount === null || amount === undefined || isNaN(amount)) return "";
+    if (amount === null || amount === undefined) return "";
+    const cleanAmount = typeof amount === "string" ? Number(amount.replace(/^[₹$€£\s]+/, "")) : Number(amount);
+    if (isNaN(cleanAmount)) return "";
     
     const currencySym = settings?.baseCurrency?.split(' ')[1]?.replace(/[()]/g, '') || "₹";
     const locales = settings?.numberFormat === "Indian" ? "en-IN" : "en-US";
@@ -46,9 +48,9 @@ export const AccountingProvider = ({ children }) => {
     const formattedAmount = new Intl.NumberFormat(locales, { 
       minimumFractionDigits: decimalPlaces, 
       maximumFractionDigits: decimalPlaces 
-    }).format(amount);
+    }).format(cleanAmount);
 
-    return `${currencySym} ${formattedAmount}`;
+    return `${currencySym}${formattedAmount}`;
   };
 
   return (

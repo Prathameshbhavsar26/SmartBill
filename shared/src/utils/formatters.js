@@ -13,7 +13,11 @@ export function formatCurrency(
   currency = "INR",
   numberFormat = "Indian",
 ) {
-  const num = Number(val) || 0;
+  let cleanVal = val;
+  if (typeof cleanVal === "string") {
+    cleanVal = cleanVal.replace(/^[₹$€£\s]+/, "");
+  }
+  const num = Number(cleanVal) || 0;
   const symbol = CURRENCY_SYMBOLS[currency] || CURRENCY_SYMBOLS.INR;
   const locale = numberFormat === "Indian" ? "en-IN" : "en-US";
 
