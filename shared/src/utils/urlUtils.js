@@ -38,26 +38,33 @@ export const getLandingUrl = () => {
 
 export const getCrmUrl = (path = "") => {
   const cleanPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
-  if (typeof window === "undefined") return `/app${cleanPath}`;
   const rawCrm = sanitizeUrl(import.meta.env?.VITE_CRM_URL);
   if (rawCrm) {
     return `${rawCrm}${cleanPath}`;
   }
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
     return `${window.location.protocol}//${window.location.hostname}:5174${cleanPath}`;
+  }
+  if (cleanPath.startsWith("/app") || cleanPath.startsWith("/crm")) {
+    return cleanPath;
+  }
+  if (cleanPath === "/login" || cleanPath === "/register" || cleanPath === "/forgot") {
+    return cleanPath;
   }
   return `/app${cleanPath}`;
 };
 
 export const getAdminUrl = (path = "") => {
   const cleanPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
-  if (typeof window === "undefined") return `/admin${cleanPath}`;
   const rawAdmin = sanitizeUrl(import.meta.env?.VITE_ADMIN_URL);
   if (rawAdmin) {
     return `${rawAdmin}${cleanPath}`;
   }
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
     return `${window.location.protocol}//${window.location.hostname}:5175${cleanPath}`;
+  }
+  if (cleanPath.startsWith("/admin")) {
+    return cleanPath;
   }
   return `/admin${cleanPath}`;
 };

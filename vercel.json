@@ -37,6 +37,30 @@
       "destination": "/crm/index.html"
     },
     {
+      "source": "/login",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/register",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/forgot",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/pos",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/sales",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/billing",
+      "destination": "/app/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
