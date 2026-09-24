@@ -727,21 +727,21 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-sm">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 py-8 sm:py-12 min-h-screen">
+        <div className="w-full max-w-md">
           <button
             onClick={() => onNav("landing")}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 mb-8 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 mb-6 sm:mb-8 transition-colors cursor-pointer"
           >
             <ArrowRight className="w-3 h-3 rotate-180" /> Back to home
           </button>
 
           {view === "login" && (
             <>
-              <h2 className="text-2xl font-bold text-slate-900 mb-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">
                 Welcome back
               </h2>
-              <p className="text-sm text-slate-500 mb-6">
+              <p className="text-xs sm:text-sm text-slate-500 mb-5 sm:mb-6">
                 Sign in to your SmartBill account
               </p>
 
@@ -883,7 +883,7 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
                     {formError}
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
                     label="First Name"
                     value={firstName}

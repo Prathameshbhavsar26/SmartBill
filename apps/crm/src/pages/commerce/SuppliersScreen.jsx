@@ -896,7 +896,7 @@ export default function SuppliersScreen() {
             </div>
 
             {/* Custom Payee Name & Contact */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Payee Name *
@@ -929,7 +929,7 @@ export default function SuppliersScreen() {
             </div>
 
             {/* Amounts & Date */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                    Bill Amount / Amount Due (₹) *
@@ -1009,7 +1009,7 @@ export default function SuppliersScreen() {
             </div>
 
             {/* Reference No & Received By */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Bill / PO / Invoice Ref #
@@ -1138,14 +1138,14 @@ export default function SuppliersScreen() {
             </div>
 
             {/* Printable Paper Canvas */}
-            <div className="p-6 overflow-y-auto flex-1 bg-slate-100 dark:bg-slate-950 flex justify-center items-start">
+            <div className="p-3 sm:p-6 overflow-auto flex-1 bg-slate-100 dark:bg-slate-950 flex justify-center items-start">
               <div
                 id="printable-cash-voucher-slip"
-                className="w-full bg-white text-slate-900 p-8 rounded-xl border-2 border-slate-800 shadow-lg text-xs"
+                className="w-full min-w-[290px] sm:min-w-[560px] bg-white text-slate-900 p-4 sm:p-8 rounded-xl border-2 border-slate-800 shadow-lg text-xs"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
                 {/* Voucher Header */}
-                <div className="flex justify-between items-start pb-4 mb-4 border-b-2 border-slate-800">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-3 pb-4 mb-4 border-b-2 border-slate-800">
                   <div>
                     <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">
                       {businessInfo.businessName || businessInfo.name || "SMARTBILL ENTERPRISE"}
@@ -1158,7 +1158,7 @@ export default function SuppliersScreen() {
                     </p>
                   </div>
 
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <span className="inline-block px-3 py-1 bg-slate-900 text-white font-black text-xs uppercase tracking-wider rounded">
                       CASH PAYMENT VOUCHER
                     </span>
@@ -1176,7 +1176,7 @@ export default function SuppliersScreen() {
                 </div>
 
                 {/* Paid To & Account Info */}
-                <div className="grid grid-cols-2 gap-4 pb-4 mb-4 border-b border-slate-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 mb-4 border-b border-slate-200">
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold uppercase text-slate-400">
                       Paid To (Payee):
@@ -1191,7 +1191,7 @@ export default function SuppliersScreen() {
                     )}
                   </div>
 
-                  <div className="text-right space-y-1">
+                  <div className="text-left sm:text-right space-y-1">
                     <p className="text-[10px] font-bold uppercase text-slate-400">
                       Debit Account Head:
                     </p>
@@ -1207,7 +1207,7 @@ export default function SuppliersScreen() {
                 </div>
 
                 {/* Amount Table */}
-                <div className="mb-4">
+                <div className="mb-4 overflow-x-auto">
                   <table className="w-full text-left border-collapse border border-slate-800 text-xs">
                     <thead>
                       <tr className="bg-slate-100 text-slate-900 font-bold border-b border-slate-800">
@@ -1275,7 +1275,7 @@ export default function SuppliersScreen() {
                 </div>
 
                 {/* Signatures */}
-                <div className="grid grid-cols-4 gap-4 text-center pt-6 border-t border-slate-300 text-[11px]">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center pt-6 border-t border-slate-300 text-[11px]">
                   <div>
                     <div className="h-10 border-b border-dashed border-slate-400 mb-1"></div>
                     <p className="font-bold text-slate-800">Prepared By</p>
@@ -1345,37 +1345,37 @@ export default function SuppliersScreen() {
       {viewSupplier && (
         <Modal title="Supplier Profile Details" onClose={() => setViewSupplier(null)}>
           <div className="space-y-4 text-xs">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Firm Name
               </p>
-              <p className="mt-1 text-lg font-bold text-slate-900">
+              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
                 {viewSupplier.name}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-200 p-3.5">
-                <p className="text-[11px] font-semibold text-slate-500 uppercase">Contact Person</p>
-                <p className="mt-1 text-sm font-medium text-slate-800">{viewSupplier.contact || "—"}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5">
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Contact Person</p>
+                <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{viewSupplier.contact || "—"}</p>
               </div>
-              <div className="rounded-xl border border-slate-200 p-3.5">
-                <p className="text-[11px] font-semibold text-slate-500 uppercase">Phone Number</p>
-                <p className="mt-1 text-sm font-mono font-bold text-slate-800">{viewSupplier.phone || "—"}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-200 p-3.5">
-                <p className="text-[11px] font-semibold text-slate-500 uppercase">Email</p>
-                <p className="mt-1 text-sm text-slate-700">{viewSupplier.email || "—"}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-3.5">
-                <p className="text-[11px] font-semibold text-slate-500 uppercase">GST Number</p>
-                <p className="mt-1 text-sm font-mono font-bold text-slate-800">{viewSupplier.gst || "—"}</p>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5">
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Phone Number</p>
+                <p className="mt-1 text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{viewSupplier.phone || "—"}</p>
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 p-3.5">
-              <p className="text-[11px] font-semibold text-slate-500 uppercase">Outstanding Balance Due</p>
-              <p className="mt-1 text-lg font-mono font-extrabold text-red-600">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5">
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Email</p>
+                <p className="mt-1 text-sm text-slate-700 dark:text-slate-300 break-all">{viewSupplier.email || "—"}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5">
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">GST Number</p>
+                <p className="mt-1 text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{viewSupplier.gst || "—"}</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5">
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Outstanding Balance Due</p>
+              <p className="mt-1 text-lg font-mono font-extrabold text-red-600 dark:text-red-400">
                 {fmt(viewSupplier.balance || 0)}
               </p>
             </div>
@@ -1398,7 +1398,7 @@ export default function SuppliersScreen() {
               value={editForm.name}
               onChange={(v) => setEditForm((f) => ({ ...f, name: v }))}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Contact Person"
                 value={editForm.contact}
@@ -1424,7 +1424,7 @@ export default function SuppliersScreen() {
               value={editForm.email}
               onChange={(v) => setEditForm((f) => ({ ...f, email: v }))}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="City"
                 value={editForm.city}
@@ -1446,17 +1446,17 @@ export default function SuppliersScreen() {
                 onChange={(e) =>
                   setEditForm((f) => ({ ...f, address: e.target.value }))
                 }
-                className="w-full rounded-xl border border-slate-200 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-white outline-none"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-white outline-none"
               />
             </div>
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Btn
                 variant="outline"
                 onClick={() => {
                   setShowEditModal(false);
                   setEditId(null);
                 }}
-                className="flex-1 justify-center"
+                className="w-full sm:flex-1 justify-center"
               >
                 Cancel
               </Btn>
@@ -1477,7 +1477,7 @@ export default function SuppliersScreen() {
                     console.error(err);
                   }
                 }}
-                className="flex-1 justify-center"
+                className="w-full sm:flex-1 justify-center"
               >
                 Save Changes
               </Btn>
@@ -1495,7 +1495,7 @@ export default function SuppliersScreen() {
               value={form.name}
               onChange={(v) => setForm((f) => ({ ...f, name: v }))}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Contact Person"
                 value={form.contact}
@@ -1521,7 +1521,7 @@ export default function SuppliersScreen() {
               value={form.email}
               onChange={(v) => setForm((f) => ({ ...f, email: v }))}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="City"
                 value={form.city}
@@ -1541,14 +1541,14 @@ export default function SuppliersScreen() {
                 rows={3}
                 value={form.address}
                 onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-white outline-none"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-white outline-none"
               />
             </div>
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Btn
                 variant="outline"
                 onClick={() => setShowModal(false)}
-                className="flex-1 justify-center"
+                className="w-full sm:flex-1 justify-center"
               >
                 Cancel
               </Btn>
@@ -1579,7 +1579,7 @@ export default function SuppliersScreen() {
                     console.error(err);
                   }
                 }}
-                className="flex-1 justify-center"
+                className="w-full sm:flex-1 justify-center"
               >
                 Save Supplier
               </Btn>

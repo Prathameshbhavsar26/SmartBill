@@ -110,6 +110,7 @@ export const getAllBusinesses = async (req, res) => {
     const businessList = owners.map((owner) => {
       const ownerIdStr = owner._id.toString();
       const employeeCount = employeeMap.get(ownerIdStr) || 0;
+      const totalUsers = 1 + employeeCount;
       const orderStats = orderStatsMap.get(ownerIdStr) || { totalRevenue: 0, ordersCount: 0 };
 
       const rawPlan = owner.subscription?.plan || "starter";
@@ -142,6 +143,11 @@ export const getAllBusinesses = async (req, res) => {
         },
         revenue: typeof revenue !== "undefined" ? revenue : orderStats.totalRevenue,
         ordersCount: orderStats?.ordersCount || 0,
+        users: totalUsers,
+        userCount: totalUsers,
+        employees: employeeCount,
+        employeeCount: employeeCount,
+        staffCount: employeeCount,
         category: owner.businessType || owner.category || owner.businessCategory || "Retail",
         businessType: owner.businessType || "Retail",
         businessCategory: owner.businessCategory || "",
@@ -1332,7 +1338,18 @@ export const getBusinessCustomers = async (req, res) => {
       });
     }
 
-    const customers = await Customer.find({ ownerId: id }).sort({ createdAt: -1 }).lean();
+    const [customers, staffUsers] = await Promise.all([
+      Customer.find({ ownerId: id }).sort({ createdAt: -1 }).lean(),
+      User.find({
+        $or: [
+          { _id: id },
+          { ownerId: id },
+        ],
+      })
+        .select("-password -passwordResetToken -passwordResetExpires -twoFactorSecret")
+        .sort({ createdAt: 1 })
+        .lean(),
+    ]);
 
     const formattedPlan = owner.subscription?.plan
       ? owner.subscription.plan.charAt(0).toUpperCase() + owner.subscription.plan.slice(1)
@@ -1352,11 +1369,31 @@ export const getBusinessCustomers = async (req, res) => {
         plan: formattedPlan,
         status: owner.status || "Active",
         suspensionReason: owner.suspensionReason || "",
+        usersCount: staffUsers.length,
         joined: owner.createdAt
           ? new Date(owner.createdAt).toISOString().split("T")[0]
           : "N/A",
       },
       customersCount: customers.length,
+      usersCount: staffUsers.length,
+      users: staffUsers.map((u) => {
+        const isOwner = String(u._id) === String(id) || !u.ownerId;
+        return {
+          _id: u._id,
+          id: u._id.toString(),
+          name: `${u.firstName} ${u.lastName}`.trim(),
+          email: u.email,
+          phone: u.phone || "N/A",
+          role: u.role || (isOwner ? "owner" : "staff"),
+          department: u.department || (isOwner ? "Business Owner" : "Staff Member"),
+          status: u.status || "Active",
+          isOwner,
+          joined: u.createdAt
+            ? new Date(u.createdAt).toISOString().split("T")[0]
+            : "N/A",
+          createdAt: u.createdAt,
+        };
+      }),
       customers: customers.map((c) => ({
         _id: c._id,
         id: c._id.toString(),

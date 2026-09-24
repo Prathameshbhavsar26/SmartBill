@@ -142,10 +142,10 @@ export default function Revenue() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
       {/* Page Header & Filter Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900">Platform Revenue Analysis</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900">Platform Revenue Analysis</h1>
             <span className="bg-blue-50 text-blue-700 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-blue-100 flex items-center gap-1">
               <Zap className="w-3 h-3 text-blue-600" /> Live Data
             </span>
@@ -155,7 +155,7 @@ export default function Revenue() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           {/* Business Selector */}
           <div className="relative">
             <select

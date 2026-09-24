@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, LogOut, MoreVertical, Plus } from "lucide-react";
+import { Bell, LogOut, MoreVertical, Plus, Menu } from "lucide-react";
 import { Btn, ConfirmDialog } from "@shared/components/common/ui";
 import { getUserDisplayName, getUserInitials } from "@shared/utils/userUtils";
 import { useCustomization } from "@shared/hooks/useCustomization";
@@ -22,7 +22,7 @@ const PAGE_LABELS = {
   profile: "Profile",
 };
 
-export default function Topbar({ page, onLogout, onNav, role, notifCount, user }) {
+export default function Topbar({ page, onLogout, onNav, role, notifCount, user, onMobileMenuToggle }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { t, formatDate } = useCustomization();
@@ -32,12 +32,22 @@ export default function Topbar({ page, onLogout, onNav, role, notifCount, user }
   const title = t(`nav.${page}`) !== `nav.${page}` ? t(`nav.${page}`) : PAGE_LABELS[page] || "SmartBill";
 
   return (
-    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center px-6 gap-4 flex-shrink-0">
-      <div className="flex-1">
-        <h1 className="text-base font-semibold text-slate-900 dark:text-white">
+    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center px-3 sm:px-6 gap-2 sm:gap-4 flex-shrink-0 z-10">
+      {/* Mobile hamburger menu button */}
+      <button
+        type="button"
+        onClick={onMobileMenuToggle}
+        className="lg:hidden p-2 -ml-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer flex-shrink-0"
+        aria-label="Open Navigation Menu"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <h1 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white truncate">
           {title}
         </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
           {formatDate(new Date())}
         </p>
       </div>
@@ -47,58 +57,60 @@ export default function Topbar({ page, onLogout, onNav, role, notifCount, user }
           type="button"
           onClick={() => onNav("pos")}
           style={{ backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" }}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow hover:opacity-90 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-xs hover:opacity-90 transition-all cursor-pointer flex-shrink-0"
         >
-          <Plus className="w-3.5 h-3.5 text-white" />
-          <span>{t("nav.new_invoice") || "New Invoice"}</span>
+          <Plus className="w-3.5 h-3.5 text-white flex-shrink-0" />
+          <span className="hidden xs:inline sm:inline">{t("nav.new_invoice") || "New Invoice"}</span>
+          <span className="xs:hidden sm:hidden">Bill</span>
         </button>
       )}
 
       <button
         onClick={() => onNav("notifications")}
-        className={`relative w-9 h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer ${
+        className={`relative w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer flex-shrink-0 ${
           page === "notifications"
             ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-semibold"
             : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
         }`}
         title="Notifications"
       >
-        <Bell className="w-4.5 h-4.5" />
+        <Bell className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
         {notifCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs border-2 border-white dark:border-slate-900 animate-in zoom-in-75">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] sm:min-w-[18px] sm:h-[18px] px-1 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs border-2 border-white dark:border-slate-900 animate-in zoom-in-75">
             {notifCount > 99 ? "99+" : notifCount}
           </span>
         )}
       </button>
 
-      <div className="flex items-center gap-2 pl-3 border-l border-slate-200 dark:border-slate-800">
+      <div className="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-3 border-l border-slate-200 dark:border-slate-800 flex-shrink-0">
         <div
-          className="w-8 h-8 rounded-full flex items-center justify-center"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0"
           style={{ backgroundColor: "var(--primary, #2563eb)" }}
         >
-          <span className="text-xs font-bold text-white">{initials}</span>
+          <span className="text-[11px] sm:text-xs font-bold text-white">{initials}</span>
         </div>
-        <div className="hidden sm:block">
-          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{displayName}</p>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 capitalize">{role}</p>
+        <div className="hidden md:block max-w-[120px] lg:max-w-[160px]">
+          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{displayName}</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 capitalize truncate">{role}</p>
         </div>
-        <div className="relative ml-1">
+        <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            aria-label="User actions"
           >
             <MoreVertical className="w-4 h-4" />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
               <button
                 onClick={() => {
                   setMenuOpen(false);
                   setShowLogoutConfirm(true);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600 cursor-pointer"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4 text-red-500" />
                 <span>{t("nav.logout") || "Logout"}</span>
               </button>
             </div>

@@ -10,7 +10,6 @@ import {
   Shield,
   KeyRound,
   ArrowUpDown,
-  MoreHorizontal,
   Mail,
   Phone,
   TrendingUp,
@@ -18,21 +17,12 @@ import {
   Activity,
   CreditCard,
   Building2,
-  MoreVertical,
   ArrowLeft,
   Tag,
   Folder,
   Eye,
 } from "lucide-react";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from "@shared/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@shared/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@shared/components/ui/tabs";
 import adminAPI from "@shared/api/adminAPI";
@@ -144,8 +134,11 @@ export default function BusinessesNew() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedDetailsBusiness, setSelectedDetailsBusiness] = useState(null);
   const [businessCustomers, setBusinessCustomers] = useState([]);
+  const [businessUsers, setBusinessUsers] = useState([]);
+  const [detailsTab, setDetailsTab] = useState("customers");
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [userSearch, setUserSearch] = useState("");
   const [customerError, setCustomerError] = useState("");
 
   const openBusinessDetailsModal = async (business) => {
@@ -154,19 +147,52 @@ export default function BusinessesNew() {
     setLoadingCustomers(true);
     setCustomerError("");
     setCustomerSearch("");
+    setUserSearch("");
+    setDetailsTab("customers");
     setBusinessCustomers([]);
+    setBusinessUsers([]);
 
     try {
       const bizId = business.id || business._id;
       const res = await adminAPI.getBusinessCustomers(bizId);
-      if (res && res.customers) {
-        setBusinessCustomers(res.customers);
+      if (res) {
+        if (res.customers) setBusinessCustomers(res.customers);
+        if (res.users && res.users.length > 0) {
+          setBusinessUsers(res.users);
+        } else {
+          setBusinessUsers([
+            {
+              id: business.id || business._id,
+              name: business.owner || business.name,
+              email: business.ownerEmail || "-",
+              phone: business.ownerPhone || "-",
+              role: "owner",
+              department: "Business Owner",
+              status: business.status || "Active",
+              isOwner: true,
+              joined: business.joined || "N/A",
+            }
+          ]);
+        }
       } else {
-        setCustomerError("Failed to fetch customers for this business.");
+        setCustomerError("Failed to fetch records for this business.");
       }
     } catch (err) {
-      console.error("Error fetching business customers:", err);
-      setCustomerError(err?.response?.data?.message || err.message || "Failed to fetch customers.");
+      console.error("Error fetching business records:", err);
+      setCustomerError(err?.response?.data?.message || err.message || "Failed to fetch details.");
+      setBusinessUsers([
+        {
+          id: business.id || business._id,
+          name: business.owner || business.name,
+          email: business.ownerEmail || "-",
+          phone: business.ownerPhone || "-",
+          role: "owner",
+          department: "Business Owner",
+          status: business.status || "Active",
+          isOwner: true,
+          joined: business.joined || "N/A",
+        }
+      ]);
     } finally {
       setLoadingCustomers(false);
     }
@@ -506,11 +532,24 @@ export default function BusinessesNew() {
       );
     });
 
+    const filteredUsers = businessUsers.filter((u) => {
+      const q = userSearch.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(u.name || "").toLowerCase().includes(q) ||
+        String(u.email || "").toLowerCase().includes(q) ||
+        String(u.phone || "").toLowerCase().includes(q) ||
+        String(u.role || "").toLowerCase().includes(q) ||
+        String(u.department || "").toLowerCase().includes(q)
+      );
+    });
+
     const totalCustomerValue = businessCustomers.reduce((s, c) => s + Number(c.totalOrderValue || 0), 0);
     const totalCustomerBalance = businessCustomers.reduce((s, c) => s + Number(c.balance || 0), 0);
+    const totalBusinessUsersCount = businessUsers.length || Number(selectedDetailsBusiness.users || selectedDetailsBusiness.userCount || 1);
 
     return (
-      <div className="p-6 space-y-6 bg-white min-h-screen">
+      <div className="p-3.5 sm:p-6 space-y-6 bg-white min-h-screen">
         {/* Header Navigation */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-200 pb-5">
           <div>
@@ -519,15 +558,15 @@ export default function BusinessesNew() {
               className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline mb-2 cursor-pointer transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Businesses</span>
+              <span>Back to Vendors / Businesses</span>
             </button>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2 sm:gap-3 flex-wrap">
               <span>{selectedDetailsBusiness.name}</span>
               <Badge label={selectedDetailsBusiness.plan} variant={planToVariant(selectedDetailsBusiness.plan)} />
               <Badge label={selectedDetailsBusiness.status || "Active"} variant="green" />
             </h1>
-            <p className="text-sm text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
-              <span>Business Owner: <strong className="text-slate-800">{selectedDetailsBusiness.owner}</strong></span>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 flex items-center gap-2 sm:gap-3 flex-wrap">
+              <span>Owner: <strong className="text-slate-800">{selectedDetailsBusiness.owner}</strong></span>
               <span>•</span>
               <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-slate-400" /> {selectedDetailsBusiness.ownerEmail}</span>
               <span>•</span>
@@ -536,16 +575,6 @@ export default function BusinessesNew() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search customers by name, phone, email..."
-                value={customerSearch}
-                onChange={(e) => setCustomerSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 w-72 text-sm bg-white border border-slate-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              />
-            </div>
             <button
               onClick={() => openBusinessDetailsModal(selectedDetailsBusiness)}
               disabled={loadingCustomers}
@@ -558,123 +587,262 @@ export default function BusinessesNew() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Registered Customers</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">{businessCustomers.length}</p>
+              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Business Users</p>
+              <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1">{totalBusinessUsersCount}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">1 Owner + {Math.max(0, totalBusinessUsersCount - 1)} Staff</p>
             </div>
-            <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-              <UsersIcon className="w-6 h-6" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <UsersIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Customer Orders Value</p>
-              <p className="text-3xl font-bold text-emerald-600 mt-1">
+              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Total Customers</p>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">{businessCustomers.length}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Registered clients</p>
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Orders Value</p>
+              <p className="text-xl sm:text-2xl font-bold text-emerald-600 mt-1">
                 ₹{totalCustomerValue.toLocaleString("en-IN")}
               </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Total B2B sales</p>
             </div>
-            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <CheckCircle className="w-6 h-6" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Outstanding Balance</p>
-              <p className="text-3xl font-bold text-amber-600 mt-1">
+              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Outstanding</p>
+              <p className="text-xl sm:text-2xl font-bold text-amber-600 mt-1">
                 ₹{totalCustomerBalance.toLocaleString("en-IN")}
               </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Unsettled dues</p>
             </div>
-            <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Activity className="w-6 h-6" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+              <Activity className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
         </div>
 
-        {/* Full-width Customers Table */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
-            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <span>Customer Directory for {selectedDetailsBusiness.name}</span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
-                {filteredCustomers.length} Records
-              </span>
-            </h3>
+        {/* Tabs to switch between Customers and Business Users */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDetailsTab("customers")}
+              className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                detailsTab === "customers"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Registered Customers ({businessCustomers.length})
+            </button>
+            <button
+              onClick={() => setDetailsTab("users")}
+              className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                detailsTab === "users"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Business Users & Staff ({totalBusinessUsersCount})
+            </button>
           </div>
 
-          {loadingCustomers ? (
-            <div className="py-20 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-              <span className="text-sm font-medium">Fetching customer records for {selectedDetailsBusiness.name}...</span>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder={detailsTab === "customers" ? "Search customers by name, phone, email..." : "Search users by name, role, email..."}
+              value={detailsTab === "customers" ? customerSearch : userSearch}
+              onChange={(e) => detailsTab === "customers" ? setCustomerSearch(e.target.value) : setUserSearch(e.target.value)}
+              className="pl-9 pr-4 py-2 w-full sm:w-72 text-xs sm:text-sm bg-white border border-slate-200 rounded-lg shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            />
+          </div>
+        </div>
+
+        {detailsTab === "customers" ? (
+          /* Customers Table */
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <span>Customer Directory for {selectedDetailsBusiness.name}</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
+                  {filteredCustomers.length} Records
+                </span>
+              </h3>
             </div>
-          ) : customerError ? (
-            <div className="p-8 text-center text-red-600 flex flex-col items-center justify-center gap-3">
-              <AlertCircle className="w-8 h-8 text-red-500" />
-              <span className="text-sm font-medium">{customerError}</span>
-              <button
-                onClick={() => openBusinessDetailsModal(selectedDetailsBusiness)}
-                className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Retry Loading
-              </button>
+
+            {loadingCustomers ? (
+              <div className="py-20 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                <span className="text-sm font-medium">Fetching customer records for {selectedDetailsBusiness.name}...</span>
+              </div>
+            ) : customerError && businessCustomers.length === 0 ? (
+              <div className="p-8 text-center text-red-600 flex flex-col items-center justify-center gap-3">
+                <AlertCircle className="w-8 h-8 text-red-500" />
+                <span className="text-sm font-medium">{customerError}</span>
+                <button
+                  onClick={() => openBusinessDetailsModal(selectedDetailsBusiness)}
+                  className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Retry Loading
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Customer Name</th>
+                      <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Phone Number</th>
+                      <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Email</th>
+                      <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">City / Location</th>
+                      <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Category</th>
+                      <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right">Total Purchases</th>
+                      <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right">Outstanding Balance</th>
+                      <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {filteredCustomers.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-20 text-center">
+                          <div className="flex flex-col items-center justify-center text-slate-400">
+                            <UsersIcon className="w-12 h-12 mb-3 opacity-40 text-blue-600" />
+                            <p className="text-base font-semibold text-slate-800 mb-1">No customer records found</p>
+                            <p className="text-xs text-slate-500">There are no registered customer records for this business vertical.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCustomers.map((c) => (
+                        <tr key={c._id || c.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="px-4 py-3.5 font-semibold text-slate-900 text-sm">
+                            {c.name}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-600 text-sm font-mono">
+                            {c.phone || "N/A"}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-600 text-sm">
+                            {c.email || "N/A"}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-600 text-sm">
+                            {c.city || c.address || "N/A"}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                              {c.category || "Retailer"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-mono font-bold text-slate-900 text-sm">
+                            ₹{Number(c.totalOrderValue || 0).toLocaleString("en-IN")}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-mono text-slate-700 text-sm">
+                            ₹{Number(c.balance || 0).toLocaleString("en-IN")}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <Badge label="Active" variant="green" />
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Business Users & Staff Table */
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <span>Authorized Users & Staff for {selectedDetailsBusiness.name}</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
+                  {filteredUsers.length} Users
+                </span>
+              </h3>
             </div>
-          ) : (
+
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                   <tr>
-                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Customer Name</th>
+                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">User / Member</th>
+                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Role & Authority</th>
+                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Email Address</th>
                     <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Phone Number</th>
-                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Email</th>
-                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">City / Location</th>
-                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Category</th>
-                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right">Total Purchases</th>
-                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right">Outstanding Balance</th>
-                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Department</th>
+                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Joined Date</th>
+                    <th className="py-3.5 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Account Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {filteredCustomers.length === 0 ? (
+                  {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-20 text-center">
+                      <td colSpan={7} className="py-16 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-400">
-                          <UsersIcon className="w-12 h-12 mb-3 opacity-40 text-blue-600" />
-                          <p className="text-base font-semibold text-slate-800 mb-1">No customer records found</p>
-                          <p className="text-xs text-slate-500">There are no registered customer records for this business vertical.</p>
+                          <UsersIcon className="w-10 h-10 mb-2 opacity-40 text-blue-600" />
+                          <p className="text-sm font-semibold text-slate-800">No users match your query</p>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    filteredCustomers.map((c) => (
-                      <tr key={c._id || c.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-4 py-3.5 font-semibold text-slate-900 text-sm">
-                          {c.name}
+                    filteredUsers.map((u) => (
+                      <tr key={u._id || u.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9 border border-slate-200">
+                              <AvatarFallback className="bg-blue-50 text-blue-700 font-semibold text-xs">
+                                {u.name ? u.name.substring(0, 2).toUpperCase() : "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-semibold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
+                                <span>{u.name}</span>
+                                {u.isOwner && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                    Owner
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-0.5">{u.department || (u.isOwner ? "Business Owner" : "Staff")}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <Badge
+                            label={u.role || (u.isOwner ? "Owner" : "Staff")}
+                            variant={u.isOwner ? "purple" : "blue"}
+                          />
                         </td>
                         <td className="px-4 py-3.5 text-slate-600 text-sm font-mono">
-                          {c.phone || "N/A"}
+                          {u.email || "-"}
                         </td>
-                        <td className="px-4 py-3.5 text-slate-600 text-sm">
-                          {c.email || "N/A"}
+                        <td className="px-4 py-3.5 text-slate-600 text-sm font-mono">
+                          {u.phone || "-"}
                         </td>
-                        <td className="px-4 py-3.5 text-slate-600 text-sm">
-                          {c.city || c.address || "N/A"}
+                        <td className="px-4 py-3.5 text-slate-700 text-sm font-medium">
+                          {u.department || (u.isOwner ? "Executive / Owner" : "Operations")}
                         </td>
-                        <td className="px-4 py-3.5">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                            {c.category || "Retailer"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right font-mono font-bold text-slate-900 text-sm">
-                          ₹{Number(c.totalOrderValue || 0).toLocaleString("en-IN")}
-                        </td>
-                        <td className="px-4 py-3.5 text-right font-mono text-slate-700 text-sm">
-                          ₹{Number(c.balance || 0).toLocaleString("en-IN")}
+                        <td className="px-4 py-3.5 text-slate-500 text-sm">
+                          {u.joined || "N/A"}
                         </td>
                         <td className="px-4 py-3.5">
-                          <Badge label="Active" variant="green" />
+                          <Badge label={u.status || "Active"} variant={statusToVariant(u.status || "Active")} />
                         </td>
                       </tr>
                     ))
@@ -682,18 +850,18 @@ export default function BusinessesNew() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-5 bg-white">
+    <div className="p-3.5 sm:p-6 space-y-5 bg-white">
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <span>Businesses</span>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
               Live Database
@@ -704,18 +872,19 @@ export default function BusinessesNew() {
               </span>
             )}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Manage all registered business owner profiles, subscriptions, and database status.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 w-72 text-sm bg-white border border-slate-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              placeholder="Search businesses..."
+              className="pl-9 pr-4 py-2 w-full sm:w-72 text-sm bg-white border border-slate-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
             />
           </div>
 
@@ -799,7 +968,7 @@ export default function BusinessesNew() {
           </div>
           <div className="mt-2 z-10">
             <p className="text-3xl font-bold text-slate-900">
-              {rows.reduce((s, r) => s + Number(r.users || 0), 0)}
+              {rows.reduce((s, r) => s + Number(r.users || r.userCount || 1), 0)}
             </p>
           </div>
         </div>
@@ -1062,7 +1231,6 @@ export default function BusinessesNew() {
                           { label: "Joined", key: "joined", sortable: true },
                           { label: "Users", key: "users", sortable: true },
                           { label: "Status", key: "status", sortable: true },
-                          { label: "Actions", key: "actions", sortable: false },
                         ].map((h) => (
                           <th
                             key={h.label}
@@ -1079,15 +1247,12 @@ export default function BusinessesNew() {
                             </div>
                           </th>
                         ))}
-                        <th className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right whitespace-nowrap">
-                          Actions
-                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {loading && rows.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-12 text-center text-slate-500">
+                          <td colSpan={7} className="py-12 text-center text-slate-500">
                             <div className="flex flex-col items-center justify-center gap-2">
                               <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                               <span className="text-sm font-medium">Fetching registered business owners...</span>
@@ -1096,7 +1261,7 @@ export default function BusinessesNew() {
                         </tr>
                       ) : error && rows.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-12 text-center">
+                          <td colSpan={7} className="py-12 text-center">
                             <div className="flex flex-col items-center justify-center">
                               <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center mb-2">
                                 <AlertCircle className="w-5 h-5 text-red-500" />
@@ -1114,7 +1279,7 @@ export default function BusinessesNew() {
                         </tr>
                       ) : categoryRows.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-12 text-center">
+                          <td colSpan={7} className="py-12 text-center">
                             <div className="flex flex-col items-center justify-center">
                               <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mb-2">
                                 <Building2 className="w-5 h-5 text-slate-400" />
@@ -1169,7 +1334,16 @@ export default function BusinessesNew() {
                               <Badge label={b.plan} variant={planToVariant(b.plan)} />
                             </td>
                             <td className="px-4 py-3 text-slate-500 text-sm">{b.joined}</td>
-                            <td className="px-4 py-3 text-slate-600 text-sm">{b.users}</td>
+                            <td className="px-4 py-3 text-slate-700 text-sm font-medium whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-100">
+                                  {Number(b.users || b.userCount || 1)}
+                                </span>
+                                <span className="text-xs text-slate-500">
+                                  {Number(b.users || b.userCount || 1) === 1 ? "user" : "users"}
+                                </span>
+                              </div>
+                            </td>
                             <td className="px-4 py-3">
                               <div className="flex flex-col items-start gap-1">
                                 <Badge label={b.status} variant={statusToVariant(b.status)} />
@@ -1182,56 +1356,6 @@ export default function BusinessesNew() {
                                   </span>
                                 )}
                               </div>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <button
-                                    type="button"
-                                    className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer outline-none"
-                                    title="Business Actions"
-                                  >
-                                    <MoreVertical className="w-4 h-4" />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-52 bg-white shadow-lg border border-slate-200 rounded-xl p-1.5">
-                                  <DropdownMenuLabel className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
-                                    Business Actions
-                                  </DropdownMenuLabel>
-                                  <DropdownMenuItem
-                                    onClick={() => openBusinessDetailsModal(b)}
-                                    className="cursor-pointer flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
-                                  >
-                                    <Eye className="w-3.5 h-3.5 text-blue-600" />
-                                    <span>View Details & Customers</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => openAccessModal(b)}
-                                    className="cursor-pointer flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
-                                  >
-                                    <KeyRound className="w-3.5 h-3.5 text-purple-600" />
-                                    <span>Manage Module Access</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator className="my-1 bg-slate-100" />
-                                  {b.status === "Suspended" ? (
-                                    <DropdownMenuItem
-                                      onClick={() => resumeBusiness(b.id || b._id)}
-                                      className="cursor-pointer flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg"
-                                    >
-                                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                                      <span>Reactivate Account</span>
-                                    </DropdownMenuItem>
-                                  ) : (
-                                    <DropdownMenuItem
-                                      onClick={() => openSuspendModal(b.id || b._id)}
-                                      className="cursor-pointer flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg"
-                                    >
-                                      <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                                      <span>Suspend Account</span>
-                                    </DropdownMenuItem>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
                             </td>
                           </tr>
                         ))
@@ -1263,7 +1387,6 @@ export default function BusinessesNew() {
                     { label: "Joined", key: "joined", sortable: true },
                     { label: "Users", key: "users", sortable: true },
                     { label: "Status", key: "status", sortable: true },
-                    { label: "Actions", key: "actions", sortable: false },
                   ].map((h) => (
                     <th
                       key={h.label}
@@ -1280,15 +1403,12 @@ export default function BusinessesNew() {
                       </div>
                     </th>
                   ))}
-                  <th className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-right whitespace-nowrap">
-                    Actions
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading && rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-500">
+                    <td colSpan={7} className="py-12 text-center text-slate-500">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                         <span className="text-sm font-medium">Fetching registered business owners...</span>
@@ -1297,7 +1417,7 @@ export default function BusinessesNew() {
                   </tr>
                 ) : error && rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center">
+                    <td colSpan={7} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-3">
                           <AlertCircle className="w-6 h-6 text-red-500" />
@@ -1315,7 +1435,7 @@ export default function BusinessesNew() {
                   </tr>
                 ) : processedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center">
+                    <td colSpan={7} className="py-16 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
                           <Building2 className="w-6 h-6 text-slate-400" />
@@ -1370,7 +1490,16 @@ export default function BusinessesNew() {
                         <Badge label={b.plan} variant={planToVariant(b.plan)} />
                       </td>
                       <td className="px-4 py-3 text-slate-500 text-sm">{b.joined}</td>
-                      <td className="px-4 py-3 text-slate-600 text-sm">{b.users}</td>
+                      <td className="px-4 py-3 text-slate-700 text-sm font-medium whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-100">
+                            {Number(b.users || b.userCount || 1)}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {Number(b.users || b.userCount || 1) === 1 ? "user" : "users"}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col items-start gap-1">
                           <Badge label={b.status} variant={statusToVariant(b.status)} />
@@ -1383,56 +1512,6 @@ export default function BusinessesNew() {
                             </span>
                           )}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              type="button"
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer outline-none"
-                              title="Business Actions"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-52 bg-white shadow-lg border border-slate-200 rounded-xl p-1.5">
-                            <DropdownMenuLabel className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
-                              Business Actions
-                            </DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => openBusinessDetailsModal(b)}
-                              className="cursor-pointer flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-blue-600" />
-                              <span>View Details & Customers</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openAccessModal(b)}
-                              className="cursor-pointer flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
-                            >
-                              <KeyRound className="w-3.5 h-3.5 text-purple-600" />
-                              <span>Manage Module Access</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="my-1 bg-slate-100" />
-                            {b.status === "Suspended" ? (
-                              <DropdownMenuItem
-                                onClick={() => resumeBusiness(b.id || b._id)}
-                                className="cursor-pointer flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg"
-                              >
-                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>Reactivate Account</span>
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => openSuspendModal(b.id || b._id)}
-                                className="cursor-pointer flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg"
-                              >
-                                <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                                <span>Suspend Account</span>
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </td>
                     </tr>
                   ))

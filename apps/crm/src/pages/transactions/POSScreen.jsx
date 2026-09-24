@@ -1548,12 +1548,12 @@ export default function POSScreen() {
   }
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-110px)] relative">
+    <div className="flex flex-col lg:flex-row gap-5 min-h-[calc(100vh-120px)] lg:h-[calc(100vh-110px)] relative pb-16 lg:pb-0">
       {/* Success Notification */}
       {successToast && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-xs font-semibold animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4" />
-          <span>{successToast}</span>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-xs font-semibold animate-in fade-in max-w-[90vw] text-center">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          <span className="truncate">{successToast}</span>
         </div>
       )}
 
@@ -1599,9 +1599,9 @@ export default function POSScreen() {
           )}
 
           {/* Search Input & Action Buttons Row */}
-          <div className="flex-1 flex items-center gap-2 min-w-0">
+          <div className="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
             {/* Search Input Box */}
-            <div className="relative flex-1 min-w-[160px]">
+            <div className="relative flex-1 min-w-[200px] w-full sm:w-auto">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                 <Search className="w-4 h-4" />
               </div>
@@ -1629,7 +1629,7 @@ export default function POSScreen() {
             <button
               type="button"
               onClick={() => setCameraScannerOpen(true)}
-              className="h-10 px-3.5 bg-emerald-50 hover:bg-emerald-100/80 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-2xs whitespace-nowrap active:scale-95"
+              className="h-10 px-3.5 bg-emerald-50 hover:bg-emerald-100/80 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer shadow-2xs whitespace-nowrap active:scale-95"
               title="Open camera barcode scanner"
             >
               <ScanLine className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -1640,7 +1640,7 @@ export default function POSScreen() {
             <button
               type="button"
               onClick={() => setShowHeldModal(true)}
-              className={`h-10 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-2xs whitespace-nowrap active:scale-95 border ${
+              className={`h-10 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer shadow-2xs whitespace-nowrap active:scale-95 border ${
                 heldCarts.length > 0
                   ? "border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
                   : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"

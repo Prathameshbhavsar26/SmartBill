@@ -186,7 +186,7 @@ export default function PurchaseSupplierDetailsModal({
         </div>
 
         {/* 2. Purchase Invoice & Supplier Info */}
-        <div className="bg-slate-50/60 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200/70 dark:border-slate-800 text-xs grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="bg-slate-50/60 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200/70 dark:border-slate-800 text-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Invoice / Bill #
@@ -257,7 +257,7 @@ export default function PurchaseSupplierDetailsModal({
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
             Goods Received Line Items ({items.length})
           </h4>
-          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 font-semibold text-slate-500 dark:text-slate-400 text-[11px]">

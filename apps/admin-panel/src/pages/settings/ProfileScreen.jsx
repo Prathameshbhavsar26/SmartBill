@@ -253,14 +253,14 @@ export default function ProfileScreen() {
 
       {/* ================= PROFILE CARD ================= */}
 
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
 
-        <div className="flex items-start gap-5 mb-6">
+        <div className="flex items-start gap-4 sm:gap-5 mb-6">
 
-          <div className="relative">
+          <div className="relative flex-shrink-0">
 
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center">
-              <span className="text-xl font-bold text-white">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-600 rounded-2xl flex items-center justify-center">
+              <span className="text-lg sm:text-xl font-bold text-white">
                 {initials}
               </span>
             </div>
@@ -274,13 +274,13 @@ export default function ProfileScreen() {
 
           </div>
 
-          <div>
+          <div className="min-w-0 flex-1">
 
-            <h3 className="font-bold text-slate-900 text-lg">
+            <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">
               {displayName}
             </h3>
 
-            <p className="text-sm text-slate-500">
+            <p className="text-xs sm:text-sm text-slate-500 truncate mb-1.5">
               {roleTitle} · {businessName}
             </p>
 
@@ -295,7 +295,7 @@ export default function ProfileScreen() {
 
         {/* ================= FORM ================= */}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
           <Input
             label="First Name"
@@ -373,7 +373,7 @@ export default function ProfileScreen() {
 
         <Btn
           variant="primary"
-          className="mt-5"
+          className="mt-5 w-full sm:w-auto"
           icon={<Check className="w-4 h-4" />}
           onClick={handleUpdateProfile}
           disabled={saving}
@@ -385,23 +385,23 @@ export default function ProfileScreen() {
 
       {/* ================= ACCOUNT SUMMARY ================= */}
 
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
 
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-slate-900">Account Summary</h3>
+          <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Account Summary</h3>
           {summaryLoading && (
             <span className="text-xs text-slate-400 animate-pulse">Loading live data...</span>
           )}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
 
           {/* Customers */}
-          <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
+          <div className="bg-blue-50 rounded-xl p-3.5 sm:p-4 text-center border border-blue-100">
             <div className="flex justify-center mb-1.5">
               <Users className="w-5 h-5 text-blue-500" />
             </div>
-            <p className="text-2xl font-bold text-blue-700">
+            <p className="text-xl sm:text-2xl font-bold text-blue-700">
               {summaryLoading ? (
                 <span className="inline-block w-10 h-6 bg-blue-200 rounded animate-pulse" />
               ) : (
@@ -412,11 +412,11 @@ export default function ProfileScreen() {
           </div>
 
           {/* Products Active */}
-          <div className="bg-emerald-50 rounded-xl p-4 text-center border border-emerald-100">
+          <div className="bg-emerald-50 rounded-xl p-3.5 sm:p-4 text-center border border-emerald-100">
             <div className="flex justify-center mb-1.5">
               <Package className="w-5 h-5 text-emerald-500" />
             </div>
-            <p className="text-2xl font-bold text-emerald-700">
+            <p className="text-xl sm:text-2xl font-bold text-emerald-700">
               {summaryLoading ? (
                 <span className="inline-block w-10 h-6 bg-emerald-200 rounded animate-pulse" />
               ) : (
@@ -427,11 +427,11 @@ export default function ProfileScreen() {
           </div>
 
           {/* Invoices */}
-          <div className="bg-violet-50 rounded-xl p-4 text-center border border-violet-100">
+          <div className="bg-violet-50 rounded-xl p-3.5 sm:p-4 text-center border border-violet-100">
             <div className="flex justify-center mb-1.5">
               <FileText className="w-5 h-5 text-violet-500" />
             </div>
-            <p className="text-2xl font-bold text-violet-700">
+            <p className="text-xl sm:text-2xl font-bold text-violet-700">
               {summaryLoading ? (
                 <span className="inline-block w-10 h-6 bg-violet-200 rounded animate-pulse" />
               ) : (
@@ -442,11 +442,11 @@ export default function ProfileScreen() {
           </div>
 
           {/* Total Revenue */}
-          <div className="bg-amber-50 rounded-xl p-4 text-center border border-amber-100">
+          <div className="bg-amber-50 rounded-xl p-3.5 sm:p-4 text-center border border-amber-100">
             <div className="flex justify-center mb-1.5">
               <TrendingUp className="w-5 h-5 text-amber-500" />
             </div>
-            <p className="text-2xl font-bold text-amber-700">
+            <p className="text-xl sm:text-2xl font-bold text-amber-700 font-mono">
               {summaryLoading ? (
                 <span className="inline-block w-16 h-6 bg-amber-200 rounded animate-pulse" />
               ) : (

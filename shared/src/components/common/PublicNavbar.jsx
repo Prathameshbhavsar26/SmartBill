@@ -63,29 +63,43 @@ export default function PublicNavbar({ onNav }) {
           </button>
         </div>
         {mobileMenu && (
-          <div className="md:hidden border-t border-slate-100 px-6 py-4 space-y-3 bg-white">
+          <div className="md:hidden border-t border-slate-100 px-6 py-4 space-y-3 bg-white animate-in slide-in-from-top-2">
             {["Features", "Pricing", "Contact"].map((l) => (
               <a
                 key={l}
                 href={`/#${l.toLowerCase()}`}
-                className="block text-sm text-slate-700 py-1.5"
+                className="block text-sm font-medium text-slate-700 py-1.5"
                 onClick={() => setMobileMenu(false)}
               >
                 {l}
               </a>
             ))}
+            <a
+              href={getAdminUrl("/admin/login")}
+              className="flex items-center gap-1.5 text-sm font-medium text-blue-600 py-1.5 border-t border-slate-100 pt-2"
+              onClick={() => setMobileMenu(false)}
+            >
+              <ShieldCheck className="w-4 h-4 text-blue-600" />
+              <span>Admin Portal Login</span>
+            </a>
             <div className="flex gap-3 pt-2">
               <Btn
                 variant="outline"
-                onClick={() => handleAuthNav("login")}
-                className="flex-1"
+                onClick={() => {
+                  setMobileMenu(false);
+                  handleAuthNav("login");
+                }}
+                className="flex-1 justify-center"
               >
                 Sign In
               </Btn>
               <Btn
                 variant="primary"
-                onClick={() => handleAuthNav("register")}
-                className="flex-1"
+                onClick={() => {
+                  setMobileMenu(false);
+                  handleAuthNav("register");
+                }}
+                className="flex-1 justify-center"
               >
                 Try Free
               </Btn>

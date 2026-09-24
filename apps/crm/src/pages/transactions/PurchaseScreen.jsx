@@ -1306,11 +1306,11 @@ export default function PurchaseScreen() {
       )}
 
       {/* ── Page Header & Simple Tabs ── */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-6">
+      <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-4 sm:gap-6 min-w-max">
           <button
             onClick={() => setActiveTab("entry")}
-            className={`pb-2.5 text-sm font-semibold transition-colors cursor-pointer border-b-2 -mb-[9px] ${
+            className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer border-b-2 -mb-[9px] ${
               activeTab === "entry"
                 ? "border-blue-600 text-blue-600 dark:text-blue-400"
                 : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
@@ -1320,7 +1320,7 @@ export default function PurchaseScreen() {
           </button>
           <button
             onClick={() => setActiveTab("history")}
-            className={`pb-2.5 text-sm font-semibold transition-colors cursor-pointer border-b-2 -mb-[9px] flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer border-b-2 -mb-[9px] flex items-center gap-1.5 ${
               activeTab === "history"
                 ? "border-blue-600 text-blue-600 dark:text-blue-400"
                 : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
@@ -1333,7 +1333,7 @@ export default function PurchaseScreen() {
           </button>
           <button
             onClick={() => setActiveTab("returns")}
-            className={`pb-2.5 text-sm font-semibold transition-colors cursor-pointer border-b-2 -mb-[9px] flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs sm:text-sm font-semibold transition-colors cursor-pointer border-b-2 -mb-[9px] flex items-center gap-1.5 ${
               activeTab === "returns"
                 ? "border-amber-600 text-amber-600 dark:text-amber-400 font-bold"
                 : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"

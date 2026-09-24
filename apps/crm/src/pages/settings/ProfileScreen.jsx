@@ -407,23 +407,23 @@ export default function ProfileScreen() {
 
       {/* ================= ACCOUNT SUMMARY ================= */}
 
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
 
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-slate-900">Account Summary</h3>
+          <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Account Summary</h3>
           {summaryLoading && (
             <span className="text-xs text-slate-400 animate-pulse">Loading live data...</span>
           )}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
 
           {/* Customers */}
-          <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
+          <div className="bg-blue-50 rounded-xl p-3.5 sm:p-4 text-center border border-blue-100">
             <div className="flex justify-center mb-1.5">
               <Users className="w-5 h-5 text-blue-500" />
             </div>
-            <p className="text-2xl font-bold text-blue-700">
+            <p className="text-xl sm:text-2xl font-bold text-blue-700">
               {summaryLoading ? (
                 <span className="inline-block w-10 h-6 bg-blue-200 rounded animate-pulse" />
               ) : (
@@ -434,11 +434,11 @@ export default function ProfileScreen() {
           </div>
 
           {/* Products Active */}
-          <div className="bg-emerald-50 rounded-xl p-4 text-center border border-emerald-100">
+          <div className="bg-emerald-50 rounded-xl p-3.5 sm:p-4 text-center border border-emerald-100">
             <div className="flex justify-center mb-1.5">
               <Package className="w-5 h-5 text-emerald-500" />
             </div>
-            <p className="text-2xl font-bold text-emerald-700">
+            <p className="text-xl sm:text-2xl font-bold text-emerald-700">
               {summaryLoading ? (
                 <span className="inline-block w-10 h-6 bg-emerald-200 rounded animate-pulse" />
               ) : (
@@ -449,11 +449,11 @@ export default function ProfileScreen() {
           </div>
 
           {/* Invoices */}
-          <div className="bg-violet-50 rounded-xl p-4 text-center border border-violet-100">
+          <div className="bg-violet-50 rounded-xl p-3.5 sm:p-4 text-center border border-violet-100">
             <div className="flex justify-center mb-1.5">
               <FileText className="w-5 h-5 text-violet-500" />
             </div>
-            <p className="text-2xl font-bold text-violet-700">
+            <p className="text-xl sm:text-2xl font-bold text-violet-700">
               {summaryLoading ? (
                 <span className="inline-block w-10 h-6 bg-violet-200 rounded animate-pulse" />
               ) : (
@@ -464,11 +464,11 @@ export default function ProfileScreen() {
           </div>
 
           {/* Total Revenue */}
-          <div className="bg-amber-50 rounded-xl p-4 text-center border border-amber-100">
+          <div className="bg-amber-50 rounded-xl p-3.5 sm:p-4 text-center border border-amber-100">
             <div className="flex justify-center mb-1.5">
               <TrendingUp className="w-5 h-5 text-amber-500" />
             </div>
-            <p className="text-2xl font-bold text-amber-700">
+            <p className="text-xl sm:text-2xl font-bold text-amber-700 font-mono">
               {summaryLoading ? (
                 <span className="inline-block w-16 h-6 bg-amber-200 rounded animate-pulse" />
               ) : (

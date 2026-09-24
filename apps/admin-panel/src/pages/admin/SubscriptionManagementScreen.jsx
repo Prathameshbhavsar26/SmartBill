@@ -193,7 +193,7 @@ export default function SubscriptionManagementScreen() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="font-semibold text-slate-900 text-lg">Manage Subscription Plans</h3>
@@ -221,7 +221,7 @@ export default function SubscriptionManagementScreen() {
             <p className="text-sm font-medium">No subscription plans found.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
             {plans.map((plan) => (
               <div key={plan._id} className="border border-slate-200 rounded-xl p-5 bg-white">
                 <div className="flex items-center justify-between">

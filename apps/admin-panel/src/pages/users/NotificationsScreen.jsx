@@ -280,11 +280,11 @@ export default function NotificationsScreen({ onNav, user, role }) {
         </div>
 
         {/* Category Filter + Search */}
-        <div className="flex items-center gap-2 flex-1 sm:justify-end">
+        <div className="flex flex-wrap items-center gap-2 flex-1 sm:justify-end">
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="border border-gray-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-xs text-gray-700 dark:text-slate-200 px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+            className="w-full sm:w-auto border border-gray-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-xs text-gray-700 dark:text-slate-200 px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
           >
             {categoryOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -293,7 +293,7 @@ export default function NotificationsScreen({ onNav, user, role }) {
             ))}
           </select>
 
-          <div className="relative flex-1 sm:max-w-xs">
+          <div className="relative flex-1 min-w-[160px] sm:max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input
               type="text"

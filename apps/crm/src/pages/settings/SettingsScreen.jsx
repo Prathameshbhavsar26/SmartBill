@@ -869,10 +869,10 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
 
   return (
     <>
-      <div className="flex gap-6">
+      <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
       {/* SIDEBAR NAVIGATION */}
-      <div className="w-56 p-3 h-fit flex-shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
-        <nav className="space-y-0.5">
+      <div className="w-full lg:w-56 p-2 sm:p-3 h-fit flex-shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-x-auto no-scrollbar">
+        <nav className="flex lg:flex-col gap-1 sm:gap-1.5 min-w-max lg:min-w-0">
           {tabs.map((t) => {
             const IconComponent = t.icon; // Dynamic parsing handle
             return (
@@ -884,9 +884,9 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
                     localStorage.setItem("smartbill_settings_active_tab", t.key);
                   } catch (_) {}
                 }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                className={`whitespace-nowrap lg:whitespace-normal w-auto lg:w-full flex items-center gap-2 sm:gap-2.5 px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer ${
                   activeTab === t.key
-                    ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-semibold"
+                    ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-semibold shadow-xs"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
                 }`}
               >
@@ -899,7 +899,7 @@ export default function SettingsScreen({ user, initialTab, onNav } = {}) {
       </div>
 
       {/* RIGHT SIDE WORKSPACE */}
-      <div className="flex-1 space-y-5">
+      <div className="flex-1 min-w-0 space-y-5">
         {/* TAB 1: BUSINESS PROFILE */}
         {activeTab === "business" && (
           <div className="space-y-6">

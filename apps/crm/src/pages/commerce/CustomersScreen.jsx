@@ -578,7 +578,7 @@ export default function CustomersScreen() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Amount Received (₹)"
                 type="number"
@@ -600,7 +600,7 @@ export default function CustomersScreen() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Payment Date"
                 type="date"
@@ -655,30 +655,30 @@ export default function CustomersScreen() {
           CUSTOMER CLICKED – DETAILED MODAL
       ========================= */}
       {detailsCustomer && (
-        <div className="fixed inset-0 z-50 flex items-start justify-end p-0 bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-start justify-end p-0 bg-black/40 backdrop-blur-xs">
           <div
-            className="relative bg-white h-full w-full max-w-2xl shadow-2xl flex flex-col"
+            className="relative bg-white dark:bg-slate-900 h-full w-full max-w-2xl shadow-2xl flex flex-col"
             style={{ animation: "slideInRight 0.25s ease" }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-blue-600 to-blue-700">
-              <div>
-                <h2 className="text-lg font-bold text-white">{detailsCustomer.name}</h2>
-                <div className="flex items-center gap-3 text-blue-200 text-xs mt-0.5">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-blue-600 to-blue-700">
+              <div className="min-w-0 pr-2">
+                <h2 className="text-base sm:text-lg font-bold text-white truncate">{detailsCustomer.name}</h2>
+                <div className="flex items-center gap-2 sm:gap-3 text-blue-200 text-xs mt-0.5 truncate">
                   {detailsCustomer.phone && <span>{detailsCustomer.phone}</span>}
                   {detailsCustomer.email && <span>• {detailsCustomer.email}</span>}
                 </div>
               </div>
               <button
                 onClick={closeDetails}
-                className="text-white/70 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+                className="text-white/70 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10 cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
               {detailsLoading ? (
                 <div className="flex flex-col items-center justify-center py-24">
                   <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4" />
@@ -687,46 +687,46 @@ export default function CustomersScreen() {
               ) : detailsData ? (
                 <>
                   {/* Summary Cards */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
-                      <div className="flex items-center gap-2 mb-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-3.5 sm:p-4 border border-slate-200">
+                      <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                         <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
                           <IndianRupee className="w-3.5 h-3.5 text-blue-600" />
                         </div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Value</p>
+                        <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Value</p>
                       </div>
-                      <p className="text-xl font-bold text-slate-900 font-mono">
+                      <p className="text-lg sm:text-xl font-bold text-slate-900 font-mono">
                         {fmt(detailsData.summary?.totalOrderValue ?? 0)}
                       </p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-3.5 sm:p-4 border border-emerald-200">
+                      <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                         <div className="w-7 h-7 bg-emerald-200 rounded-lg flex items-center justify-center">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
                         </div>
-                        <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Total Paid</p>
+                        <p className="text-[11px] sm:text-xs font-semibold text-emerald-600 uppercase tracking-wide">Total Paid</p>
                       </div>
-                      <p className="text-xl font-bold text-emerald-700 font-mono">
+                      <p className="text-lg sm:text-xl font-bold text-emerald-700 font-mono">
                         {fmt(detailsData.summary?.totalPaidValue ?? 0)}
                       </p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-rose-50 to-rose-100 rounded-xl p-4 border border-rose-200">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-gradient-to-br from-rose-50 to-rose-100 rounded-xl p-3.5 sm:p-4 border border-rose-200">
+                      <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                         <div className="w-7 h-7 bg-rose-200 rounded-lg flex items-center justify-center">
                           <Clock className="w-3.5 h-3.5 text-rose-700" />
                         </div>
-                        <p className="text-xs font-semibold text-rose-600 uppercase tracking-wide">Balance Due</p>
+                        <p className="text-[11px] sm:text-xs font-semibold text-rose-600 uppercase tracking-wide">Balance Due</p>
                       </div>
-                      <p className="text-xl font-bold text-rose-700 font-mono">
+                      <p className="text-lg sm:text-xl font-bold text-rose-700 font-mono">
                         {fmt(detailsData.summary?.amountLeftToBePaid ?? detailsCustomer.balance ?? 0)}
                       </p>
                     </div>
                   </div>
 
                   {/* Settle Due Action Banner */}
-                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3.5 sm:p-4">
                     <div>
                       <span className="text-xs text-slate-500 block font-medium">Customer Credit Status:</span>
                       <span className="text-sm font-bold text-slate-900 flex items-center gap-1.5 mt-0.5">
@@ -747,7 +747,7 @@ export default function CustomersScreen() {
                       variant="primary"
                       size="sm"
                       onClick={() => handleOpenPayment(detailsCustomer)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 self-start sm:self-auto"
                       icon={<ArrowDownLeft className="w-3.5 h-3.5" />}
                     >
                       Receive Payment / Settle Due
@@ -1069,7 +1069,7 @@ export default function CustomersScreen() {
               }
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Phone"
                 icon={<Phone className="w-4 h-4" />}
@@ -1142,7 +1142,7 @@ export default function CustomersScreen() {
               required
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Phone"
                 icon={<Phone className="w-4 h-4" />}
@@ -1161,7 +1161,7 @@ export default function CustomersScreen() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="City"
                 icon={<MapPin className="w-4 h-4" />}
@@ -1228,21 +1228,22 @@ export default function CustomersScreen() {
           SEARCH + BUTTONS
       ========================= */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex-1 flex items-center gap-3">
+        <div className="flex-1 min-w-0">
           <Input
             value={search}
             onChange={setSearch}
-            placeholder="Search by customer name, phone, email, city..."
+            placeholder="Search customer, phone, email, city..."
             icon={<Search className="w-4 h-4" />}
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           <Btn
             variant="outline"
             size="md"
             onClick={handleExportCustomers}
             icon={<Download className="w-4 h-4" />}
+            className="flex-1 sm:flex-initial justify-center text-xs sm:text-sm"
           >
             Export CSV
           </Btn>
@@ -1252,6 +1253,7 @@ export default function CustomersScreen() {
             size="md"
             onClick={() => setShowModal(true)}
             icon={<Plus className="w-4 h-4" />}
+            className="flex-1 sm:flex-initial justify-center text-xs sm:text-sm"
           >
             Add Customer
           </Btn>
@@ -1261,8 +1263,8 @@ export default function CustomersScreen() {
       {/* =========================
           SUMMARY CARDS
       ========================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4 flex items-center gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <Card className="p-3.5 sm:p-4 flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <Users className="w-5 h-5" />
           </div>
@@ -1272,7 +1274,7 @@ export default function CustomersScreen() {
           </div>
         </Card>
 
-        <Card className="p-4 flex items-center gap-3.5 bg-gradient-to-br from-rose-50/40 via-white to-white border-rose-200/80">
+        <Card className="p-3.5 sm:p-4 flex items-center gap-3.5 bg-gradient-to-br from-rose-50/40 via-white to-white border-rose-200/80">
           <div className="w-10 h-10 rounded-xl bg-rose-100/80 text-rose-600 flex items-center justify-center shrink-0">
             <Wallet className="w-5 h-5" />
           </div>
@@ -1284,7 +1286,7 @@ export default function CustomersScreen() {
           </div>
         </Card>
 
-        <Card className="p-4 flex items-center gap-3.5 bg-gradient-to-br from-emerald-50/40 via-white to-white border-emerald-200/80">
+        <Card className="p-3.5 sm:p-4 flex items-center gap-3.5 bg-gradient-to-br from-emerald-50/40 via-white to-white border-emerald-200/80">
           <div className="w-10 h-10 rounded-xl bg-emerald-100/80 text-emerald-600 flex items-center justify-center shrink-0">
             <CheckCircle2 className="w-5 h-5" />
           </div>
@@ -1313,7 +1315,7 @@ export default function CustomersScreen() {
                 ].map((heading) => (
                   <th
                     key={heading}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide"
+                    className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap"
                   >
                     {heading}
                   </th>
@@ -1351,12 +1353,12 @@ export default function CustomersScreen() {
                       className="hover:bg-slate-50 transition-colors group"
                     >
                       {/* NAME – clickable */}
-                      <td className="px-5 py-4">
+                      <td className="px-4 sm:px-5 py-3 sm:py-4">
                         <button
                           onClick={() => handleOpenDetails(customer)}
-                          className="text-left group/name"
+                          className="text-left group/name cursor-pointer"
                         >
-                          <p className="font-medium text-blue-600 hover:text-blue-800 hover:underline underline-offset-2 transition-colors cursor-pointer">
+                          <p className="font-medium text-blue-600 hover:text-blue-800 hover:underline underline-offset-2 transition-colors">
                             {customer.name}
                           </p>
                           <p className="text-xs text-slate-400">
@@ -1366,26 +1368,26 @@ export default function CustomersScreen() {
                       </td>
 
                       {/* PHONE */}
-                      <td className="px-5 py-4 text-slate-600 font-mono text-xs">
+                      <td className="px-4 sm:px-5 py-3 sm:py-4 text-slate-600 font-mono text-xs whitespace-nowrap">
                         {customer.phone || "—"}
                       </td>
 
                       {/* EMAIL */}
-                      <td className="px-5 py-4 text-slate-600">
+                      <td className="px-4 sm:px-5 py-3 sm:py-4 text-slate-600">
                         {customer.email || "—"}
                       </td>
 
                       {/* CITY */}
-                      <td className="px-5 py-4 text-slate-600">
+                      <td className="px-4 sm:px-5 py-3 sm:py-4 text-slate-600">
                         {customer.city || "—"}
                       </td>
 
                       {/* BALANCE DUE */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2.5">
+                      <td className="px-4 sm:px-5 py-3 sm:py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2 sm:gap-2.5">
                           <div className="flex flex-col">
                             {balanceDue > 0 ? (
-                              <span className="font-bold font-mono text-sm text-rose-600 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md inline-block">
+                              <span className="font-bold font-mono text-xs sm:text-sm text-rose-600 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md inline-block">
                                 {fmt(balanceDue)}
                               </span>
                             ) : (
@@ -1406,7 +1408,7 @@ export default function CustomersScreen() {
                                 e.stopPropagation();
                                 handleOpenPayment(customer);
                               }}
-                              className="px-2.5 py-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs transition flex items-center gap-1 cursor-pointer shrink-0"
+                              className="px-2 sm:px-2.5 py-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs transition flex items-center gap-1 cursor-pointer shrink-0"
                               title="Record payment to clear customer balance due"
                             >
                               <ArrowDownLeft className="w-3 h-3" />
@@ -1417,8 +1419,8 @@ export default function CustomersScreen() {
                       </td>
 
                       {/* ACTIONS */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <td className="px-4 sm:px-5 py-3 sm:py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                           <Btn
                             variant="ghost"
                             size="sm"
@@ -1462,7 +1464,7 @@ export default function CustomersScreen() {
         </div>
 
         {/* TABLE FOOTER */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 sm:py-4 border-t border-slate-100">
           <p className="text-xs text-slate-500">
             Showing {filtered.length} of {customerList.length} customers
           </p>

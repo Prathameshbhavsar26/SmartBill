@@ -564,7 +564,7 @@ export default function UsersScreen({ user }) {
                   </td>
                   <td className="px-5 py-4">{statusBadge(e.status)}</td>
                   <td className="px-5 py-4">
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <Btn
                         variant="ghost"
                         size="sm"

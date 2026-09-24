@@ -517,8 +517,8 @@ export default function BusinessDashboard({ onNav }) {
         </div>
 
         {/* Filter Controls: Day, Week, Month, Year, Overall */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-2 max-w-full overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
             {TIMEFRAMES.map((tf) => {
               const active = timeframe === tf.key;
               const Icon = tf.icon;
@@ -527,7 +527,7 @@ export default function BusinessDashboard({ onNav }) {
                   key={tf.key}
                   type="button"
                   onClick={() => setTimeframe(tf.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                     active
                       ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs ring-1 ring-slate-200/80 dark:ring-slate-600 font-bold"
                       : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50"
@@ -545,7 +545,7 @@ export default function BusinessDashboard({ onNav }) {
             type="button"
             onClick={() => loadDashboardData(true)}
             disabled={refreshing}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl shadow-2xs hover:shadow transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl shadow-2xs hover:shadow transition-all cursor-pointer disabled:opacity-50 shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-blue-600" : ""}`} />
             <span className="hidden sm:inline">{refreshing ? "Syncing..." : "Refresh"}</span>
@@ -554,7 +554,7 @@ export default function BusinessDashboard({ onNav }) {
       </div>
 
       {/* Dynamic Metric Cards (Filter-Aware) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           label={
             timeframe === "day"
@@ -609,79 +609,82 @@ export default function BusinessDashboard({ onNav }) {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
         {/* Main Dynamic Sales Bar Chart */}
-        <Card className="lg:col-span-2 p-5 h-[360px] flex flex-col">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <Card className="lg:col-span-2 p-3.5 sm:p-5 h-[320px] sm:h-[360px] flex flex-col">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 mb-3 sm:mb-5">
             <div>
-              <h3 className="font-semibold text-slate-900 dark:text-white text-base">
+              <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base">
                 {salesPerformanceData.periodTitle}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {salesPerformanceData.periodSubtitle}
               </p>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-900">
+              <span className="text-[11px] sm:text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 sm:px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-900 truncate">
                 Total: {formatCurrency(salesPerformanceData.totalForPeriod)}
               </span>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={salesPerformanceData.chartData}
-              barSize={timeframe === "day" ? 22 : timeframe === "month" ? 34 : timeframe === "week" ? 30 : 20}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: "#94A3B8", fontSize: timeframe === "month" ? 10 : 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#94A3B8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#0F172A",
-                  borderColor: "#1E293B",
-                  borderRadius: 12,
-                  fontSize: 12,
-                  color: "#ffffff",
-                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.4)",
-                }}
-                itemStyle={{ color: "#38BDF8", fontWeight: "600" }}
-                formatter={(v) => [fmt(v), "Sales Revenue"]}
-              />
-              <Bar dataKey="amount" fill="#2563EB" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="flex-1 w-full min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={salesPerformanceData.chartData}
+                barSize={timeframe === "day" ? 18 : timeframe === "month" ? 28 : timeframe === "week" ? 24 : 16}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: "#94A3B8", fontSize: timeframe === "month" ? 9 : 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: "#94A3B8", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#0F172A",
+                    borderColor: "#1E293B",
+                    borderRadius: 12,
+                    fontSize: 12,
+                    color: "#ffffff",
+                    boxShadow: "0 10px 25px -5px rgba(0,0,0,0.4)",
+                  }}
+                  itemStyle={{ color: "#38BDF8", fontWeight: "600" }}
+                  formatter={(v) => [fmt(v), "Sales Revenue"]}
+                />
+                <Bar dataKey="amount" fill="#2563EB" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </Card>
 
         {/* Category Share Breakdown */}
         <div className="space-y-4">
-          <Card className="p-5 h-[360px] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900 dark:text-white text-base">
+          <Card className="p-3.5 sm:p-5 h-[300px] sm:h-[360px] flex flex-col">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
                 Sales by Category
               </h3>
-              <span className="text-[11px] font-medium text-slate-400 capitalize">
+              <span className="text-[10px] sm:text-[11px] font-medium text-slate-400 capitalize">
                 {timeframe}
               </span>
             </div>
-            <div className="space-y-3 flex-1 overflow-y-auto pr-2">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1 sm:pr-2">
               {salesByCategory.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-10">No category sales in this period</p>
               ) : (
                 salesByCategory.map((d) => (
                   <div key={d.name} className="space-y-1">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-gray-700 dark:text-gray-300 truncate max-w-[140px]">{d.name}</span>
-                      <span className="font-bold text-gray-900 dark:text-white font-mono">
+                      <span className="text-gray-700 dark:text-gray-300 truncate max-w-[120px] sm:max-w-[140px]">{d.name}</span>
+                      <span className="font-bold text-gray-900 dark:text-white font-mono text-[11px] sm:text-xs">
                         {fmt(d.amount)} ({d.value}%)
                       </span>
                     </div>
@@ -700,18 +703,18 @@ export default function BusinessDashboard({ onNav }) {
       </div>
 
       {/* Financial Breakdown Summary & Recent Invoices */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
         {/* Recent Invoices Table */}
         <Card className="lg:col-span-2">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between px-3.5 sm:px-5 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-800">
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white text-base">
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
                 Recent Sales Invoices
               </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Latest customer billing transactions</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">Latest customer billing transactions</p>
             </div>
-            <Btn variant="ghost" size="sm" onClick={() => onNav("pos")}>
-              Go to POS Billing →
+            <Btn variant="ghost" size="sm" onClick={() => onNav("pos")} className="text-xs px-2.5 py-1">
+              POS Billing →
             </Btn>
           </div>
           <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-96 overflow-y-auto">
@@ -734,7 +737,7 @@ export default function BusinessDashboard({ onNav }) {
                 return (
                   <div
                     key={inv._id || inv.id || inv.invoiceNo}
-                    className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors"
+                    className="flex items-center gap-2.5 sm:gap-4 px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors"
                   >
                     <div className="w-9 h-9 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center flex-shrink-0">
                       <FileText className="w-4 h-4" />

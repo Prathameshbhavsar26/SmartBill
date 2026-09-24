@@ -542,28 +542,28 @@ export function SearchableSelect({
 
 export function StatCard({ label, value, sub, trend, icon, color }) {
   return (
-    <Card className="p-5 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-4">
+    <Card className="p-3.5 sm:p-5 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-3 sm:mb-4 gap-2">
         <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}
+          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}
         >
           {icon}
         </div>
         {trend && (
           <span
-            className={`flex items-center gap-1 text-xs font-medium ${trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-500" : "text-slate-500"}`}
+            className={`flex items-center gap-0.5 sm:gap-1 text-[11px] sm:text-xs font-medium truncate ${trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-500" : "text-slate-500"}`}
           >
             {trend === "up" ? (
-              <ArrowUpRight className="w-3 h-3" />
+              <ArrowUpRight className="w-3 h-3 flex-shrink-0" />
             ) : trend === "down" ? (
-              <ArrowDownRight className="w-3 h-3" />
+              <ArrowDownRight className="w-3 h-3 flex-shrink-0" />
             ) : null}
-            {sub}
+            <span className="truncate">{sub}</span>
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold text-slate-900 mb-1">{value}</p>
-      <p className="text-xs text-slate-500">{label}</p>
+      <p className="text-xl sm:text-2xl font-bold text-slate-900 mb-0.5 sm:mb-1 truncate">{value}</p>
+      <p className="text-[11px] sm:text-xs text-slate-500 truncate">{label}</p>
     </Card>
   );
 }
@@ -586,23 +586,23 @@ export function Modal({ title, onClose, children, className = "max-w-lg", closeO
           onClose();
         }
       }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl animate-in zoom-in-95 duration-150 ${className}`}
+        className={`w-full max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl animate-in zoom-in-95 duration-150 ${className}`}
       >
-        <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
-          <h3 className="font-bold text-slate-900 dark:text-white text-lg">{title}</h3>
+        <div className="flex items-center justify-between p-3.5 sm:p-5 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
+          <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg truncate">{title}</h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer flex-shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-3.5 sm:p-5">{children}</div>
       </div>
     </div>
   );
@@ -614,22 +614,22 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmText = "Del
       onClick={(e) => {
         if (e.target === e.currentTarget && onCancel) onCancel();
       }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
     >
-      <div className="w-full max-w-sm rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 text-center animate-in zoom-in-95 duration-150">
-        <div className="w-12 h-12 bg-red-100 dark:bg-red-950/50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200 dark:border-red-800/60">
-          <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+      <div className="w-full max-w-sm rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 text-center animate-in zoom-in-95 duration-150">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 dark:bg-red-950/50 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 border border-red-200 dark:border-red-800/60">
+          <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 dark:text-red-400" />
         </div>
-        <h3 className="font-bold text-slate-900 dark:text-white mb-2 text-base">Are you sure?</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">{message}</p>
-        <div className="flex gap-3">
-          <Btn variant="outline" onClick={onCancel} className="flex-1">
+        <h3 className="font-bold text-slate-900 dark:text-white mb-1.5 sm:mb-2 text-sm sm:text-base">Are you sure?</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 sm:mb-5 leading-relaxed">{message}</p>
+        <div className="flex gap-2 sm:gap-3">
+          <Btn variant="outline" onClick={onCancel} className="flex-1 justify-center py-2 text-xs sm:text-sm">
             {cancelText}
           </Btn>
           <Btn
             variant="danger"
             onClick={onConfirm}
-            className="flex-1 bg-red-600 text-white hover:bg-red-700 border-0 shadow-sm"
+            className="flex-1 justify-center py-2 text-xs sm:text-sm bg-red-600 text-white hover:bg-red-700 border-0 shadow-xs"
           >
             {confirmText}
           </Btn>
@@ -692,12 +692,12 @@ export function StepperInput({
 
 export function EmptyState({ icon, title, sub, action }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4 text-slate-400">
+    <div className="flex flex-col items-center justify-center py-10 sm:py-16 text-center px-4">
+      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 text-slate-400">
         {icon}
       </div>
-      <h3 className="font-semibold text-slate-700 mb-1">{title}</h3>
-      <p className="text-sm text-slate-500 mb-4 max-w-xs">{sub}</p>
+      <h3 className="font-semibold text-slate-700 text-sm sm:text-base mb-1">{title}</h3>
+      <p className="text-xs sm:text-sm text-slate-500 mb-4 max-w-xs">{sub}</p>
       {action}
     </div>
   );
@@ -711,13 +711,13 @@ export function Toast({ message, type, onClose }) {
   };
   return (
     <div
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl text-white text-sm font-medium shadow-xl ${colors[type]}`}
+      className={`fixed bottom-3 right-3 left-3 sm:left-auto sm:right-6 sm:bottom-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl text-white text-xs sm:text-sm font-medium shadow-xl ${colors[type]}`}
     >
-      {type === "success" && <CheckCircle className="w-4 h-4" />}
-      {type === "error" && <XCircle className="w-4 h-4" />}
-      {type === "info" && <Info className="w-4 h-4" />}
-      {message}
-      <button onClick={onClose}>
+      {type === "success" && <CheckCircle className="w-4 h-4 flex-shrink-0" />}
+      {type === "error" && <XCircle className="w-4 h-4 flex-shrink-0" />}
+      {type === "info" && <Info className="w-4 h-4 flex-shrink-0" />}
+      <span className="flex-1 truncate">{message}</span>
+      <button onClick={onClose} className="cursor-pointer p-1">
         <X className="w-4 h-4 opacity-70 hover:opacity-100" />
       </button>
     </div>

@@ -528,14 +528,14 @@ export default function AdminRolesScreen() {
   return (
     <div className="space-y-6">
       {/* Top Header & Stat Overview */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-blue-600/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center font-bold">
               <Shield className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white">Admin & Role Management</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Admin & Role Management</h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Configure internal staff access levels, define custom roles, and track admin audit trails.
               </p>
@@ -556,11 +556,11 @@ export default function AdminRolesScreen() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
-        <div className="flex gap-6">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
+        <div className="flex gap-4 sm:gap-6 min-w-max">
           <button
             onClick={() => setActiveTab("admins")}
-            className={`flex items-center gap-2 pb-3 text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === "admins"
                 ? "border-blue-600 text-blue-600 dark:text-blue-400"
                 : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
@@ -575,7 +575,7 @@ export default function AdminRolesScreen() {
 
           <button
             onClick={() => setActiveTab("roles")}
-            className={`flex items-center gap-2 pb-3 text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === "roles"
                 ? "border-blue-600 text-blue-600 dark:text-blue-400"
                 : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
@@ -590,7 +590,7 @@ export default function AdminRolesScreen() {
 
           <button
             onClick={() => setActiveTab("logs")}
-            className={`flex items-center gap-2 pb-3 text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
               activeTab === "logs"
                 ? "border-blue-600 text-blue-600 dark:text-blue-400"
                 : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"

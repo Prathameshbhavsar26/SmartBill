@@ -751,10 +751,10 @@ export default function ProductsScreen({ onNav }) {
               onChange={(v) => setEditForm((f) => ({ ...f, name: v }))}
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-slate-700">Barcode</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Barcode</label>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -835,7 +835,7 @@ export default function ProductsScreen({ onNav }) {
               options={supplierList.map((s) => s.name)}
             />
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input
                 label="Cost Price (₹)"
                 value={editForm.cost}
@@ -859,7 +859,7 @@ export default function ProductsScreen({ onNav }) {
                 <p className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
                   <span>🏢 Wholesale & Bulk Order Settings</span>
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
                     label="Wholesale Price (₹)"
                     type="number"
@@ -884,7 +884,7 @@ export default function ProductsScreen({ onNav }) {
                 <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
                   <span>💊 Pharmacy Drug & Batch Compliance</span>
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
                     label="Batch / Lot Number"
                     value={editForm.batchNo}
@@ -916,7 +916,7 @@ export default function ProductsScreen({ onNav }) {
                 <p className="text-xs font-bold text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
                   <span>👗 Apparel & Size Variants</span>
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
                     label="Size (e.g. S, M, L, XL, 32, 40)"
                     value={editForm.size}
@@ -1033,7 +1033,7 @@ export default function ProductsScreen({ onNav }) {
               </div>
             )}
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Btn
                 variant="outline"
                 onClick={() => {
@@ -1041,7 +1041,7 @@ export default function ProductsScreen({ onNav }) {
                   setEditId(null);
                   setShowEditCategoryInput(false);
                 }}
-                className="flex-1 justify-center"
+                className="w-full sm:flex-1 justify-center"
               >
                 Cancel
               </Btn>
@@ -1088,7 +1088,7 @@ export default function ProductsScreen({ onNav }) {
                     setSaving(false);
                   }
                 }}
-                className="flex-1 justify-center"
+                className="w-full sm:flex-1 justify-center"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </Btn>
@@ -1113,10 +1113,10 @@ export default function ProductsScreen({ onNav }) {
               onChange={(v) => setForm((f) => ({ ...f, name: v }))}
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-slate-700">Barcode</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Barcode</label>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -1196,7 +1196,7 @@ export default function ProductsScreen({ onNav }) {
               onChange={(v) => setForm((f) => ({ ...f, supplier: v === "None / Direct" ? "" : v }))}
               options={supplierList.length > 0 ? ["None / Direct", ...supplierList.map((s) => s.name)] : ["None / Direct"]}
             />
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input
                 label="Cost Price (₹)"
                 type="number"
@@ -1222,7 +1222,7 @@ export default function ProductsScreen({ onNav }) {
                 <p className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
                   <span>🏢 Wholesale & Bulk Order Settings</span>
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
                     label="Wholesale Price (₹)"
                     type="number"
@@ -1247,7 +1247,7 @@ export default function ProductsScreen({ onNav }) {
                 <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
                   <span>💊 Pharmacy Drug & Batch Compliance</span>
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
                     label="Batch / Lot Number"
                     value={form.batchNo}
@@ -1279,7 +1279,7 @@ export default function ProductsScreen({ onNav }) {
                 <p className="text-xs font-bold text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
                   <span>👗 Apparel & Size Variants</span>
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
                     label="Size (e.g. S, M, L, XL, 32, 40)"
                     value={form.size}
@@ -1376,14 +1376,14 @@ export default function ProductsScreen({ onNav }) {
                 </Btn>
               </div>
             )}
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Btn
                 variant="outline"
                 onClick={() => {
                   setShowModal(false);
                   setShowCategoryInput(false);
                 }}
-                className="flex-1 justify-center"
+                className="w-full sm:flex-1 justify-center"
               >
                 Cancel
               </Btn>
@@ -1464,7 +1464,7 @@ export default function ProductsScreen({ onNav }) {
                     setSaving(false);
                   }
                 }}
-                className="flex-1 justify-center"
+                className="w-full sm:flex-1 justify-center"
               >
                 {saving ? "Saving..." : "Save Product"}
               </Btn>
@@ -1812,7 +1812,7 @@ export default function ProductsScreen({ onNav }) {
       {/* FILTER AND HEADER CONTROLS */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex-1 min-w-48 flex items-center gap-2">
+          <div className="w-full sm:flex-1 min-w-0 sm:min-w-48 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Input
               value={search}
               onChange={setSearch}
@@ -1829,13 +1829,14 @@ export default function ProductsScreen({ onNav }) {
               }}
               icon={<Barcode className="w-4 h-4 text-emerald-600" />}
               title="Open camera to scan barcode"
+              className="justify-center whitespace-nowrap"
             >
               Scan Barcode
             </Btn>
           </div>
 
           {/* Relatable Category Filter Dropdown Menu */}
-          <div className="w-60 min-w-[200px]">
+          <div className="w-full sm:w-60 min-w-0 sm:min-w-[200px]">
             <div className="relative flex items-center">
               <Filter className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 pointer-events-none" />
               <select
@@ -1858,66 +1859,69 @@ export default function ProductsScreen({ onNav }) {
             </div>
           </div>
 
-          {/* Export Dropdown */}
-          <div className="relative">
+          {/* Action buttons wrapper */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {/* Export Dropdown */}
+            <div className="relative">
+              <Btn
+                variant="outline"
+                size="md"
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                icon={<Download className="w-4 h-4" />}
+              >
+                Export
+                <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-70" />
+              </Btn>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1.5 z-30">
+                  <button
+                    onClick={handleExportExcel}
+                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-2 transition-colors"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                    Export to Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={handleExportCsv}
+                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-2 transition-colors"
+                  >
+                    <Download className="w-4 h-4 text-blue-600" />
+                    Export to CSV (.csv)
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Import Button */}
             <Btn
               variant="outline"
               size="md"
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              icon={<Download className="w-4 h-4" />}
+              onClick={() => setShowImportModal(true)}
+              icon={<Upload className="w-4 h-4" />}
             >
-              Export
-              <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-70" />
+              Import Excel / CSV
             </Btn>
-            {showExportMenu && (
-              <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1.5 z-30">
-                <button
-                  onClick={handleExportExcel}
-                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-2 transition-colors"
-                >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                  Export to Excel (.xlsx)
-                </button>
-                <button
-                  onClick={handleExportCsv}
-                  className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-2 transition-colors"
-                >
-                  <Download className="w-4 h-4 text-blue-600" />
-                  Export to CSV (.csv)
-                </button>
-              </div>
-            )}
+
+            <Btn
+              variant="outline"
+              size="md"
+              onClick={() => setShowCategoryManager(true)}
+              icon={<Settings className="w-4 h-4" />}
+            >
+              Categories
+            </Btn>
+            <Btn
+              variant="primary"
+              size="md"
+              onClick={() => {
+                setForm((f) => ({ ...f, barcode: generateProductBarcode() }));
+                setShowModal(true);
+              }}
+              icon={<Plus className="w-4 h-4" />}
+            >
+              Add Product
+            </Btn>
           </div>
-
-          {/* Import Button */}
-          <Btn
-            variant="outline"
-            size="md"
-            onClick={() => setShowImportModal(true)}
-            icon={<Upload className="w-4 h-4" />}
-          >
-            Import Excel / CSV
-          </Btn>
-
-          <Btn
-            variant="outline"
-            size="md"
-            onClick={() => setShowCategoryManager(true)}
-            icon={<Settings className="w-4 h-4" />}
-          >
-            Manage Categories
-          </Btn>
-          <Btn
-            variant="primary"
-            size="md"
-            onClick={() => {
-              setForm((f) => ({ ...f, barcode: generateProductBarcode() }));
-              setShowModal(true);
-            }}
-            icon={<Plus className="w-4 h-4" />}
-          >
-            Add Product
-          </Btn>
         </div>
 
         {/* Active Category Filter Tag */}
@@ -2062,7 +2066,7 @@ export default function ProductsScreen({ onNav }) {
                       )}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <Btn
                           variant="outline"
                           size="sm"

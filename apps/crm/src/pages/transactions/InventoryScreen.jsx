@@ -173,7 +173,7 @@ export default function InventoryScreen({ onNav }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         <StatCard
           label="Total Products"
           value={String(totalProducts)}
@@ -208,8 +208,8 @@ export default function InventoryScreen({ onNav }) {
         />
       </div>
 
-      <Card className="p-5">
-        <div className="flex items-center justify-between mb-4">
+      <Card className="p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
             <h3 className="font-semibold text-slate-900 mb-1">Low Stock Alerts</h3>
             <p className="text-xs text-slate-500">
@@ -236,44 +236,48 @@ export default function InventoryScreen({ onNav }) {
             {allAlertItems.map((p) => (
               <div
                 key={p._id || p.id}
-                className={`flex items-center gap-4 p-4 rounded-xl border ${
+                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl border ${
                   p.stock === 0
                     ? "border-red-200 bg-red-50"
                     : "border-amber-200 bg-amber-50"
                 }`}
               >
-                <AlertTriangle
-                  className={`w-5 h-5 flex-shrink-0 ${
-                    p.stock === 0 ? "text-red-500" : "text-amber-500"
-                  }`}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-900">{p.name}</p>
-                  <p className="text-xs text-slate-500 font-mono">{p.sku}</p>
-                </div>
-                <div className="text-right">
-                  <p
-                    className={`text-sm font-bold ${
-                      p.stock === 0 ? "text-red-500" : "text-amber-600"
+                <div className="flex items-start gap-3 min-w-0">
+                  <AlertTriangle
+                    className={`w-5 h-5 flex-shrink-0 mt-0.5 sm:mt-0 ${
+                      p.stock === 0 ? "text-red-500" : "text-amber-500"
                     }`}
-                  >
-                    {p.stock === 0 ? "Out of Stock" : `${p.stock} left`}
-                  </p>
-                  <p className="text-xs text-slate-500">Min: {p.minStock}</p>
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-slate-900 text-sm truncate">{p.name}</p>
+                    <p className="text-xs text-slate-500 font-mono">{p.sku}</p>
+                  </div>
                 </div>
-                <Btn
-                  variant={p.stock === 0 ? "danger" : "outline"}
-                  size="sm"
-                  icon={<ShoppingCart className="w-3.5 h-3.5" />}
-                  onClick={() => {
-                    if (onNav) {
-                      localStorage.setItem("reorderProduct", JSON.stringify({ name: p.name, minStock: p.minStock }));
-                      onNav("purchase");
-                    }
-                  }}
-                >
-                  Reorder
-                </Btn>
+                <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-200/60 sm:border-t-0">
+                  <div className="text-left sm:text-right">
+                    <p
+                      className={`text-sm font-bold ${
+                        p.stock === 0 ? "text-red-500" : "text-amber-600"
+                      }`}
+                    >
+                      {p.stock === 0 ? "Out of Stock" : `${p.stock} left`}
+                    </p>
+                    <p className="text-xs text-slate-500">Min: {p.minStock}</p>
+                  </div>
+                  <Btn
+                    variant={p.stock === 0 ? "danger" : "outline"}
+                    size="sm"
+                    icon={<ShoppingCart className="w-3.5 h-3.5" />}
+                    onClick={() => {
+                      if (onNav) {
+                        localStorage.setItem("reorderProduct", JSON.stringify({ name: p.name, minStock: p.minStock }));
+                        onNav("purchase");
+                      }
+                    }}
+                  >
+                    Reorder
+                  </Btn>
+                </div>
               </div>
             ))}
           </div>
@@ -542,7 +546,7 @@ export default function InventoryScreen({ onNav }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {[
                 { type: "Add", label: "+ Add Stock", desc: "Found / Surplus" },
                 { type: "Reduce", label: "- Reduce Stock", desc: "Damage / Loss" },

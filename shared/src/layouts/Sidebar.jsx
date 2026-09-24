@@ -5,7 +5,17 @@ import { getUserDisplayName } from "@shared/utils/userUtils";
 import { useCustomization } from "@shared/hooks/useCustomization";
 import { hasPermission } from "@shared/utils/permissions";
 
-export default function Sidebar({ page, onNav, role, collapsed, onToggle, user: propUser, isPlatformAdmin: propsIsPlatformAdmin }) {
+export default function Sidebar({
+  page,
+  onNav,
+  role,
+  collapsed,
+  onToggle,
+  user: propUser,
+  isPlatformAdmin: propsIsPlatformAdmin,
+  mobileOpen = false,
+  onMobileClose,
+}) {
   const { t } = useCustomization();
   
   const [currentUser, setCurrentUser] = useState(() => {
@@ -64,203 +74,247 @@ export default function Sidebar({ page, onNav, role, collapsed, onToggle, user: 
     items: group.items.filter((item) => hasPermission(user, item.key)),
   })).filter((group) => group.items.length > 0);
 
-  return (
-    <aside
-      className="flex flex-col bg-slate-900 transition-all duration-300 z-20 flex-shrink-0"
-      style={{ width: collapsed ? 64 : 240 }}
-    >
-      {/* Logo / Header Branding */}
-      <div
-        className={`flex items-center border-b border-slate-800 h-16 px-4 gap-3 flex-shrink-0`}
-      >
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white shadow-xs"
-          style={{ backgroundColor: isPlatformAdmin ? "#7c3aed" : "var(--primary, #2563eb)" }}
-        >
-          {isPlatformAdmin ? (
-            <Shield className="w-4 h-4 text-white" />
-          ) : (
-            <BarChart2 className="w-4 h-4 text-white" />
-          )}
-        </div>
+  const handleNavItemClick = (key) => {
+    onNav(key);
+    if (onMobileClose) {
+      onMobileClose();
+    }
+  };
 
-        {!collapsed && (
-          <div className="flex-1 min-w-0">
-            {isPlatformAdmin ? (
-              <>
-                <p className="text-sm font-bold text-white truncate">
-                  SmartBill Admin
-                </p>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wide bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                    🛡️ Super Admin
-                  </span>
-                  <span className="text-[10px] text-slate-400 truncate">
-                    Platform Control
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-bold text-white truncate">
-                  {displayName}
-                </p>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wide ${
-                    String(user?.businessType).toLowerCase() === "wholesale"
-                      ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                      : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                  }`}>
-                    {String(user?.businessType).toLowerCase() === "wholesale" ? "🏢 Wholesale" : "🛒 Retail"}
-                  </span>
-                  {user?.businessCategory && (
-                    <span className="text-[10px] text-slate-400 truncate max-w-[100px]" title={user.businessCategory}>
-                      • {user.businessCategory}
-                    </span>
-                  )}
-                </div>
-              </>
+  return (
+    <>
+      {/* Mobile backdrop overlay */}
+      {mobileOpen && (
+        <div
+          onClick={onMobileClose}
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 lg:hidden transition-opacity animate-in fade-in duration-200"
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-slate-900 transition-all duration-300 ease-in-out lg:static lg:z-20 flex-shrink-0 ${
+          mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
+        }`}
+        style={{
+          width: typeof window !== "undefined" && window.innerWidth >= 1024
+            ? (collapsed ? 64 : 240)
+            : 260,
+        }}
+      >
+        {/* Logo / Header Branding */}
+        <div
+          className="flex items-center border-b border-slate-800 h-16 px-4 gap-3 flex-shrink-0 justify-between"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-white shadow-xs"
+              style={{ backgroundColor: isPlatformAdmin ? "#7c3aed" : "var(--primary, #2563eb)" }}
+            >
+              {isPlatformAdmin ? (
+                <Shield className="w-4 h-4 text-white" />
+              ) : (
+                <BarChart2 className="w-4 h-4 text-white" />
+              )}
+            </div>
+
+            {(!collapsed || (typeof window !== "undefined" && window.innerWidth < 1024)) && (
+              <div className="flex-1 min-w-0">
+                {isPlatformAdmin ? (
+                  <>
+                    <p className="text-sm font-bold text-white truncate">
+                      SmartBill Admin
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wide bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        🛡️ Super Admin
+                      </span>
+                      <span className="text-[10px] text-slate-400 truncate">
+                        Platform Control
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-white truncate">
+                      {displayName}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wide ${
+                        String(user?.businessType).toLowerCase() === "wholesale"
+                          ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                          : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                      }`}>
+                        {String(user?.businessType).toLowerCase() === "wholesale" ? "🏢 Wholesale" : "🛒 Retail"}
+                      </span>
+                      {user?.businessCategory && (
+                        <span className="text-[10px] text-slate-400 truncate max-w-[90px]" title={user.businessCategory}>
+                          • {user.businessCategory}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
-        <button
-          onClick={onToggle}
-          className="text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0 cursor-pointer"
-          title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <Menu className="w-4 h-4" />
-          )}
-        </button>
-      </div>
 
-      {/* Nav */}
-      <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {isPlatformAdmin ? (
-          <div className="space-y-0.5 px-3">
-            {visibleAdminItems.map(({ key, label, icon: Icon }) => {
-              const active = page === key;
-              const translation = t(`nav.${key}`);
-              const translatedLabel = translation !== `nav.${key}` ? translation : label;
-              return (
-                <button
-                  key={key}
-                  onClick={() => onNav(key)}
-                  style={
-                    active
-                      ? { backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" }
-                      : {}
-                  }
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative cursor-pointer ${
-                    active
-                      ? "text-white shadow-md font-bold"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                  }`}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  {!collapsed && <span>{translatedLabel}</span>}
-                  {collapsed && (
-                    <span className="absolute left-14 bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-xl">
-                      {translatedLabel}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {visibleNavGroups.map((group) => (
-              <div key={group.label}>
-                {!collapsed && (
-                  <p className="px-6 mb-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                    {t(`nav.group_${group.label.toLowerCase()}`) !== `nav.group_${group.label.toLowerCase()}`
-                      ? t(`nav.group_${group.label.toLowerCase()}`)
-                      : group.label}
-                  </p>
-                )}
-                <div className="space-y-0.5 px-3">
-                  {group.items.map(({ key, label, icon: Icon }) => {
-                    const active = page === key;
-                    const isWholesale = String(user?.businessType || "").toLowerCase() === "wholesale";
-                    const translation = t(`nav.${key}`);
-                    let translatedLabel = translation !== `nav.${key}` ? translation : label;
-                    if (isWholesale && key === "customers") {
-                      translatedLabel = "Parties & Clients";
+          {/* Desktop collapse button */}
+          <button
+            onClick={onToggle}
+            className="hidden lg:flex text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0 cursor-pointer p-1 rounded-md hover:bg-slate-800"
+            title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <Menu className="w-4 h-4" />
+            )}
+          </button>
+
+          {/* Mobile close button */}
+          <button
+            onClick={onMobileClose}
+            className="lg:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close navigation"
+          >
+            <ChevronRight className="w-5 h-5 rotate-180" />
+          </button>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {isPlatformAdmin ? (
+            <div className="space-y-0.5 px-3">
+              {visibleAdminItems.map(({ key, label, icon: Icon }) => {
+                const active = page === key;
+                const translation = t(`nav.${key}`);
+                const translatedLabel = translation !== `nav.${key}` ? translation : label;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleNavItemClick(key)}
+                    style={
+                      active
+                        ? { backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" }
+                        : {}
                     }
-                    return (
-                      <button
-                        type="button"
-                        key={key}
-                        onClick={() => onNav(key)}
-                        style={
-                          active
-                            ? { backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" }
-                            : {}
-                        }
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative cursor-pointer ${
-                          active
-                            ? "text-white shadow-md font-bold"
-                            : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                        }`}
-                      >
-                        <Icon className="w-4 h-4 flex-shrink-0" />
-                        {!collapsed && <span>{translatedLabel}</span>}
-                        {collapsed && (
-                          <span className="absolute left-14 bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-xl">
-                            {translatedLabel}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative cursor-pointer ${
+                      active
+                        ? "text-white shadow-md font-bold"
+                        : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    {(!collapsed || (typeof window !== "undefined" && window.innerWidth < 1024)) && (
+                      <span className="truncate">{translatedLabel}</span>
+                    )}
+                    {collapsed && (
+                      <span className="hidden lg:block absolute left-14 bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-xl">
+                        {translatedLabel}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {visibleNavGroups.map((group) => (
+                <div key={group.label}>
+                  {(!collapsed || (typeof window !== "undefined" && window.innerWidth < 1024)) && (
+                    <p className="px-6 mb-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+                      {t(`nav.group_${group.label.toLowerCase()}`) !== `nav.group_${group.label.toLowerCase()}`
+                        ? t(`nav.group_${group.label.toLowerCase()}`)
+                        : group.label}
+                    </p>
+                  )}
+                  <div className="space-y-0.5 px-3">
+                    {group.items.map(({ key, label, icon: Icon }) => {
+                      const active = page === key;
+                      const isWholesale = String(user?.businessType || "").toLowerCase() === "wholesale";
+                      const translation = t(`nav.${key}`);
+                      let translatedLabel = translation !== `nav.${key}` ? translation : label;
+                      if (isWholesale && key === "customers") {
+                        translatedLabel = "Parties & Clients";
+                      }
+                      return (
+                        <button
+                          type="button"
+                          key={key}
+                          onClick={() => handleNavItemClick(key)}
+                          style={
+                            active
+                              ? { backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" }
+                              : {}
+                          }
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group relative cursor-pointer ${
+                            active
+                              ? "text-white shadow-md font-bold"
+                              : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                          }`}
+                        >
+                          <Icon className="w-4 h-4 flex-shrink-0" />
+                          {(!collapsed || (typeof window !== "undefined" && window.innerWidth < 1024)) && (
+                            <span className="truncate">{translatedLabel}</span>
+                          )}
+                          {collapsed && (
+                            <span className="hidden lg:block absolute left-14 bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-xl">
+                              {translatedLabel}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </nav>
+              ))}
+            </div>
+          )}
+        </nav>
 
-      {/* User */}
-      <div className="border-t border-slate-800 p-3 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center flex-shrink-0">
-            <UserCircle className="w-4 h-4 text-slate-300" />
+        {/* User */}
+        <div className="border-t border-slate-800 p-3 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center flex-shrink-0">
+              <UserCircle className="w-4 h-4 text-slate-300" />
+            </div>
+            {(!collapsed || (typeof window !== "undefined" && window.innerWidth < 1024)) && (
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-white truncate">
+                  {isPlatformAdmin ? (user?.name || "Super Admin") : displayName}
+                </p>
+                <p className="text-[10px] text-slate-500 truncate">
+                  {isPlatformAdmin ? (user?.email || "admin@smartbill.com") : displayEmail}
+                </p>
+              </div>
+            )}
           </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white truncate">
-                {isPlatformAdmin ? (user?.name || "Super Admin") : displayName}
-              </p>
-              <p className="text-[10px] text-slate-500 truncate">
-                {isPlatformAdmin ? (user?.email || "admin@smartbill.com") : displayEmail}
-              </p>
+          {(!collapsed || (typeof window !== "undefined" && window.innerWidth < 1024)) && isPlatformAdmin && (
+            <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between">
+              <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider bg-purple-400/10 px-2 py-0.5 rounded border border-purple-400/20">
+                PLATFORM ROOT ACCESS
+              </span>
+            </div>
+          )}
+          {(!collapsed || (typeof window !== "undefined" && window.innerWidth < 1024)) && !isPlatformAdmin && (
+            <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between">
+              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
+                {user?.subscription?.plan ? String(user.subscription.plan).toUpperCase() : "STARTER"} PLAN
+              </span>
+              <button
+                onClick={() => {
+                  onNav("profile");
+                  if (onMobileClose) onMobileClose();
+                }}
+                className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
+              >
+                Manage
+              </button>
             </div>
           )}
         </div>
-        {!collapsed && isPlatformAdmin && (
-          <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider bg-purple-400/10 px-2 py-0.5 rounded border border-purple-400/20">
-              PLATFORM ROOT ACCESS
-            </span>
-          </div>
-        )}
-        {!collapsed && !isPlatformAdmin && (
-          <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
-              {user?.subscription?.plan ? String(user.subscription.plan).toUpperCase() : "STARTER"} PLAN
-            </span>
-            <button
-              onClick={() => onNav("profile")}
-              className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
-            >
-              Manage
-            </button>
-          </div>
-        )}
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

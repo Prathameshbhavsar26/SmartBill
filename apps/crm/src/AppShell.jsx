@@ -40,7 +40,7 @@ function LowStockAlert({ lowStockItems, outOfStockItems, globalThreshold, onClos
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-50 w-80 shadow-2xl rounded-2xl overflow-hidden border border-amber-200 animate-in slide-in-from-bottom-4"
+      className="fixed bottom-3 right-3 left-3 sm:left-auto sm:right-6 sm:bottom-6 z-50 sm:w-80 shadow-2xl rounded-2xl overflow-hidden border border-amber-200 animate-in slide-in-from-bottom-4"
       style={{ animation: "slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1) both" }}
     >
       {/* Header */}
@@ -110,19 +110,19 @@ function LowStockAlert({ lowStockItems, outOfStockItems, globalThreshold, onClos
 
 function AccessDenied({ pageKey, onNav }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-white rounded-xl border border-slate-200 shadow-sm max-w-lg mx-auto my-12">
-      <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-4 text-amber-600 border border-amber-200">
-        <ShieldAlert className="w-8 h-8" />
+    <div className="flex flex-col items-center justify-center min-h-[300px] sm:min-h-[400px] text-center p-4 sm:p-8 bg-white rounded-xl border border-slate-200 shadow-xs max-w-lg mx-auto my-6 sm:my-12">
+      <div className="w-14 h-14 sm:w-16 sm:h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-4 text-amber-600 border border-amber-200">
+        <ShieldAlert className="w-7 h-7 sm:w-8 sm:h-8" />
       </div>
-      <h2 className="text-xl font-bold text-slate-900 mb-2">Access Restricted</h2>
-      <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+      <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">Access Restricted</h2>
+      <p className="text-xs sm:text-sm text-slate-600 mb-6 leading-relaxed">
         You do not have permission to access the{" "}
         <span className="font-semibold text-slate-800 capitalize">{pageKey}</span>{" "}
         module. Please contact your business owner to request access.
       </p>
       <button
         onClick={() => onNav("dashboard")}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-xs cursor-pointer"
       >
         Return to Dashboard
       </button>
@@ -132,6 +132,7 @@ function AccessDenied({ pageKey, onNav }) {
 
 export default function AppShell({ role, user, onLogout, page, onNav }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const { unreadCount } = useNotifications();
 
@@ -153,8 +154,6 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
     if (!hasPermission(user, page)) {
       return <AccessDenied pageKey={page} onNav={onNav} />;
     }
-
-
 
     switch (page) {
       case "dashboard":
@@ -206,6 +205,8 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
         user={user}
         collapsed={collapsed}
         onToggle={() => setCollapsed((v) => !v)}
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
         isPlatformAdmin={false}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -217,9 +218,10 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
           role={role}
           user={user}
           notifCount={bellCount}
+          onMobileMenuToggle={() => setMobileNavOpen((v) => !v)}
         />
-        <main className="flex-1 overflow-y-auto p-6 flex flex-col">
-          <div className="flex-1">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col min-w-0">
+          <div className="flex-1 min-w-0">
             <ErrorBoundary key={page}>
               <Suspense fallback={<PageLoadingFallback />}>
                 {renderPage()}

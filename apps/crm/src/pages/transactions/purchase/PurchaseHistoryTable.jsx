@@ -26,8 +26,8 @@ export default function PurchaseHistoryTable({
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
       {/* Search bar & Filter */}
-      <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="relative w-full sm:max-w-sm">
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
           <input
             value={searchHistory}
@@ -37,7 +37,7 @@ export default function PurchaseHistoryTable({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">
             Filter By Month:
           </label>

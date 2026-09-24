@@ -69,7 +69,7 @@ export default function SuperAdminDashboard() {
   return (
     <div className="space-y-6">
       {/* KPI Header Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         <StatCard
           label="Total Businesses"
           value={Number(stats.totalBusinesses).toLocaleString("en-IN")}

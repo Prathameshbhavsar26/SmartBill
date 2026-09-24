@@ -389,40 +389,40 @@ export default function TrialBanner({ user, onNav }) {
           ------------------------------------------------------------------ */}
 
       {isExpired ? (
-        <div className="bg-rose-950/80 text-rose-200 border-b border-rose-800/60 px-4 py-1.5 flex items-center justify-between text-xs font-medium">
-          <div className="flex items-center gap-2">
+        <div className="bg-rose-950/80 text-rose-200 border-b border-rose-800/60 px-3 sm:px-4 py-2 sm:py-1.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs font-medium">
+          <div className="flex items-center gap-2 min-w-0">
             <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-            <span>
+            <span className="leading-snug">
               Your 14-day trial has expired. Upgrade your plan to unlock full invoicing and inventory features.
             </span>
           </div>
 
           <button
             onClick={() => setShowUpgradeModal(true)}
-            className="bg-rose-600 hover:bg-rose-500 text-white font-medium px-2.5 py-1 rounded-md text-xs transition cursor-pointer flex items-center gap-1"
+            className="bg-rose-600 hover:bg-rose-500 text-white font-medium px-2.5 py-1 rounded-md text-xs transition cursor-pointer flex items-center gap-1 flex-shrink-0 self-end sm:self-auto"
           >
             <Zap className="w-3.5 h-3.5 fill-current text-white" />
             <span>Upgrade Now</span>
           </button>
         </div>
       ) : isActive ? null : (
-        <div className="bg-slate-900/95 text-slate-300 border-b border-slate-800 px-4 py-1 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-md font-medium text-[11px]">
-              <Clock className="w-3.5 h-3.5 text-blue-400" />
+        <div className="bg-slate-900/95 text-slate-300 border-b border-slate-800 px-3 sm:px-4 py-1.5 sm:py-1 flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="inline-flex items-center gap-1 text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 sm:px-2 py-0.5 rounded-md font-medium text-[10px] sm:text-[11px] flex-shrink-0">
+              <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400" />
               Free Trial
             </span>
-            <span className="text-slate-300 text-xs">
+            <span className="text-slate-300 text-[11px] sm:text-xs truncate">
               <strong className="text-slate-100 font-semibold">{daysLeft} day{daysLeft !== 1 ? "s" : ""}</strong> remaining
             </span>
           </div>
 
           <button
             onClick={() => setShowUpgradeModal(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-0.5 rounded-md font-medium text-[11px] transition cursor-pointer flex items-center gap-1"
+            className="bg-blue-600 hover:bg-blue-500 text-white px-2 sm:px-2.5 py-0.5 rounded-md font-medium text-[10px] sm:text-[11px] transition cursor-pointer flex items-center gap-1 flex-shrink-0"
           >
             <Sparkles className="w-3 h-3 text-blue-200" />
-            <span>Upgrade Plan</span>
+            <span>Upgrade</span>
           </button>
         </div>
       )}
@@ -432,8 +432,8 @@ export default function TrialBanner({ user, onNav }) {
           ------------------------------------------------------------------ */}
 
       {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl relative animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto">
             {/* Close */}
 
             <button
