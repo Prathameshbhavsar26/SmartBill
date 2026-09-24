@@ -17,7 +17,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { Card, StatCard } from "@shared/components/common/ui";
+import { Card, StatCard, StatCardSkeleton } from "@shared/components/common/ui";
 import {
   Select,
   SelectContent,
@@ -69,40 +69,49 @@ export default function SuperAdminDashboard() {
   return (
     <div className="space-y-6">
       {/* KPI Header Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-        <StatCard
-          label="Total Businesses"
-          value={Number(stats.totalBusinesses).toLocaleString("en-IN")}
-          sub="Registered Accounts"
-          trend="up"
-          icon={<Building2 className="w-5 h-5" />}
-          color="bg-blue-50 text-blue-600"
-        />
-        <StatCard
-          label="Total Users & Staff"
-          value={Number(stats.totalUsers).toLocaleString("en-IN")}
-          sub="Active Identities"
-          trend="up"
-          icon={<Users className="w-5 h-5" />}
-          color="bg-emerald-50 text-emerald-600"
-        />
-        <StatCard
-          label="Active Paid Plans"
-          value={Number(stats.activeSubscriptions).toLocaleString("en-IN")}
-          sub="Pro & Enterprise"
-          trend="up"
-          icon={<CreditCard className="w-5 h-5" />}
-          color="bg-purple-50 text-purple-600"
-        />
-        <StatCard
-          label="Platform MRR"
-          value={`₹${Number(stats.mrr).toLocaleString("en-IN")}`}
-          sub="Monthly Recurring Revenue"
-          trend="up"
-          icon={<DollarSign className="w-5 h-5" />}
-          color="bg-amber-50 text-amber-600"
-        />
-      </div>
+      {loading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <StatCard
+            label="Total Businesses"
+            value={Number(stats.totalBusinesses).toLocaleString("en-IN")}
+            sub="Registered Accounts"
+            trend="up"
+            icon={<Building2 className="w-4 h-4 sm:w-5 sm:h-5" />}
+            color="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
+          />
+          <StatCard
+            label="Total Users & Staff"
+            value={Number(stats.totalUsers).toLocaleString("en-IN")}
+            sub="Active Identities"
+            trend="up"
+            icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />}
+            color="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+          />
+          <StatCard
+            label="Active Paid Plans"
+            value={Number(stats.activeSubscriptions).toLocaleString("en-IN")}
+            sub="Pro & Enterprise"
+            trend="up"
+            icon={<CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />}
+            color="bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400"
+          />
+          <StatCard
+            label="Platform MRR"
+            value={`₹${Number(stats.mrr).toLocaleString("en-IN")}`}
+            sub="Monthly Recurring Revenue"
+            trend="up"
+            icon={<DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />}
+            color="bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Revenue Analytics Area Chart */}

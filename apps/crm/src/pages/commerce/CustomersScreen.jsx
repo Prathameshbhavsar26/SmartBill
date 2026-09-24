@@ -25,7 +25,7 @@ import {
   Printer,
 } from "lucide-react";
 
-import { fmt, fmtK } from "@shared/utils/format";
+import { fmt, fmtK, pluralize } from "@shared/utils/format";
 import {
   Btn,
   Card,
@@ -37,7 +37,11 @@ import {
   Toast,
   Badge,
   statusBadge,
+  TableSkeleton,
+  ErrorState,
+  MobileCard,
 } from "@shared/components/common/ui";
+
 import {
   fetchCustomers,
   fetchCustomerDetails,
@@ -1298,59 +1302,66 @@ export default function CustomersScreen() {
       </div>
 
       {/* =========================
-          CUSTOMER TABLE
+          CUSTOMER TABLE & MOBILE CARDS
       ========================= */}
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/60">
-                {[
-                  isWholesale ? "Business Name" : "Customer Name",
-                  "Phone",
-                  "Email",
-                  "City",
-                  "Balance Due (Credit Left)",
-                  "Actions",
-                ].map((heading) => (
-                  <th
-                    key={heading}
-                    className="text-left px-4 sm:px-5 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap"
-                  >
-                    {heading}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+      {loading ? (
+        <TableSkeleton rows={6} />
+      ) : filtered.length === 0 ? (
+        <Card className="p-8">
+          <EmptyState
+            icon={<Users className="w-8 h-8" />}
+            title="No customers found"
+            sub={
+              search
+                ? "Try adjusting your search query or add a new customer"
+                : "Add your first customer to start tracking balances and invoices"
+            }
+            action={
+              <Btn
+                variant="primary"
+                size="sm"
+                onClick={() => setShowModal(true)}
+                icon={<Plus className="w-4 h-4" />}
+              >
+                Add Customer
+              </Btn>
+            }
+          />
+        </Card>
+      ) : (
+        <Card>
+          {/* 1. Desktop Table (md and above) */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
+                  {[
+                    isWholesale ? "Business Name" : "Customer Name",
+                    "Phone",
+                    "Email",
+                    "City",
+                    "Balance Due (Credit Left)",
+                    "Actions",
+                  ].map((heading) => (
+                    <th
+                      key={heading}
+                      className="text-left px-4 sm:px-5 py-3.5 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap"
+                    >
+                      {heading}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-            <tbody className="divide-y divide-slate-50">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center">
-                    <p className="text-sm text-slate-500">
-                      Loading customers...
-                    </p>
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-8">
-                    <EmptyState
-                      icon={<Users className="w-6 h-6" />}
-                      title="No customers found"
-                      sub="Try adjusting your search query or add a new customer"
-                    />
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((customer) => {
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filtered.map((customer) => {
                   const customerId = customer._id || customer.id;
                   const balanceDue = Number(customer.balance || 0);
 
                   return (
                     <tr
                       key={customerId}
-                      className="hover:bg-slate-50 transition-colors group"
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group"
                     >
                       {/* NAME – clickable */}
                       <td className="px-4 sm:px-5 py-3 sm:py-4">
@@ -1358,27 +1369,27 @@ export default function CustomersScreen() {
                           onClick={() => handleOpenDetails(customer)}
                           className="text-left group/name cursor-pointer"
                         >
-                          <p className="font-medium text-blue-600 hover:text-blue-800 hover:underline underline-offset-2 transition-colors">
+                          <p className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline underline-offset-2 transition-colors">
                             {customer.name}
                           </p>
-                          <p className="text-xs text-slate-400">
-                            {customer.invoices ?? 0} invoices
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {pluralize(customer.invoices ?? 0, "invoice")}
                           </p>
                         </button>
                       </td>
 
                       {/* PHONE */}
-                      <td className="px-4 sm:px-5 py-3 sm:py-4 text-slate-600 font-mono text-xs whitespace-nowrap">
+                      <td className="px-4 sm:px-5 py-3 sm:py-4 text-slate-600 dark:text-slate-300 font-mono text-xs whitespace-nowrap">
                         {customer.phone || "—"}
                       </td>
 
                       {/* EMAIL */}
-                      <td className="px-4 sm:px-5 py-3 sm:py-4 text-slate-600">
+                      <td className="px-4 sm:px-5 py-3 sm:py-4 text-slate-600 dark:text-slate-300 text-xs">
                         {customer.email || "—"}
                       </td>
 
                       {/* CITY */}
-                      <td className="px-4 sm:px-5 py-3 sm:py-4 text-slate-600">
+                      <td className="px-4 sm:px-5 py-3 sm:py-4 text-slate-600 dark:text-slate-300 text-xs">
                         {customer.city || "—"}
                       </td>
 
@@ -1387,11 +1398,11 @@ export default function CustomersScreen() {
                         <div className="flex items-center gap-2 sm:gap-2.5">
                           <div className="flex flex-col">
                             {balanceDue > 0 ? (
-                              <span className="font-bold font-mono text-xs sm:text-sm text-rose-600 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md inline-block">
+                              <span className="font-bold font-mono text-xs sm:text-sm text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-800 px-2 py-0.5 rounded-md inline-block">
                                 {fmt(balanceDue)}
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md">
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 px-2 py-0.5 rounded-md">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                 {fmt(0)} (All Cleared)
                               </span>
@@ -1457,19 +1468,119 @@ export default function CustomersScreen() {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
 
-        {/* TABLE FOOTER */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 sm:py-4 border-t border-slate-100">
-          <p className="text-xs text-slate-500">
-            Showing {filtered.length} of {customerList.length} customers
-          </p>
-        </div>
-      </Card>
+          {/* 2. Mobile Responsive Cards (< md) */}
+          <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+            {filtered.map((customer) => {
+              const customerId = customer._id || customer.id;
+              const balanceDue = Number(customer.balance || 0);
+
+              return (
+                <div key={customerId} className="p-3.5 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDetails(customer)}
+                      className="text-left flex-1 min-w-0 cursor-pointer"
+                    >
+                      <h4 className="font-bold text-blue-600 dark:text-blue-400 text-sm truncate hover:underline">
+                        {customer.name}
+                      </h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {pluralize(customer.invoices ?? 0, "invoice")}
+                        {customer.city ? ` • ${customer.city}` : ""}
+                      </p>
+                    </button>
+
+                    <div className="text-right shrink-0">
+                      {balanceDue > 0 ? (
+                        <span className="font-bold font-mono text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 px-2 py-0.5 rounded">
+                          {fmt(balanceDue)} Due
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 px-2 py-0.5 rounded">
+                          Cleared
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contact row */}
+                  {(customer.phone || customer.email) && (
+                    <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300 font-mono flex-wrap">
+                      {customer.phone && (
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          {customer.phone}
+                        </span>
+                      )}
+                      {customer.email && (
+                        <span className="flex items-center gap-1 truncate text-slate-500 font-sans text-[11px]">
+                          <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="truncate">{customer.email}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Mobile Actions */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-50 dark:border-slate-800/60">
+                    {balanceDue > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPayment(customer)}
+                        className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer min-h-[36px]"
+                      >
+                        <ArrowDownLeft className="w-3.5 h-3.5" />
+                        <span>Pay Due</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDetails(customer)}
+                      className="py-1.5 px-3 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer min-h-[36px]"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Ledger</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(customer)}
+                      className="p-1.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs flex items-center justify-center hover:bg-slate-50 cursor-pointer min-h-[36px] min-w-[36px]"
+                      title="Edit Customer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDeleteId(customerId)}
+                      className="p-1.5 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 rounded-lg text-xs flex items-center justify-center hover:bg-rose-50 cursor-pointer min-h-[36px] min-w-[36px]"
+                      title="Delete Customer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* TABLE FOOTER */}
+          <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 sm:py-4 border-t border-slate-100 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Showing {filtered.length} of {customerList.length} {pluralize(customerList.length, "customer")}
+            </p>
+          </div>
+        </Card>
+      )}
+
 
       {/* =========================
           TOAST

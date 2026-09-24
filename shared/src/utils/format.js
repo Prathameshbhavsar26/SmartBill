@@ -28,5 +28,11 @@ export const fmtK = (n) => {
   return String(formatCurrency(num, currency, numberFormat)).replace(/^([₹$€£])\s*\1+/g, "$1");
 };
 
+export const pluralize = (count, singular, plural = `${singular}s`) => {
+  const num = Number(count) || 0;
+  return `${num} ${num === 1 ? singular : plural}`;
+};
+
+
 
 

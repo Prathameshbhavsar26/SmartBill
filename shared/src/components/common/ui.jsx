@@ -27,39 +27,46 @@ export function Btn({
   className = "",
   disabled = false,
   icon,
+  type = "button",
+  ...rest
 }) {
   const base =
-    "inline-flex items-center gap-2 font-medium rounded-lg transition-all duration-150 cursor-pointer select-none";
+    "inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 cursor-pointer select-none";
   const sizes = {
-    sm: "px-3 py-1.5 text-xs",
-    md: "px-4 py-2 text-sm",
-    lg: "px-6 py-2.5 text-sm",
+    sm: "px-3 py-1.5 text-xs min-h-[34px]",
+    md: "px-4 py-2 text-xs sm:text-sm min-h-[38px] sm:min-h-[40px]",
+    lg: "px-5 py-2.5 text-sm min-h-[44px]",
   };
   const variants = {
     primary:
-      "text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors",
+      "text-white bg-blue-600 hover:bg-blue-700 shadow-xs hover:shadow transition-colors",
     secondary:
-      "bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors",
+      "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors",
     outline:
-      "border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors",
-    ghost: "text-gray-600 hover:bg-gray-100 transition-colors",
+      "border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors",
+    ghost: "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors",
     danger:
-      "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors",
+      "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800/60 transition-colors",
+    warning:
+      "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800/60 transition-colors",
     success:
-      "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-colors",
+      "bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs hover:shadow transition-colors",
   };
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       style={variant === "primary" ? { backgroundColor: "var(--primary, #2563eb)", color: "#ffffff" } : {}}
-      className={`${base} ${sizes[size]} ${variants[variant]} ${disabled ? "opacity-50 cursor-not-allowed" : ""} ${className}`}
+      className={`${base} ${sizes[size] || sizes.md} ${variants[variant] || variants.primary} ${disabled ? "opacity-50 cursor-not-allowed" : ""} ${className}`}
+      {...rest}
     >
       {icon && icon}
       {children}
     </button>
   );
 }
+
 
 export function Badge({ label, variant = "gray" }) {
   const v = {
@@ -542,16 +549,16 @@ export function SearchableSelect({
 
 export function StatCard({ label, value, sub, trend, icon, color }) {
   return (
-    <Card className="p-3.5 sm:p-5 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3 sm:mb-4 gap-2">
+    <Card className="p-3 sm:p-4 md:p-5 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-2 sm:mb-3.5 gap-1.5 sm:gap-2">
         <div
-          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}
+          className={`w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}
         >
           {icon}
         </div>
         {trend && (
           <span
-            className={`flex items-center gap-0.5 sm:gap-1 text-[11px] sm:text-xs font-medium truncate ${trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-500" : "text-slate-500"}`}
+            className={`flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs font-semibold truncate ${trend === "up" ? "text-emerald-600 dark:text-emerald-400" : trend === "down" ? "text-rose-500 dark:text-rose-400" : "text-slate-500"}`}
           >
             {trend === "up" ? (
               <ArrowUpRight className="w-3 h-3 flex-shrink-0" />
@@ -562,11 +569,12 @@ export function StatCard({ label, value, sub, trend, icon, color }) {
           </span>
         )}
       </div>
-      <p className="text-xl sm:text-2xl font-bold text-slate-900 mb-0.5 sm:mb-1 truncate">{value}</p>
-      <p className="text-[11px] sm:text-xs text-slate-500 truncate">{label}</p>
+      <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 dark:text-white mb-0.5 sm:mb-1 truncate font-mono tracking-tight">{value}</p>
+      <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium truncate">{label}</p>
     </Card>
   );
 }
+
 
 export function Modal({ title, onClose, children, className = "max-w-lg", closeOnBackdropClick = false }) {
   useEffect(() => {
@@ -723,6 +731,70 @@ export function Toast({ message, type, onClose }) {
     </div>
   );
 }
+
+export function Skeleton({ className = "" }) {
+  return (
+    <div className={`animate-pulse bg-slate-200 dark:bg-slate-800 rounded-lg ${className}`} />
+  );
+}
+
+export function StatCardSkeleton() {
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 sm:p-5 shadow-xs animate-pulse">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-200 dark:bg-slate-800" />
+        <div className="w-16 h-4 rounded bg-slate-100 dark:bg-slate-800" />
+      </div>
+      <div className="w-24 h-6 sm:h-7 rounded bg-slate-200 dark:bg-slate-800 mb-1.5" />
+      <div className="w-32 h-3.5 rounded bg-slate-100 dark:bg-slate-800" />
+    </div>
+  );
+}
+
+export function TableSkeleton({ rows = 5 }) {
+  return (
+    <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 animate-pulse">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="w-32 h-4 rounded bg-slate-200 dark:bg-slate-800" />
+        <div className="w-20 h-4 rounded bg-slate-200 dark:bg-slate-800" />
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between py-2.5 border-b border-slate-50 dark:border-slate-800/60 last:border-0 gap-4">
+          <div className="w-1/3 h-4 rounded bg-slate-200 dark:bg-slate-800" />
+          <div className="w-1/4 h-4 rounded bg-slate-100 dark:bg-slate-800" />
+          <div className="w-1/6 h-4 rounded bg-slate-200 dark:bg-slate-800" />
+          <div className="w-1/6 h-4 rounded bg-slate-100 dark:bg-slate-800" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ErrorState({ title = "Unable to load data", message = "Please check your connection and try again.", onRetry }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-10 sm:py-16 text-center px-4 bg-white dark:bg-slate-900 rounded-2xl border border-red-100 dark:border-red-950/60">
+      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-red-50 dark:bg-red-950/50 rounded-2xl flex items-center justify-center mb-3 text-red-500 border border-red-200 dark:border-red-900/60">
+        <AlertTriangle className="w-6 h-6" />
+      </div>
+      <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base mb-1">{title}</h3>
+      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-4 max-w-sm">{message}</p>
+      {onRetry && (
+        <Btn variant="primary" size="sm" onClick={onRetry} icon={<span className="w-3.5 h-3.5 flex items-center justify-center">↻</span>}>
+          Try Again
+        </Btn>
+      )}
+    </div>
+  );
+}
+
+export function MobileCard({ children, className = "" }) {
+  return (
+    <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-2.5 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 
 
 

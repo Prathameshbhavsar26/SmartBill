@@ -178,7 +178,7 @@ export default function SalesReport() {
       />
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {[
           {
             value: fmt(derived.totalRevenue),
@@ -205,12 +205,12 @@ export default function SalesReport() {
             trend: derived.margin >= 0 ? "up" : "down",
           },
         ].map((s) => (
-          <Card key={s.label} className="p-4">
-            <p className="text-xl font-bold text-slate-900 font-mono">{s.value}</p>
-            <p className="text-xs text-slate-500 mt-0.5 mb-2">{s.label}</p>
+          <Card key={s.label} className="p-3 sm:p-4">
+            <p className="text-base sm:text-xl font-bold text-slate-900 dark:text-white font-mono truncate">{s.value}</p>
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 mb-1.5 sm:mb-2 truncate">{s.label}</p>
             <span
-              className={`text-xs font-medium flex items-center gap-1 ${
-                s.trend === "up" ? "text-emerald-600" : "text-red-500"
+              className={`text-[10px] sm:text-xs font-medium flex items-center gap-1 ${
+                s.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"
               }`}
             >
               {s.trend === "up" ? (
@@ -218,7 +218,7 @@ export default function SalesReport() {
               ) : (
                 <ArrowDownRight className="w-3 h-3" />
               )}
-              {s.sub}
+              <span className="truncate">{s.sub}</span>
             </span>
           </Card>
         ))}
@@ -383,69 +383,96 @@ export default function SalesReport() {
       </ReportCard>
 
       {/* Recent Transactions Table */}
-      <ReportCard className="p-5">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-gray-900">Recent Transactions</h3>
+      <ReportCard className="p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-4 sm:mb-5">
+          <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Recent Transactions</h3>
         </div>
         {invoices.length === 0 ? (
           <p className="text-xs text-gray-500 py-6 text-center">
             No sales invoices recorded for this date range.
           </p>
         ) : (
-          <div className="overflow-auto max-h-96">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-white">
-                <tr className="border-b border-gray-200">
-                  {[
-                    "Invoice",
-                    "Customer",
-                    "Date",
-                    "Subtotal",
-                    "GST",
-                    "Total",
-                    "Status",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-auto max-h-96">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-white dark:bg-slate-900">
+                  <tr className="border-b border-gray-200 dark:border-slate-800">
+                    {[
+                      "Invoice",
+                      "Customer",
+                      "Date",
+                      "Subtotal",
+                      "GST",
+                      "Total",
+                      "Status",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                  {invoices.map((inv, idx) => (
+                    <tr
+                      key={inv.id || idx}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                     >
-                      {h}
-                    </th>
+                      <td className="px-5 py-3.5 font-mono text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                        {inv.id}
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-slate-900 dark:text-slate-100">
+                        {inv.customer}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400 text-xs font-mono">
+                        {inv.date}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-900 dark:text-slate-100 font-mono">
+                        {fmt(inv.amount)}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400 font-mono">{fmt(inv.gst)}</td>
+                      <td className="px-5 py-3.5 font-semibold text-slate-900 dark:text-slate-100 font-mono">
+                        {fmt(inv.total)}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
+                          {inv.status}
+                        </span>
+                      </td>
+                    </tr>
                   ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {invoices.map((inv, idx) => (
-                  <tr
-                    key={inv.id || idx}
-                    className="hover:bg-slate-50 transition-colors"
-                  >
-                    <td className="px-5 py-3.5 font-mono text-xs text-blue-600 font-semibold">
-                      {inv.id}
-                    </td>
-                    <td className="px-5 py-3.5 font-medium text-slate-900">
-                      {inv.customer}
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-500 text-xs font-mono">
-                      {inv.date}
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-900 font-mono">
-                      {fmt(inv.amount)}
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-600 font-mono">{fmt(inv.gst)}</td>
-                    <td className="px-5 py-3.5 font-semibold text-slate-900 font-mono">
-                      {fmt(inv.total)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 border border-emerald-200 text-emerald-700">
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Stacked Cards View */}
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {invoices.map((inv, idx) => (
+                <div key={inv.id || idx} className="py-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{inv.id}</span>
+                      <p className="font-semibold text-xs text-slate-900 dark:text-white truncate">{inv.customer}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono font-bold text-sm text-slate-900 dark:text-white">{fmt(inv.total)}</div>
+                      <span className="inline-flex items-center px-2 py-0.2 rounded-full text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
                         {inv.status}
                       </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                    <span>{inv.date}</span>
+                    <span>Sub: {fmt(inv.amount)} + GST: {fmt(inv.gst)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </ReportCard>
     </div>

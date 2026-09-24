@@ -28,7 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { fetchSuppliers } from "@shared/api/supplierAPI";
-import { fmt } from "@shared/utils/format";
+import { fmt, pluralize } from "@shared/utils/format";
 import {
   Badge,
   Btn,
@@ -41,7 +41,11 @@ import {
   GstRateSelect,
   Toast,
   statusBadge,
+  TableSkeleton,
+  ErrorState,
+  MobileCard,
 } from "@shared/components/common/ui";
+
 import {
   getProducts,
   createProduct,
@@ -1947,222 +1951,385 @@ export default function ProductsScreen({ onNav }) {
         )}
       </div>
 
-      {/* TABLE SECTION */}
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  "Product",
-                  "SKU / Barcode",
-                  "Category",
-                  "Supplier",
-                  "Cost",
-                  isWholesale ? "Wholesale / Retail" : "Price",
-                  "Stock",
-                  "Actions",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.map((p) => {
-                const lowStock = p.stock <= p.minStock;
-                const pId = p._id || p.id;
-                return (
-                  <tr
-                    key={pId}
-                    className="hover:bg-slate-50 transition-colors group"
-                  >
-                    <td className="px-5 py-4 font-medium text-slate-900 max-w-[220px]">
-                      <div className="font-semibold text-slate-900 truncate">{p.name}</div>
-                      
-                      {/* Industry Variant Badges */}
-                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                        {p.batchNo ? (
-                          <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-mono">
-                            Batch: {p.batchNo}
-                          </span>
-                        ) : null}
-                        {p.expiryDate ? (
-                          <span className="text-[10px] bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 rounded font-mono">
-                            Exp: {new Date(p.expiryDate).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })}
-                          </span>
-                        ) : null}
-                        {p.isPrescriptionOnly ? (
-                          <span className="text-[10px] bg-red-100 text-red-800 font-bold px-1.5 py-0.2 rounded">
-                            Rx
-                          </span>
-                        ) : null}
-                        {p.size ? (
-                          <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded font-semibold">
-                            Size: {p.size}
-                          </span>
-                        ) : null}
-                        {p.color ? (
-                          <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded">
-                            {p.color}
-                          </span>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="font-mono text-xs text-slate-700 font-semibold">{p.sku}</div>
-                      {p.barcode ? (
-                        <div className="flex items-center gap-1 text-[11px] font-mono text-blue-600 mt-0.5" title={`Barcode: ${p.barcode}`}>
-                          <Barcode className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                          <span>{p.barcode}</span>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-slate-400">No Barcode</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4">
-                      <Badge label={p.category} variant="blue" />
-                    </td>
-                    <td className="px-5 py-4 text-slate-600 text-xs truncate max-w-[140px]">
-                      {p.supplier || "—"}
-                    </td>
-                    <td className="px-5 py-4 text-slate-600">{fmt(p.cost)}</td>
-                    <td className="px-5 py-4 font-semibold text-slate-900">
-                      {isWholesale && p.wholesalePrice && Number(p.wholesalePrice) > 0 ? (
-                        <div>
-                          <div className="text-amber-700 font-bold">{fmt(p.wholesalePrice)}</div>
-                          <div className="text-[10px] text-slate-400 font-normal">MRP: {fmt(p.price)}</div>
-                        </div>
-                      ) : (
-                        fmt(p.price)
-                      )}
-                    </td>
-                    <td className="px-5 py-4">
-                      {Number(p.stock || 0) <= 0 ? (
-                        <div>
-                          <span className="font-mono font-bold text-[11px] text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded inline-block">
-                            0 in Stock
-                          </span>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Awaiting purchase</p>
-                        </div>
-                      ) : (
-                        <div>
-                          <span
-                            className={`font-mono font-bold text-sm ${lowStock ? "text-amber-600" : "text-slate-900 dark:text-slate-100"}`}
-                          >
-                            {p.stock} <span className="text-[10px] font-normal text-slate-500">{p.unit || "Piece"}</span>
-                          </span>
-                          {lowStock && (
-                            <div className="flex items-center gap-1 text-[10px] text-amber-600 mt-0.5">
-                              <AlertTriangle className="w-3 h-3" />
-                              Low Stock (Min: {p.minStock})
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <Btn
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPrintBarcodeProduct(p);
-                            setBarcodeCopies(1);
-                          }}
-                          icon={<Barcode className="w-3.5 h-3.5 text-slate-700" />}
-                          title="Print Barcode Labels"
-                          className="text-[11px] py-1 px-2 text-slate-700 bg-white border-slate-200 hover:bg-slate-50 shadow-2xs"
-                        >
-                          Barcode
-                        </Btn>
-                        <Btn
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            localStorage.setItem(
-                              "reorderProduct",
-                              JSON.stringify({ name: p.name, minStock: p.minStock })
-                            );
-                            if (onNav) onNav("purchase");
-                            else window.location.href = "/app/purchase";
-                          }}
-                          icon={<ShoppingCart className="w-3.5 h-3.5 text-blue-600" />}
-                          title="Record Supplier Purchase to Inward Stock"
-                          className="text-[11px] py-1 px-2 text-blue-700 bg-blue-50/70 border-blue-200 hover:bg-blue-100"
-                        >
-                          Inward Stock
-                        </Btn>
-                        <Btn
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowEditModal(true);
-                            setEditId(pId);
-                            setEditForm({
-                              name: p.name,
-                              sku: p.sku,
-                              barcode: p.barcode || "",
-                              category: p.category,
-                              supplier: p.supplier,
-                              cost: String(p.cost ?? 0),
-                              price: String(p.price ?? 0),
-                              wholesalePrice: String(p.wholesalePrice ?? 0),
-                              minOrderQty: String(p.minOrderQty ?? 1),
-                              batchNo: p.batchNo || "",
-                              expiryDate: p.expiryDate ? String(p.expiryDate).split("T")[0] : "",
-                              size: p.size || "",
-                              color: p.color || "",
-                              warrantyMonths: String(p.warrantyMonths ?? 0),
-                              isPrescriptionOnly: Boolean(p.isPrescriptionOnly),
-                              gst: String(p.gst ?? ""),
-                              stock: String(p.stock ?? 0),
-                              minStock: String(p.minStock ?? 0),
-                              unit: p.unit || "Piece",
-                            });
-                          }}
-                          icon={<Edit2 className="w-3.5 h-3.5" />}
-                        />
-                        <Btn
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(pId);
-                          }}
-                          icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100">
-          <p className="text-xs text-slate-500">
-            Showing {filtered.length} of {productList.length} products
-          </p>
-          <div className="flex gap-1">
-            {[1, 2, 3].map((p) => (
-              <button
-                key={p}
-                className={`w-8 h-8 text-xs rounded-lg ${p === 1 ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+      {/* TABLE & MOBILE CARDS SECTION */}
+      {loading ? (
+        <TableSkeleton rows={6} />
+      ) : loadError ? (
+        <ErrorState
+          title="Unable to load products"
+          message={loadError}
+          onRetry={loadProducts}
+        />
+      ) : filtered.length === 0 ? (
+        <Card className="p-8">
+          <EmptyState
+            icon={<Package className="w-8 h-8" />}
+            title="No products found"
+            sub={
+              search || catFilter !== "All"
+                ? "Try clearing filters or searching for something else"
+                : "Add your first product or import catalog from Excel"
+            }
+            action={
+              <Btn
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setForm((f) => ({ ...f, barcode: generateProductBarcode() }));
+                  setShowModal(true);
+                }}
+                icon={<Plus className="w-4 h-4" />}
               >
-                {p}
-              </button>
-            ))}
+                Add Product
+              </Btn>
+            }
+          />
+        </Card>
+      ) : (
+        <Card>
+          {/* 1. Desktop Table (md and above) */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
+                  {[
+                    "Product",
+                    "SKU / Barcode",
+                    "Category",
+                    "Supplier",
+                    "Cost",
+                    isWholesale ? "Wholesale / Retail" : "Price",
+                    "Stock",
+                    "Actions",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filtered.map((p) => {
+                  const lowStock = p.stock <= p.minStock;
+                  const pId = p._id || p.id;
+                  return (
+                    <tr
+                      key={pId}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group"
+                    >
+                      <td className="px-5 py-4 font-medium text-slate-900 dark:text-white max-w-[220px]">
+                        <div className="font-semibold text-slate-900 dark:text-white truncate">{p.name}</div>
+                        
+                        {/* Industry Variant Badges */}
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                          {p.batchNo ? (
+                            <span className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.2 rounded font-mono">
+                              Batch: {p.batchNo}
+                            </span>
+                          ) : null}
+                          {p.expiryDate ? (
+                            <span className="text-[10px] bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800 px-1.5 py-0.2 rounded font-mono">
+                              Exp: {new Date(p.expiryDate).toLocaleDateString("en-IN", { month: "short", year: "2-digit" })}
+                            </span>
+                          ) : null}
+                          {p.isPrescriptionOnly ? (
+                            <span className="text-[10px] bg-red-100 text-red-800 font-bold px-1.5 py-0.2 rounded">
+                              Rx
+                            </span>
+                          ) : null}
+                          {p.size ? (
+                            <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded font-semibold">
+                              Size: {p.size}
+                            </span>
+                          ) : null}
+                          {p.color ? (
+                            <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded">
+                              {p.color}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="font-mono text-xs text-slate-700 dark:text-slate-300 font-semibold">{p.sku}</div>
+                        {p.barcode ? (
+                          <div className="flex items-center gap-1 text-[11px] font-mono text-blue-600 dark:text-blue-400 mt-0.5" title={`Barcode: ${p.barcode}`}>
+                            <Barcode className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            <span>{p.barcode}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">No Barcode</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Badge label={p.category} variant="blue" />
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs truncate max-w-[140px]">
+                        {p.supplier || "—"}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300 font-mono text-xs">{fmt(p.cost)}</td>
+                      <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white font-mono">
+                        {isWholesale && p.wholesalePrice && Number(p.wholesalePrice) > 0 ? (
+                          <div>
+                            <div className="text-amber-700 dark:text-amber-400 font-bold">{fmt(p.wholesalePrice)}</div>
+                            <div className="text-[10px] text-slate-400 font-normal">MRP: {fmt(p.price)}</div>
+                          </div>
+                        ) : (
+                          fmt(p.price)
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        {Number(p.stock || 0) <= 0 ? (
+                          <div>
+                            <span className="font-mono font-bold text-[11px] text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded inline-block">
+                              0 in Stock
+                            </span>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Awaiting purchase</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <span
+                              className={`font-mono font-bold text-sm ${lowStock ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-slate-100"}`}
+                            >
+                              {p.stock} <span className="text-[10px] font-normal text-slate-500">{p.unit || "Piece"}</span>
+                            </span>
+                            {lowStock && (
+                              <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                Low Stock (Min: {p.minStock})
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          <Btn
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPrintBarcodeProduct(p);
+                              setBarcodeCopies(1);
+                            }}
+                            icon={<Barcode className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />}
+                            title="Print Barcode Labels"
+                            className="text-[11px] py-1 px-2 shadow-2xs"
+                          >
+                            Barcode
+                          </Btn>
+                          <Btn
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              localStorage.setItem(
+                                "reorderProduct",
+                                JSON.stringify({ name: p.name, minStock: p.minStock })
+                              );
+                              if (onNav) onNav("purchase");
+                              else window.location.href = "/app/purchase";
+                            }}
+                            icon={<ShoppingCart className="w-3.5 h-3.5 text-blue-600" />}
+                            title="Record Supplier Purchase to Inward Stock"
+                            className="text-[11px] py-1 px-2 text-blue-700 bg-blue-50/70 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 hover:bg-blue-100"
+                          >
+                            Inward Stock
+                          </Btn>
+                          <Btn
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowEditModal(true);
+                              setEditId(pId);
+                              setEditForm({
+                                name: p.name,
+                                sku: p.sku,
+                                barcode: p.barcode || "",
+                                category: p.category,
+                                supplier: p.supplier,
+                                cost: String(p.cost ?? 0),
+                                price: String(p.price ?? 0),
+                                wholesalePrice: String(p.wholesalePrice ?? 0),
+                                minOrderQty: String(p.minOrderQty ?? 1),
+                                batchNo: p.batchNo || "",
+                                expiryDate: p.expiryDate ? String(p.expiryDate).split("T")[0] : "",
+                                size: p.size || "",
+                                color: p.color || "",
+                                warrantyMonths: String(p.warrantyMonths ?? 0),
+                                isPrescriptionOnly: Boolean(p.isPrescriptionOnly),
+                                gst: String(p.gst ?? ""),
+                                stock: String(p.stock ?? 0),
+                                minStock: String(p.minStock ?? 0),
+                                unit: p.unit || "Piece",
+                              });
+                            }}
+                            icon={<Edit2 className="w-3.5 h-3.5" />}
+                          />
+                          <Btn
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteId(pId);
+                            }}
+                            icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </Card>
+
+          {/* 2. Mobile Responsive Cards (< md) */}
+          <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+            {filtered.map((p) => {
+              const lowStock = p.stock <= p.minStock;
+              const pId = p._id || p.id;
+              return (
+                <div key={pId} className="p-3.5 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-tight truncate">
+                        {p.name}
+                      </h4>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <Badge label={p.category} variant="blue" />
+                        {p.sku && (
+                          <span className="text-[10px] font-mono text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                            SKU: {p.sku}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="font-bold text-slate-900 dark:text-white font-mono text-sm">
+                        {fmt(p.price)}
+                      </div>
+                      <div className="text-[10px] text-slate-400">Cost: {fmt(p.cost)}</div>
+                    </div>
+                  </div>
+
+                  {/* Stock & Barcode Row */}
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-50 dark:border-slate-800/60">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-500 text-[11px]">Stock:</span>
+                      {Number(p.stock || 0) <= 0 ? (
+                        <span className="font-bold font-mono text-[10px] text-rose-600 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 px-1.5 py-0.2 rounded">
+                          0 Left (Out of Stock)
+                        </span>
+                      ) : (
+                        <span
+                          className={`font-bold font-mono ${
+                            lowStock ? "text-amber-600 dark:text-amber-400" : "text-slate-800 dark:text-slate-200"
+                          }`}
+                        >
+                          {p.stock} {p.unit || "Piece"}
+                          {lowStock ? ` (Low: Min ${p.minStock})` : ""}
+                        </span>
+                      )}
+                    </div>
+
+                    {p.barcode && (
+                      <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        <Barcode className="w-3 h-3" />
+                        {p.barcode}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Mobile Actions Grid */}
+                  <div className="grid grid-cols-2 gap-2 pt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPrintBarcodeProduct(p);
+                        setBarcodeCopies(1);
+                      }}
+                      className="py-1.5 px-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:bg-slate-200 cursor-pointer min-h-[36px]"
+                    >
+                      <Barcode className="w-3.5 h-3.5" />
+                      <span>Barcode</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        localStorage.setItem(
+                          "reorderProduct",
+                          JSON.stringify({ name: p.name, minStock: p.minStock })
+                        );
+                        if (onNav) onNav("purchase");
+                        else window.location.href = "/app/purchase";
+                      }}
+                      className="py-1.5 px-2 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:bg-blue-100 cursor-pointer min-h-[36px]"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" />
+                      <span>Inward</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEditModal(true);
+                        setEditId(pId);
+                        setEditForm({
+                          name: p.name,
+                          sku: p.sku,
+                          barcode: p.barcode || "",
+                          category: p.category,
+                          supplier: p.supplier,
+                          cost: String(p.cost ?? 0),
+                          price: String(p.price ?? 0),
+                          wholesalePrice: String(p.wholesalePrice ?? 0),
+                          minOrderQty: String(p.minOrderQty ?? 1),
+                          batchNo: p.batchNo || "",
+                          expiryDate: p.expiryDate ? String(p.expiryDate).split("T")[0] : "",
+                          size: p.size || "",
+                          color: p.color || "",
+                          warrantyMonths: String(p.warrantyMonths ?? 0),
+                          isPrescriptionOnly: Boolean(p.isPrescriptionOnly),
+                          gst: String(p.gst ?? ""),
+                          stock: String(p.stock ?? 0),
+                          minStock: String(p.minStock ?? 0),
+                          unit: p.unit || "Piece",
+                        });
+                      }}
+                      className="py-1.5 px-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer min-h-[36px]"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDeleteId(pId)}
+                      className="py-1.5 px-2 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:bg-rose-50 cursor-pointer min-h-[36px]"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-t border-slate-100 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Showing {filtered.length} of {productList.length} {pluralize(productList.length, "product")}
+            </p>
+          </div>
+        </Card>
+      )}
+
 
       {/* BARCODE LABEL PRINT MODAL */}
       {printBarcodeProduct && (

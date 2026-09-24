@@ -38,7 +38,7 @@ import { fetchCustomers } from "@shared/api/customerAPI";
 import { fetchPurchases } from "@shared/api/purchaseAPI";
 import { getExpenses } from "@shared/api/expenseApi";
 import { fmt } from "@shared/utils/format";
-import { Btn, Card, StatCard, statusBadge } from "@shared/components/common/ui";
+import { Btn, Card, StatCard, StatCardSkeleton, TableSkeleton, Skeleton, statusBadge } from "@shared/components/common/ui";
 import { useCustomization } from "@shared/hooks/useCustomization";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -491,9 +491,21 @@ export default function BusinessDashboard({ onNav }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-slate-500">
-        <Loader2 className="w-8 h-8 animate-spin mb-3 text-blue-600" />
-        <p className="text-sm font-medium">Loading live business performance data...</p>
+      <div className="space-y-5 animate-in fade-in duration-200">
+        <div className="h-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 animate-pulse flex items-center justify-between">
+          <div className="w-48 h-6 rounded bg-slate-200 dark:bg-slate-800" />
+          <div className="w-32 h-8 rounded bg-slate-200 dark:bg-slate-800" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+          <div className="lg:col-span-2 h-[340px] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 animate-pulse" />
+          <div className="h-[340px] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -501,17 +513,17 @@ export default function BusinessDashboard({ onNav }) {
   return (
     <div className="space-y-5">
       {/* Top Header & Global Timeframe Filter Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 sm:p-4 rounded-2xl shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               {t("dashboard.title") || "Business Dashboard"}
             </h2>
-            <span className="bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-              {TIMEFRAMES.find((tf) => tf.key === timeframe)?.label} Data
+            <span className="bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              {TIMEFRAMES.find((tf) => tf.key === timeframe)?.label}
             </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {t("dashboard.subtitle") || "Real-time performance summary and business analytics"}
           </p>
         </div>
@@ -553,8 +565,9 @@ export default function BusinessDashboard({ onNav }) {
         </div>
       </div>
 
-      {/* Dynamic Metric Cards (Filter-Aware) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Dynamic Metric Cards (Filter-Aware) - 2 columns on mobile, 4 columns on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+
         <StatCard
           label={
             timeframe === "day"

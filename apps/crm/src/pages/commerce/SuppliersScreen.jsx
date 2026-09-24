@@ -26,7 +26,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import { fmt, fmtK } from "@shared/utils/format";
+import { fmt, fmtK, pluralize } from "@shared/utils/format";
 import {
   Btn,
   Card,
@@ -35,7 +35,11 @@ import {
   Input,
   Modal,
   Toast,
+  TableSkeleton,
+  ErrorState,
+  MobileCard,
 } from "@shared/components/common/ui";
+
 import {
   fetchSuppliers,
   createSupplier,
@@ -466,9 +470,10 @@ export default function SuppliersScreen() {
             </div>
           </div>
 
-          {/* Suppliers Table */}
+          {/* Suppliers Table & Mobile Cards */}
           <Card>
-            <div className="overflow-x-auto">
+            {/* 1. Desktop Table (md and above) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
@@ -516,7 +521,7 @@ export default function SuppliersScreen() {
                         </td>
 
                         {/* Contact Person */}
-                        <td className="px-5 py-4 text-slate-700 dark:text-slate-300 font-medium">
+                        <td className="px-5 py-4 text-slate-700 dark:text-slate-300 font-medium text-xs">
                           {s.contact || "—"}
                         </td>
 
@@ -617,6 +622,117 @@ export default function SuppliersScreen() {
                 </tbody>
               </table>
             </div>
+
+            {/* 2. Mobile Responsive Cards (< md) */}
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredSuppliers.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs">
+                  No matching suppliers found.
+                </div>
+              ) : (
+                filteredSuppliers.map((s) => (
+                  <div key={s._id} className="p-3.5 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                          {s.name}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          {s.contact ? `Contact: ${s.contact}` : `ID: ${s._id?.slice(-6).toUpperCase()}`}
+                          {s.city ? ` • ${s.city}` : ""}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span
+                          className={`font-mono font-bold text-xs px-2 py-0.5 rounded ${
+                            Number(s.balance) > 0
+                              ? "text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200"
+                              : "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200"
+                          }`}
+                        >
+                          Bal: {fmt(s.balance || 0)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {(s.phone || s.email || s.gst) && (
+                      <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300 font-mono flex-wrap">
+                        {s.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-slate-400" />
+                            {s.phone}
+                          </span>
+                        )}
+                        {s.gst && (
+                          <span className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                            GST: {s.gst}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Mobile Actions */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-50 dark:border-slate-800/60">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenVoucherForSupplier(s)}
+                        className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer min-h-[36px]"
+                      >
+                        <Receipt className="w-3.5 h-3.5" />
+                        <span>Issue Voucher</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setViewSupplier(s)}
+                        className="p-1.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs flex items-center justify-center hover:bg-slate-50 cursor-pointer min-h-[36px] min-w-[36px]"
+                        title="View Supplier"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEditModal(true);
+                          setEditId(s._id);
+                          setEditForm({
+                            name: s.name,
+                            contact: s.contact,
+                            phone: s.phone,
+                            email: s.email,
+                            city: s.city,
+                            address: s.address || "",
+                            gst: s.gst || "",
+                            balance: s.balance,
+                            status: s.status,
+                          });
+                        }}
+                        className="p-1.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs flex items-center justify-center hover:bg-slate-50 cursor-pointer min-h-[36px] min-w-[36px]"
+                        title="Edit Supplier"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setDeleteId(s._id)}
+                        className="p-1.5 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 rounded-lg text-xs flex items-center justify-center hover:bg-rose-50 cursor-pointer min-h-[36px] min-w-[36px]"
+                        title="Delete Supplier"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Showing {filteredSuppliers.length} of {supplierList.length} {pluralize(supplierList.length, "supplier")}
+              </p>
+            </div>
           </Card>
         </div>
       )}
@@ -626,80 +742,80 @@ export default function SuppliersScreen() {
       ────────────────────────────────────────────────────────────── */}
       {activeTab === "vouchers" && (
         <div className="space-y-6">
-          {/* Top KPI Metrics Overview */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Top KPI Metrics Overview - 2 columns on mobile */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
             {/* Total Vouchers Card */}
-            <div className="bg-white dark:bg-slate-900 p-4.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200 dark:border-blue-800/80 flex-shrink-0">
-                <Receipt className="w-6 h-6" />
+            <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-2.5 sm:gap-4">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200 dark:border-blue-800/80 flex-shrink-0">
+                <Receipt className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Total Cash Vouchers
+                <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+                  Total Vouchers
                 </p>
-                <p className="text-xl font-extrabold text-slate-900 dark:text-white font-mono mt-0.5">
-                  {voucherStats.totalVouchers} Issued
+                <p className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white font-mono mt-0.5 truncate">
+                  {voucherStats.totalVouchers}
                 </p>
               </div>
             </div>
 
             {/* Total Disbursed Card */}
-            <div className="bg-white dark:bg-slate-900 p-4.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-800/80 flex-shrink-0">
-                <DollarSign className="w-6 h-6" />
+            <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-2.5 sm:gap-4">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-800/80 flex-shrink-0">
+                <DollarSign className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Total Disbursed Amount
+                <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+                  Total Disbursed
                 </p>
-                <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 truncate">
+                <p className="text-base sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 truncate">
                   {fmt(voucherStats.totalAmount)}
                 </p>
               </div>
             </div>
 
             {/* Today's Disbursements Card */}
-            <div className="bg-white dark:bg-slate-900 p-4.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200 dark:border-purple-800/80 flex-shrink-0">
-                <Calendar className="w-6 h-6" />
+            <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-2.5 sm:gap-4">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200 dark:border-purple-800/80 flex-shrink-0">
+                <Calendar className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Today's Disbursements
+                <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+                  Today Disbursed
                 </p>
-                <p className="text-xl font-extrabold text-purple-600 dark:text-purple-400 font-mono mt-0.5 truncate">
+                <p className="text-base sm:text-xl font-extrabold text-purple-600 dark:text-purple-400 font-mono mt-0.5 truncate">
                   {fmt(voucherStats.todayAmount)}
                 </p>
               </div>
             </div>
 
             {/* Active Payees Card */}
-            <div className="bg-white dark:bg-slate-900 p-4.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-800/80 flex-shrink-0">
-                <Building2 className="w-6 h-6" />
+            <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-2.5 sm:gap-4">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-800/80 flex-shrink-0">
+                <Building2 className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Registered Payees
+                <p className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+                  Active Payees
                 </p>
-                <p className="text-xl font-extrabold text-slate-900 dark:text-white font-mono mt-0.5">
-                  {supplierList.length} Suppliers
+                <p className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white font-mono mt-0.5 truncate">
+                  {supplierList.length}
                 </p>
               </div>
             </div>
           </div>
 
           {/* Search, Filter Bar & Create Button */}
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* Search Input */}
-            <div className="relative flex-1 min-w-[240px] max-w-md">
+            <div className="relative flex-1 min-w-0">
               <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="text"
                 value={voucherSearch}
                 onChange={(e) => setVoucherSearch(e.target.value)}
-                placeholder="Search by Voucher #, Vendor Name, Ref #, Notes..."
-                className="w-full pl-10 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 shadow-xs"
+                placeholder="Search by Voucher #, Vendor Name, Ref #..."
+                className="w-full pl-10 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 shadow-2xs"
               />
             </div>
 
@@ -708,7 +824,7 @@ export default function SuppliersScreen() {
               <select
                 value={voucherHeadFilter}
                 onChange={(e) => setVoucherHeadFilter(e.target.value)}
-                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none"
+                className="flex-1 sm:flex-none px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none"
               >
                 <option value="all">All Account Heads</option>
                 {ACCOUNT_HEADS.map((h) => (
@@ -719,17 +835,18 @@ export default function SuppliersScreen() {
               <button
                 type="button"
                 onClick={handleOpenNewVoucher}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                className="px-3 sm:px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer min-h-[38px]"
               >
                 <Plus className="w-4 h-4" />
-                <span>New Cash Voucher</span>
+                <span>New Voucher</span>
               </button>
             </div>
           </div>
 
-          {/* Vouchers Data Table */}
+          {/* Vouchers Data Table & Mobile Cards */}
           <Card>
-            <div className="overflow-x-auto">
+            {/* 1. Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
@@ -759,7 +876,7 @@ export default function SuppliersScreen() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredVouchers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-16 text-center text-slate-400">
+                      <td colSpan={7} className="py-16 text-center text-slate-400">
                         <Receipt className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                         <p className="font-semibold text-slate-600">No Cash Vouchers Found</p>
                         <p className="text-xs text-slate-400 mt-0.5">
@@ -836,7 +953,6 @@ export default function SuppliersScreen() {
                         {/* Actions */}
                         <td className="px-5 py-4 text-right">
                           <div className="inline-flex items-center justify-end gap-1.5">
-                            {/* View & Print Voucher Slip */}
                             <button
                               type="button"
                               onClick={() => setViewVoucherSlip(v)}
@@ -846,7 +962,6 @@ export default function SuppliersScreen() {
                               <Printer className="w-3.5 h-3.5 text-blue-600" />
                             </button>
 
-                            {/* Delete */}
                             <button
                               type="button"
                               onClick={() => setDeleteVoucherId(v._id)}
@@ -862,6 +977,78 @@ export default function SuppliersScreen() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* 2. Mobile Cards */}
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredVouchers.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs">
+                  No cash vouchers found.
+                </div>
+              ) : (
+                filteredVouchers.map((v) => (
+                  <div key={v._id} className="p-3.5 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setViewVoucherSlip(v)}
+                          className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs hover:underline block text-left"
+                        >
+                          {v.voucherNo}
+                        </button>
+                        <p className="font-bold text-slate-900 dark:text-white text-xs mt-0.5">
+                          {v.supplierName}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                          {fmt(v.amountPaid ?? v.amount)}
+                        </span>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          {new Date(v.voucherDate).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-50 dark:border-slate-800/60">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        {v.accountHead}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setViewVoucherSlip(v)}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center gap-1 cursor-pointer min-h-[34px]"
+                        >
+                          <Printer className="w-3 h-3" />
+                          <span>Slip</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeleteVoucherId(v._id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer min-h-[34px] min-w-[34px] flex items-center justify-center"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Showing {filteredVouchers.length} {pluralize(filteredVouchers.length, "voucher")}
+              </p>
             </div>
           </Card>
         </div>
