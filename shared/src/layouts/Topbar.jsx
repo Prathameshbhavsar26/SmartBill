@@ -137,23 +137,6 @@ export default function Topbar({ page, onLogout, onNav, role, notifCount, user, 
                   <Globe className="w-3.5 h-3.5 text-slate-400" />
                   <span>Public Home Website</span>
                 </a>
-                {role === "superadmin" ? (
-                  <a
-                    href={getCrmUrl("/login")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 font-medium transition-colors"
-                  >
-                    <Store className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Merchant CRM Login</span>
-                  </a>
-                ) : (
-                  <a
-                    href={getAdminUrl("/admin/login")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-medium transition-colors"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>SuperAdmin Portal Login</span>
-                  </a>
-                )}
               </div>
               <div className="py-1">
                 <button

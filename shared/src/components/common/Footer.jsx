@@ -20,12 +20,11 @@ export default function Footer() {
       ]
     },
     {
-      title: "Portals & Support",
+      title: "Support",
       links: [
         { label: "Help Center", key: "help-center" },
         { label: "Contact Us", key: "contact" },
-        { label: "Merchant / Store Login", href: getCrmUrl("/login") },
-        { label: "SuperAdmin Portal", href: getAdminUrl("/admin/login") },
+        { label: "Merchant Sign In", href: getCrmUrl("/login") },
       ]
     }
   ];

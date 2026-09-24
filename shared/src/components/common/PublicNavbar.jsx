@@ -64,14 +64,6 @@ export default function PublicNavbar({ onNav }) {
                 {l}
               </a>
             ))}
-            <a
-              href={getAdminUrl("/admin/login")}
-              className="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 border border-slate-200/80 transition-all inline-flex items-center gap-1.5"
-              title="Access Platform SuperAdmin Portal"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-              SuperAdmin Portal
-            </a>
           </div>
 
           {/* Desktop Right Action Buttons */}
@@ -79,13 +71,6 @@ export default function PublicNavbar({ onNav }) {
             {currentUser ? (
               isSuperAdmin ? (
                 <>
-                  <a
-                    href={getCrmUrl("/login")}
-                    className="text-xs text-slate-600 hover:text-blue-600 font-semibold inline-flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                  >
-                    <Store className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Merchant Login</span>
-                  </a>
                   <a
                     href={getAdminUrl("/admin")}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
@@ -97,18 +82,11 @@ export default function PublicNavbar({ onNav }) {
               ) : (
                 <>
                   <a
-                    href={getAdminUrl("/admin/login")}
-                    className="text-xs text-slate-600 hover:text-blue-600 font-semibold inline-flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>SuperAdmin Login</span>
-                  </a>
-                  <a
                     href={getCrmUrl("/app")}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
                   >
                     <Store className="w-4 h-4" />
-                    <span>Go to Store Dashboard</span>
+                    <span>Go to Dashboard</span>
                   </a>
                 </>
               )
@@ -120,7 +98,7 @@ export default function PublicNavbar({ onNav }) {
                   className="flex items-center gap-1.5 text-slate-700 hover:text-blue-600 hover:bg-slate-100"
                 >
                   <Store className="w-4 h-4 text-blue-600" />
-                  <span>Merchant Sign In</span>
+                  <span>Sign In</span>
                 </Btn>
                 <Btn variant="primary" onClick={() => handleAuthNav("register")}>
                   Start Free Trial
@@ -157,18 +135,6 @@ export default function PublicNavbar({ onNav }) {
             ))}
             
             <div className="pt-2 border-t border-slate-100 space-y-2">
-              <a
-                href={getAdminUrl("/admin/login")}
-                className="flex items-center justify-between text-xs font-semibold text-slate-700 py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
-                onClick={() => setMobileMenu(false)}
-              >
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <span>SuperAdmin Portal Login</span>
-                </div>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-              </a>
-
               {currentUser ? (
                 <div className="space-y-2 pt-1">
                   <a
@@ -191,7 +157,7 @@ export default function PublicNavbar({ onNav }) {
                     className="w-full py-2 px-3 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 hover:bg-slate-200 cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Switch Account / Sign Out</span>
+                    <span>Sign Out</span>
                   </button>
                 </div>
               ) : (
@@ -205,7 +171,7 @@ export default function PublicNavbar({ onNav }) {
                     className="flex-1 justify-center flex items-center gap-1.5"
                   >
                     <Store className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Merchant Sign In</span>
+                    <span>Sign In</span>
                   </Btn>
                   <Btn
                     variant="primary"
