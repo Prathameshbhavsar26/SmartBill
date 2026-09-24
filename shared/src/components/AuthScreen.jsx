@@ -13,7 +13,9 @@ import {
   Phone,
   Send,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
+  Store,
   Tag,
   X,
 } from "lucide-react";
@@ -40,6 +42,14 @@ const PHONE_PREFIX = "+91 ";
 
 export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
   const [role, setRole] = useState(fixedRole || "owner");
+  const [currentUserSession, setCurrentUserSession] = useState(() => {
+    try {
+      const raw = localStorage.getItem("smartbill_user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // ---- Login state ----
   const [email, setEmail] = useState("");
@@ -738,11 +748,69 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
 
           {view === "login" && (
             <>
+              {/* Portal Switcher Tabs */}
+              <div className="flex items-center p-1 bg-slate-100 rounded-xl mb-6 border border-slate-200 shadow-inner">
+                <button
+                  type="button"
+                  className="flex-1 py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all bg-white text-blue-700 shadow-xs border border-slate-200/80 cursor-default"
+                >
+                  <Store className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Merchant Login</span>
+                </button>
+                <a
+                  href={getAdminUrl("/admin/login")}
+                  className="flex-1 py-2 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-900 hover:bg-white/60 transition-all"
+                  title="Switch to Platform SuperAdmin Portal"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+                  <span>SuperAdmin</span>
+                </a>
+              </div>
+
+              {/* Active SuperAdmin Session Warning / Switcher Banner */}
+              {currentUserSession?.role === "superadmin" && (
+                <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in">
+                  <div>
+                    <p className="font-semibold text-amber-950 flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
+                      Currently Signed In as SuperAdmin
+                    </p>
+                    <p className="text-[11px] text-amber-800 mt-0.5 font-mono">{currentUserSession.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <a
+                      href={getAdminUrl("/admin")}
+                      className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-[11px] font-semibold transition shadow-xs"
+                    >
+                      Admin Panel →
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        localStorage.removeItem("smartbill_token");
+                        localStorage.removeItem("smartbill_user");
+                        setCurrentUserSession(null);
+                        showToast("Admin session cleared. You can now sign in as Merchant.", "info");
+                      }}
+                      className="px-2 py-1 bg-white border border-amber-300 text-amber-800 hover:bg-amber-100 rounded-md text-[11px] font-medium transition cursor-pointer"
+                    >
+                      Clear / Sign In as Merchant
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 rounded-md border border-blue-200 flex items-center gap-1">
+                  <Store className="w-3 h-3 text-blue-600" />
+                  Merchant Portal
+                </span>
+              </div>
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">
-                Welcome back
+                Merchant & Business Sign In
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 mb-5 sm:mb-6">
-                Sign in to your SmartBill account
+                Sign in to manage your store, billing POS, inventory, & staff
               </p>
 
               {/* Simple 2-Line Suspension Reason Alert */}
@@ -843,7 +911,7 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
                     )
                   }
                 >
-                  {loading ? "Signing in..." : "Sign In"}
+                  {loading ? "Signing in..." : "Sign In to Store CRM"}
                 </Btn>
               </div>
               <p className="text-xs text-center text-slate-500 mt-5">
@@ -858,10 +926,10 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
               <div className="mt-6 pt-4 border-t border-slate-100 text-center">
                 <a
                   href={getAdminUrl("/admin/login")}
-                  className="text-xs text-slate-500 hover:text-slate-900 transition-colors inline-flex items-center gap-1 font-medium"
+                  className="text-xs text-slate-500 hover:text-blue-600 transition-colors inline-flex items-center gap-1.5 font-medium"
                 >
                   <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />
-                  SuperAdmin Portal &rarr;
+                  Are you the Platform SuperAdmin? Open Admin Portal &rarr;
                 </a>
               </div>
             </>
