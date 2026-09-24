@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { BarChart2, ChevronRight, Menu, UserCircle, Shield } from "lucide-react";
+import { BarChart2, ChevronRight, Menu, UserCircle, Shield, ShieldCheck, Store } from "lucide-react";
 import { NAV_GROUPS, SUPER_ADMIN_ITEMS } from "./navConfig";
 import { getUserDisplayName } from "@shared/utils/userUtils";
 import { useCustomization } from "@shared/hooks/useCustomization";
 import { hasPermission } from "@shared/utils/permissions";
+import { getAdminUrl, getCrmUrl } from "@shared/utils/urlUtils";
 
 export default function Sidebar({
   page,
@@ -291,26 +292,46 @@ export default function Sidebar({
             )}
           </div>
           {(!collapsed || (typeof window !== "undefined" && window.innerWidth < 1024)) && isPlatformAdmin && (
-            <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between">
-              <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider bg-purple-400/10 px-2 py-0.5 rounded border border-purple-400/20">
-                PLATFORM ROOT ACCESS
-              </span>
+            <div className="mt-2 pt-2 border-t border-slate-800/60 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider bg-purple-400/10 px-2 py-0.5 rounded border border-purple-400/20">
+                  SUPERADMIN
+                </span>
+                <a
+                  href={getCrmUrl("/login")}
+                  className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Store className="w-3 h-3 text-blue-400" />
+                  <span>Merchant Portal</span>
+                </a>
+              </div>
             </div>
           )}
           {(!collapsed || (typeof window !== "undefined" && window.innerWidth < 1024)) && !isPlatformAdmin && (
-            <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between">
-              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
-                {user?.subscription?.plan ? String(user.subscription.plan).toUpperCase() : "STARTER"} PLAN
-              </span>
-              <button
-                onClick={() => {
-                  onNav("profile");
-                  if (onMobileClose) onMobileClose();
-                }}
-                className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
-              >
-                Manage
-              </button>
+            <div className="mt-2 pt-2 border-t border-slate-800/60 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
+                  {user?.subscription?.plan ? String(user.subscription.plan).toUpperCase() : "STARTER"} PLAN
+                </span>
+                <button
+                  onClick={() => {
+                    onNav("profile");
+                    if (onMobileClose) onMobileClose();
+                  }}
+                  className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
+                >
+                  Manage
+                </button>
+              </div>
+              <div className="pt-1 flex items-center justify-between">
+                <a
+                  href={getAdminUrl("/admin/login")}
+                  className="text-[10px] text-slate-400 hover:text-indigo-300 font-medium flex items-center gap-1 transition-colors"
+                >
+                  <ShieldCheck className="w-3 h-3 text-indigo-400" />
+                  <span>SuperAdmin Portal Login ➔</span>
+                </a>
+              </div>
             </div>
           )}
         </div>

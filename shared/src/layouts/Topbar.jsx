@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Bell, LogOut, MoreVertical, Plus, Menu } from "lucide-react";
+import { Bell, LogOut, MoreVertical, Plus, Menu, ShieldCheck, Store, Globe } from "lucide-react";
 import { Btn, ConfirmDialog } from "@shared/components/common/ui";
 import { getUserDisplayName, getUserInitials } from "@shared/utils/userUtils";
 import { useCustomization } from "@shared/hooks/useCustomization";
+import { getAdminUrl, getCrmUrl, getLandingUrl } from "@shared/utils/urlUtils";
 
 const PAGE_LABELS = {
   dashboard: "Dashboard",
@@ -123,17 +124,49 @@ export default function Topbar({ page, onLogout, onNav, role, notifCount, user, 
             <MoreVertical className="w-4 h-4" />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  setShowLogoutConfirm(true);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600 cursor-pointer"
-              >
-                <LogOut className="w-4 h-4 text-red-500" />
-                <span>{t("nav.logout") || "Logout"}</span>
-              </button>
+            <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 divide-y divide-slate-100 dark:divide-slate-700">
+              <div className="px-3 py-1.5">
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{displayName}</p>
+                <p className="text-[10px] text-slate-400 capitalize">{role}</p>
+              </div>
+              <div className="py-1">
+                <a
+                  href={getLandingUrl()}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <Globe className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Public Home Website</span>
+                </a>
+                {role === "superadmin" ? (
+                  <a
+                    href={getCrmUrl("/login")}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 font-medium transition-colors"
+                  >
+                    <Store className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Merchant CRM Login</span>
+                  </a>
+                ) : (
+                  <a
+                    href={getAdminUrl("/admin/login")}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-medium transition-colors"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>SuperAdmin Portal Login</span>
+                  </a>
+                )}
+              </div>
+              <div className="py-1">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setShowLogoutConfirm(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 font-semibold cursor-pointer transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-red-500" />
+                  <span>{t("nav.logout") || "Logout"}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
