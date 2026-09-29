@@ -2,6 +2,7 @@ import app from "./app.js";
 import connectDB from "./config/db.js";
 import seedAdmin from "./seed/admin.js";
 import seedSubscriptionPlans from "./seed/seedPlans.js";
+import seedCoupons from "./seed/seedCoupons.js";
 import migrateExistingUserTrials from "./seed/migrateTrials.js";
 import mongoose from "mongoose";
 
@@ -18,6 +19,7 @@ const server = app.listen(port, "0.0.0.0", () => {
     await connectDB();
     await seedAdmin();
     await seedSubscriptionPlans();
+    await seedCoupons();
     await migrateExistingUserTrials();
     console.log("[INIT] Database connected and bootstrap seeds completed successfully.");
   } catch (err) {

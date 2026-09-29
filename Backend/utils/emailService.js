@@ -1,13 +1,24 @@
 import nodemailer from "nodemailer";
 import SystemSettings from "../models/SystemSettings.js";
 
+let cachedSettings = null;
+let cachedSettingsTime = 0;
+const SETTINGS_CACHE_TTL = 60 * 1000; // 60 seconds
+
 /**
- * Query SystemSettings from MongoDB for the requested email template.
+ * Query SystemSettings from MongoDB for the requested email template (with in-memory cache).
  * @param {string|number} templateIdentifier Template Name or ID
  */
 export const getSystemTemplate = async (templateIdentifier) => {
   try {
-    const settings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
+    let settings = cachedSettings;
+    if (!settings || Date.now() - cachedSettingsTime > SETTINGS_CACHE_TTL) {
+      settings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
+      if (settings) {
+        cachedSettings = settings;
+        cachedSettingsTime = Date.now();
+      }
+    }
     if (!settings || !Array.isArray(settings.emailTemplates)) {
       return null;
     }
@@ -37,14 +48,22 @@ export const replacePlaceholders = (text = "", variables = {}) => {
   });
 };
 
+let cachedEtherealTransporter = null;
+
 /**
  * Construct an SMTP transporter — queries dynamic MongoDB SystemSettings first,
  * falling back to process.env environment variables if DB settings are empty.
  */
 const getTransporter = async () => {
-  let dbSettings = null;
+  let dbSettings = cachedSettings;
   try {
-    dbSettings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
+    if (!dbSettings || Date.now() - cachedSettingsTime > SETTINGS_CACHE_TTL) {
+      dbSettings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
+      if (dbSettings) {
+        cachedSettings = dbSettings;
+        cachedSettingsTime = Date.now();
+      }
+    }
   } catch (err) {
     console.warn("Could not fetch SystemSettings for SMTP config:", err.message);
   }
@@ -57,7 +76,6 @@ const getTransporter = async () => {
 
   if (dbUser && dbPass) {
     const isGmail = (dbHost && dbHost.toLowerCase().includes("gmail")) || dbUser.toLowerCase().includes("@gmail.com");
-    console.log(`[SMTP] Using dynamic DB SMTP settings (${dbUser} via ${isGmail ? "gmail" : `${dbHost}:${dbPort}`})`);
     return {
       transporter: nodemailer.createTransport(
         isGmail
@@ -65,6 +83,9 @@ const getTransporter = async () => {
               service: "gmail",
               auth: { user: dbUser, pass: dbPass },
               tls: { rejectUnauthorized: false },
+              connectionTimeout: 5000,
+              greetingTimeout: 5000,
+              socketTimeout: 8000,
             }
           : {
               host: dbHost || "smtp.gmail.com",
@@ -72,6 +93,9 @@ const getTransporter = async () => {
               secure: dbPort === 465,
               auth: { user: dbUser, pass: dbPass },
               tls: { rejectUnauthorized: false },
+              connectionTimeout: 5000,
+              greetingTimeout: 5000,
+              socketTimeout: 8000,
             }
       ),
       fromAddress: dbSettings?.smtpFrom || `"Smart Bill System" <${dbUser}>`,
@@ -87,7 +111,6 @@ const getTransporter = async () => {
 
   if (envUser && envPass && !envUser.includes("your_email")) {
     const isGmail = (envHost && envHost.toLowerCase().includes("gmail")) || (envUser && envUser.toLowerCase().includes("@gmail.com"));
-    console.log(`[SMTP] Using environment process.env SMTP settings (${envUser} via ${isGmail ? "gmail" : `${envHost}:${envPort}`})`);
     return {
       transporter: nodemailer.createTransport(
         isGmail
@@ -95,6 +118,9 @@ const getTransporter = async () => {
               service: "gmail",
               auth: { user: envUser, pass: envPass },
               tls: { rejectUnauthorized: false },
+              connectionTimeout: 5000,
+              greetingTimeout: 5000,
+              socketTimeout: 8000,
             }
           : {
               host: envHost || "smtp.gmail.com",
@@ -102,6 +128,9 @@ const getTransporter = async () => {
               secure: envPort === 465,
               auth: { user: envUser, pass: envPass },
               tls: { rejectUnauthorized: false },
+              connectionTimeout: 5000,
+              greetingTimeout: 5000,
+              socketTimeout: 8000,
             }
       ),
       fromAddress: process.env.SMTP_FROM || process.env.EMAIL_FROM || `"Smart Bill System" <${envUser}>`,
@@ -109,10 +138,14 @@ const getTransporter = async () => {
     };
   }
 
-  // 3. Automatic Ethereal test account fallback if real credentials missing
+  // 3. Automatic Ethereal test account fallback (cached to prevent repeated network delays)
+  if (cachedEtherealTransporter) {
+    return cachedEtherealTransporter;
+  }
+
   try {
     const testAccount = await nodemailer.createTestAccount();
-    return {
+    cachedEtherealTransporter = {
       transporter: nodemailer.createTransport({
         host: "smtp.ethereal.email",
         port: 587,
@@ -122,10 +155,14 @@ const getTransporter = async () => {
           pass: testAccount.pass,
         },
         tls: { rejectUnauthorized: false },
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 8000,
       }),
       fromAddress: `"Smart Bill System" <${testAccount.user}>`,
       isTest: true,
     };
+    return cachedEtherealTransporter;
   } catch (err) {
     console.warn("Could not create Ethereal test account:", err.message);
     return { transporter: null, fromAddress: null, isTest: false };

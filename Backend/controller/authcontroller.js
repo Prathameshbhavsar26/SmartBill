@@ -168,10 +168,15 @@ export const register = async (req, res) => {
 
     const normalizedEmail = String(email).trim().toLowerCase();
 
-    // Check duplicate phone
-    const existingPhone = await User.findOne({
-      phone: normalizedPhone,
-    });
+    // Fast Parallel Execution: Check duplicate phone, email, and compute bcrypt hash simultaneously
+    const [existingPhone, existingEmail, hashedPassword, rawCoupon] = await Promise.all([
+      User.findOne({ phone: normalizedPhone }).select("_id").lean(),
+      User.findOne({ email: normalizedEmail }).select("_id").lean(),
+      bcrypt.hash(password, 10),
+      (req.body.couponCode || req.body.coupon)
+        ? Coupon.findOne({ code: String(req.body.couponCode || req.body.coupon).trim().toUpperCase() }).lean()
+        : Promise.resolve(null),
+    ]);
 
     if (existingPhone) {
       return res.status(409).json({
@@ -180,11 +185,6 @@ export const register = async (req, res) => {
       });
     }
 
-    // Check duplicate email
-    const existingEmail = await User.findOne({
-      email: normalizedEmail,
-    });
-
     if (existingEmail) {
       return res.status(409).json({
         message: "Email already exists. Please sign in instead.",
@@ -192,38 +192,28 @@ export const register = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     // Optional coupon processing
-    const rawCouponCode = req.body.couponCode || req.body.coupon || "";
     let appliedCouponData = null;
     let extraTrialDays = 0;
 
-    if (rawCouponCode && typeof rawCouponCode === "string" && rawCouponCode.trim()) {
-      const normalizedCoupon = rawCouponCode.trim().toUpperCase();
-      try {
-        const coupon = await Coupon.findOne({ code: normalizedCoupon });
-        const now = new Date();
-        if (
-          coupon &&
-          coupon.status === "active" &&
-          (!coupon.startDate || new Date(coupon.startDate) <= now) &&
-          (!coupon.expiryDate || new Date(coupon.expiryDate) >= now) &&
-          (coupon.maxUsageCount == null || coupon.usedCount < coupon.maxUsageCount)
-        ) {
-          appliedCouponData = {
-            couponId: coupon._id,
-            code: coupon.code,
-            title: coupon.title,
-            discountType: coupon.discountType,
-            discountValue: coupon.discountValue,
-          };
-          if (coupon.discountType === "trial_days") {
-            extraTrialDays = Number(coupon.discountValue) || 14;
-          }
+    if (rawCoupon) {
+      const now = new Date();
+      if (
+        rawCoupon.status === "active" &&
+        (!rawCoupon.startDate || new Date(rawCoupon.startDate) <= now) &&
+        (!rawCoupon.expiryDate || new Date(rawCoupon.expiryDate) >= now) &&
+        (rawCoupon.maxUsageCount == null || rawCoupon.usedCount < rawCoupon.maxUsageCount)
+      ) {
+        appliedCouponData = {
+          couponId: rawCoupon._id,
+          code: rawCoupon.code,
+          title: rawCoupon.title,
+          discountType: rawCoupon.discountType,
+          discountValue: rawCoupon.discountValue,
+        };
+        if (rawCoupon.discountType === "trial_days") {
+          extraTrialDays = Number(rawCoupon.discountValue) || 14;
         }
-      } catch (couponErr) {
-        console.warn("Coupon check error during registration:", couponErr);
       }
     }
 
@@ -258,77 +248,86 @@ export const register = async (req, res) => {
       subscription: subscriptionData,
     });
 
-    if (appliedCouponData && appliedCouponData.couponId) {
-      try {
-        await Coupon.findByIdAndUpdate(appliedCouponData.couponId, {
-          $inc: { usedCount: 1 },
-          $push: {
-            redemptions: {
-              userId: user._id,
-              ownerId: user._id,
-              businessName: user.businessName,
-              email: user.email,
-              plan: planToActivate || "starter",
-              originalAmount: 0,
-              discountAmount: 0,
-              finalAmount: 0,
-              redeemedAt: new Date(),
+    // Build payload and send HTTP 201 response immediately to provide instant user feedback
+    const authPayload = buildAuthPayload(user);
+    res.status(201).json(authPayload);
+
+    // Asynchronous background post-registration tasks (non-blocking for high speed)
+    Promise.resolve().then(async () => {
+      // 1. Record coupon redemption
+      if (appliedCouponData && appliedCouponData.couponId) {
+        try {
+          await Coupon.findByIdAndUpdate(appliedCouponData.couponId, {
+            $inc: { usedCount: 1 },
+            $push: {
+              redemptions: {
+                userId: user._id,
+                ownerId: user._id,
+                businessName: user.businessName,
+                email: user.email,
+                plan: planToActivate || "starter",
+                originalAmount: 0,
+                discountAmount: 0,
+                finalAmount: 0,
+                redeemedAt: new Date(),
+              },
             },
-          },
-        });
-      } catch (cErr) {
-        console.warn("Failed to record coupon redemption on registration:", cErr);
+          });
+        } catch (cErr) {
+          console.warn("Coupon redemption recording notice:", cErr.message);
+        }
       }
-    }
 
-    // Notify SuperAdmins about new business registration
-    try {
-      const bName = user.businessName || `${user.firstName} ${user.lastName}`;
-      await notifySuperAdmins({
-        title: `New Business Registered: ${bName}`,
-        message: `${user.firstName} ${user.lastName} (${user.email}, ${user.phone}) registered a new ${user.businessType || "Retail"} business.`,
-        type: "info",
-        category: "businesses",
-        link: "businesses",
-        metadata: {
-          newUserId: user._id.toString(),
-          email: user.email,
-          businessName: bName,
-          businessType: user.businessType,
-        },
-      });
-
-      // If user registered with an activated plan, also broadcast the subscription notification
-      if (planToActivate) {
+      // 2. Notify SuperAdmins about new business registration
+      try {
+        const bName = user.businessName || `${user.firstName} ${user.lastName}`;
         await notifySuperAdmins({
-          title: `Subscription Payment: ${planToActivate.toUpperCase()} Plan`,
-          message: `${bName} (${user.email}) activated the ${planToActivate.toUpperCase()} plan.`,
-          type: "success",
-          category: "subscription",
-          link: "revenue",
+          title: `New Business Registered: ${bName}`,
+          message: `${user.firstName} ${user.lastName} (${user.email}, ${user.phone}) registered a new ${user.businessType || "Retail"} business.`,
+          type: "info",
+          category: "businesses",
+          link: "businesses",
           metadata: {
-            businessId: user._id.toString(),
+            newUserId: user._id.toString(),
+            email: user.email,
             businessName: bName,
-            plan: planToActivate,
+            businessType: user.businessType,
           },
         });
+
+        if (planToActivate) {
+          await notifySuperAdmins({
+            title: `Subscription Payment: ${planToActivate.toUpperCase()} Plan`,
+            message: `${bName} (${user.email}) activated the ${planToActivate.toUpperCase()} plan.`,
+            type: "success",
+            category: "subscription",
+            link: "revenue",
+            metadata: {
+              businessId: user._id.toString(),
+              businessName: bName,
+              plan: planToActivate,
+            },
+          });
+        }
+      } catch (notifErr) {
+        console.warn("SuperAdmin registration notification warning:", notifErr.message);
       }
-    } catch (notifErr) {
-      console.error("SuperAdmin registration notification error:", notifErr.message);
-    }
 
-    // Dispatch Welcome Email (checks SuperAdmin active/inactive setting in MongoDB)
-    try {
-      await sendWelcomeEmail({
-        toEmail: user.email,
-        userName: `${user.firstName} ${user.lastName}`.trim(),
-        businessName: user.businessName || "Smart Bill",
-      });
-    } catch (welcomeErr) {
-      console.error("Welcome email dispatch error:", welcomeErr.message);
-    }
+      // 3. Dispatch Welcome Email asynchronously
+      try {
+        await sendWelcomeEmail({
+          toEmail: user.email,
+          userName: `${user.firstName} ${user.lastName}`.trim(),
+          businessName: user.businessName || "Smart Bill",
+        });
+      } catch (welcomeErr) {
+        console.warn("Welcome email dispatch warning:", welcomeErr.message);
+      }
+    }).catch((bgErr) => {
+      console.warn("Post-registration background processing error:", bgErr.message);
+    });
 
-    return res.status(201).json(buildAuthPayload(user));
+    return;
   } catch (error) {
     if (error?.code === 11000) {
       return res.status(409).json({
@@ -803,10 +802,10 @@ export const sendOtp = async (req, res) => {
       });
     }
 
-    // Check if this number is already registered
+    // Fast check if this number is already registered
     const existingUser = await User.findOne({
       phone: normalizedPhone,
-    });
+    }).select("_id").lean();
 
     if (existingUser) {
       return res.status(409).json({
@@ -819,29 +818,24 @@ export const sendOtp = async (req, res) => {
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    await Verification.deleteMany({
-      phone: normalizedPhone,
-    });
-
-    await Verification.create({
-      phone: normalizedPhone,
-      otp,
-      expiresAt,
-    });
+    // Atomic single-roundtrip upsert
+    await Verification.findOneAndUpdate(
+      { phone: normalizedPhone },
+      { $set: { otp, expiresAt, verified: false } },
+      { upsert: true, new: true }
+    );
 
     console.log(`[REGISTRATION OTP] Generated OTP for phone ${normalizedPhone}${email ? ` and email ${email}` : ""}`);
 
-    // If email is provided, send OTP to email as well
+    // If email is provided, send OTP to email in the background without blocking the response
     if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
-      try {
-        await sendVerificationOtpEmail({
-          toEmail: String(email).trim().toLowerCase(),
-          otp,
-          phone: normalizedPhone,
-        });
-      } catch (mailErr) {
+      sendVerificationOtpEmail({
+        toEmail: String(email).trim().toLowerCase(),
+        otp,
+        phone: normalizedPhone,
+      }).catch((mailErr) => {
         console.warn("[REGISTRATION OTP] Email dispatch warning:", mailErr.message);
-      }
+      });
     }
 
     return res.status(200).json({

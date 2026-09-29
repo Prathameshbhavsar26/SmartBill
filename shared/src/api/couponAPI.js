@@ -59,7 +59,14 @@ export const validateCouponCode = (code, planName, originalAmount) =>
     .then((res) => res.data);
 
 /**
+ * Fetch all currently active, valid promotional coupons available for a plan (Amazon style).
+ */
+export const getAvailableCoupons = (params = {}) =>
+  axiosClient.get("/coupons/available", { params }).then((res) => res.data);
+
+/**
  * Fetch the active promotional announcement banner for landing page / upgrade screen.
  */
 export const getFeaturedBanner = () =>
   axiosClient.get("/coupons/featured-banner").then((res) => res.data);
+

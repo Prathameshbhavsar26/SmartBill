@@ -5,6 +5,7 @@ import PublicNavbar from "@shared/components/common/PublicNavbar";
 import { useNavigate } from "react-router-dom";
 import { Btn } from "@shared/components/common/ui";
 import subscriptionAPI from "@shared/api/subscriptionAPI";
+import UpgradeModal from "@shared/components/subscription/UpgradeModal";
 /*
 |--------------------------------------------------------------------------
 | Backend feature key -> Frontend display label
@@ -56,6 +57,7 @@ export default function PricingPage() {
   */
 
   const [loadingPlan, setLoadingPlan] = useState(null);
+  const [selectedPreview, setSelectedPreview] = useState(null);
 
   /*
   |--------------------------------------------------------------------------
@@ -196,227 +198,29 @@ export default function PricingPage() {
 
   /*
   |--------------------------------------------------------------------------
-  | Buy subscription plan
+  | Buy subscription plan (Opens Coupon Checkout Modal)
   |--------------------------------------------------------------------------
   */
 
-  const handleBuyPlan = async (plan) => {
-    try {
-      if (!plan) {
-        return;
-      }
-
-      /*
-       * Prefer backend plan key.
-       * Fall back to name for compatibility.
-       */
-
-      const planIdentifier =
-        plan.key || plan.name;
-
-      setLoadingPlan(planIdentifier);
-
-      /*
-       * Create Razorpay order.
-       */
-
-      const res =
-        await subscriptionAPI.createOrder(
-          plan.name
-        );
-
-      const razorpayKey =
-        res.keyId ||
-        import.meta.env.VITE_RAZORPAY_KEY_ID ||
-        "rzp_test_TPCMQcPRZqe62i";
-
-      /*
-       |--------------------------------------------------------------------------
-       | Payment verification
-       |--------------------------------------------------------------------------
-       */
-
-      const executePaymentVerification =
-        async (payload) => {
-          try {
-            const verifyRes =
-              await subscriptionAPI.verifyPayment(
-                payload
-              );
-
-            /*
-             * Remember the selected plan for registration.
-             */
-
-            localStorage.setItem(
-              "pending_subscription_plan",
-              plan.name || ""
-            );
-
-            localStorage.setItem(
-              "pending_subscription_plan_key",
-              plan.key || ""
-            );
-
-            alert(
-              `✓ ${
-                verifyRes.message ||
-                "Payment successful! Welcome to " +
-                  plan.name +
-                  " plan."
-              }`
-            );
-
-            /*
-             * Continue to registration.
-             */
-
-            navigate("/register");
-          } catch (err) {
-            console.error(
-              "Payment verification failed:",
-              err
-            );
-
-            alert(
-              "Payment verification error: " +
-                (err?.response?.data?.message ||
-                  err?.message ||
-                  "Unknown error")
-            );
-          } finally {
-            setLoadingPlan(null);
-          }
-        };
-
-      /*
-       |--------------------------------------------------------------------------
-       | Mock/test payment
-       |--------------------------------------------------------------------------
-       |
-       | Keep the same behavior that was already working.
-       |
-       */
-
-      if (
-        res.isMock ||
-        res.orderId?.startsWith(
-          "order_test_"
-        ) ||
-        typeof window.Razorpay ===
-          "undefined"
-      ) {
-        await executePaymentVerification({
-          razorpay_order_id:
-            res.orderId,
-
-          razorpay_payment_id:
-            `pay_test_${Date.now()}`,
-
-          razorpay_signature:
-            "mock_signature",
-
-          planName: plan.name,
-        });
-
-        return;
-      }
-
-      /*
-       |--------------------------------------------------------------------------
-       | Razorpay options
-       |--------------------------------------------------------------------------
-       */
-
-      const options = {
-        key: razorpayKey,
-
-        amount: res.amount,
-
-        currency:
-          res.currency || "INR",
-
-        name: "SmartBill",
-
-        description:
-          `${plan.name} Plan Subscription`,
-
-        order_id: res.orderId,
-
-        handler:
-          async function (response) {
-            await executePaymentVerification({
-              razorpay_order_id:
-                response.razorpay_order_id,
-
-              razorpay_payment_id:
-                response.razorpay_payment_id,
-
-              razorpay_signature:
-                response.razorpay_signature,
-
-              planName: plan.name,
-            });
-          },
-
-        modal: {
-          ondismiss: function () {
-            setLoadingPlan(null);
-          },
-        },
-
-        theme: {
-          color: "#2563eb",
-        },
-      };
-
-      /*
-       |--------------------------------------------------------------------------
-       | Open Razorpay
-       |--------------------------------------------------------------------------
-       */
-
-      try {
-        const rzp =
-          new window.Razorpay(
-            options
-          );
-
-        rzp.open();
-      } catch (rzpErr) {
-        console.warn(
-          "Razorpay SDK modal error, falling back to test mode:",
-          rzpErr
-        );
-
-        await executePaymentVerification({
-          razorpay_order_id:
-            res.orderId,
-
-          razorpay_payment_id:
-            `pay_test_${Date.now()}`,
-
-          razorpay_signature:
-            "mock_signature",
-
-          planName: plan.name,
-        });
-      }
-    } catch (error) {
-      console.error(
-        "Payment initiation failed:",
-        error
-      );
-
-      alert(
-        "Could not start payment process: " +
-          (error?.response?.data?.message ||
-            error?.message ||
-            "Unknown error")
-      );
-
-      setLoadingPlan(null);
-    }
+  const handleBuyPlan = (plan) => {
+    if (!plan) return;
+    const planKey = (plan.key || plan.name || "pro").toLowerCase();
+    setSelectedPreview({
+      currentPlan: {
+        key: "starter",
+        name: "Starter",
+        price: 999,
+      },
+      newPlan: {
+        key: planKey,
+        name: plan.name,
+        price: Number(plan.price || 2499),
+      },
+      isUpgrade: true,
+      originalPrice: Number(plan.price || 2499),
+      proratedCredit: 0,
+      daysRemaining: 14,
+    });
   };
 
   /*
@@ -776,6 +580,23 @@ export default function PricingPage() {
         </div>
       </section>
 
+      {/* ------------------------------------------------------------------
+          Subscription Checkout Modal with Amazon-style Coupons
+          ------------------------------------------------------------------ */}
+      {selectedPreview && (
+        <UpgradeModal
+          preview={selectedPreview}
+          onClose={() => setSelectedPreview(null)}
+          onSuccess={() => {
+            const planName = selectedPreview.newPlan.name || "";
+            const planKey = selectedPreview.newPlan.key || "";
+            setSelectedPreview(null);
+            localStorage.setItem("pending_subscription_plan", planName);
+            localStorage.setItem("pending_subscription_plan_key", planKey);
+            navigate("/register");
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -551,3 +551,108 @@ export const getFeaturedBanner = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch featured banner" });
   }
 };
+
+/* ─────────────────────────────────────────────────────────────
+   Public / Business Owner: List all available active coupons
+   GET /api/coupons/available?plan=pro&amount=2499
+───────────────────────────────────────────────────────────── */
+export const getAvailableCoupons = async (req, res) => {
+  try {
+    const { plan, amount } = req.query;
+    const now = new Date();
+
+    const filter = {
+      status: "active",
+      $or: [{ startDate: null }, { startDate: { $lte: now } }],
+      $and: [
+        {
+          $or: [{ expiryDate: null }, { expiryDate: { $gte: now } }],
+        },
+      ],
+    };
+
+    const coupons = await Coupon.find(filter).sort({ isFeaturedBanner: -1, discountValue: -1 }).lean();
+
+    const normalizedPlan = (plan || "").toLowerCase().replace(/\s*plan\s*/gi, "").trim();
+    let baseAmount = Number(amount) || 0;
+
+    if (normalizedPlan && (!baseAmount || baseAmount <= 0)) {
+      const planConfig = (await getPlanConfig(normalizedPlan)) || PLAN_LIMITS[normalizedPlan] || {};
+      baseAmount = planConfig.price || 0;
+    }
+
+    const userId = req.user?.ownerId || req.user?._id;
+
+    const availableCoupons = [];
+
+    for (const c of coupons) {
+      // 1. Global usage cap check
+      if (c.maxUsageCount != null && c.usedCount >= c.maxUsageCount) {
+        continue;
+      }
+
+      // 2. Per-user redemption limit check
+      let alreadyUsed = false;
+      if (userId && Array.isArray(c.redemptions)) {
+        const userRedemptions = c.redemptions.filter(
+          (r) =>
+            r.userId?.toString() === userId.toString() ||
+            r.ownerId?.toString() === userId.toString()
+        ).length;
+        if (userRedemptions >= (c.maxUsagePerUser || 1)) {
+          alreadyUsed = true;
+        }
+      }
+
+      // 3. Plan match
+      const matchesPlan =
+        !normalizedPlan ||
+        c.applicablePlans.includes("all") ||
+        c.applicablePlans.includes(normalizedPlan);
+
+      // 4. Min order amount check
+      const meetsMinOrder = !c.minOrderAmount || (baseAmount > 0 ? baseAmount >= c.minOrderAmount : true);
+
+      // Calculate discount preview if baseAmount is known
+      let previewDiscount = 0;
+      let previewFinal = baseAmount;
+      if (baseAmount > 0) {
+        const disc = calculateDiscount(c, baseAmount);
+        previewDiscount = disc.discountAmount;
+        previewFinal = disc.finalAmount;
+      }
+
+      availableCoupons.push({
+        _id: c._id,
+        code: c.code,
+        title: c.title,
+        description: c.description,
+        discountType: c.discountType,
+        discountValue: c.discountValue,
+        maxDiscountAmount: c.maxDiscountAmount,
+        minOrderAmount: c.minOrderAmount || 0,
+        applicablePlans: c.applicablePlans,
+        applicableCycles: c.applicableCycles || ["all"],
+        expiryDate: c.expiryDate,
+        isFeaturedBanner: Boolean(c.isFeaturedBanner),
+        bannerText: c.bannerText || "",
+        isApplicable: matchesPlan && meetsMinOrder && !alreadyUsed,
+        alreadyUsed,
+        estimatedSavings: previewDiscount,
+        estimatedFinalAmount: previewFinal,
+        trialDays: c.discountType === "trial_days" ? c.discountValue : 0,
+      });
+    }
+
+    res.json({
+      success: true,
+      coupons: availableCoupons,
+      plan: normalizedPlan,
+      baseAmount,
+    });
+  } catch (error) {
+    console.error("Error fetching available coupons:", error);
+    res.status(500).json({ message: "Failed to fetch available coupons", error: error.message });
+  }
+};
+

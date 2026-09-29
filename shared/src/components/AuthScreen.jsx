@@ -31,6 +31,7 @@ import { registerUser, loginUser, sendOtp, verifyOtp, verifyLoginOtp, forgotPass
 import { validateCouponCode } from "@shared/api/couponAPI";
 import { setUserToStorage } from "@shared/utils/userUtils";
 import { getAdminUrl } from "@shared/utils/urlUtils";
+import { warmupBackend } from "@shared/api/axiosClient";
 
 import {
   RETAIL_CATEGORIES,
@@ -98,6 +99,9 @@ export default function AuthScreen({ view, onNav, onLogin, fixedRole }) {
 
   // Parse URL search params (e.g., /forgot?email=someone@example.com from reset email)
   useEffect(() => {
+    // Immediately ping backend in background to warm up serverless / database connections
+    warmupBackend();
+
     try {
       const params = new URLSearchParams(window.location.search);
       const emailParam = params.get("email");

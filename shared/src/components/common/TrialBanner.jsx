@@ -9,6 +9,7 @@ import {
 
 import subscriptionAPI from "@shared/api/subscriptionAPI";
 import { setUserToStorage } from "@shared/utils/userUtils";
+import UpgradeModal from "@shared/components/subscription/UpgradeModal";
 
 /*
 |--------------------------------------------------------------------------
@@ -105,6 +106,8 @@ export default function TrialBanner({ user, onNav }) {
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [plansLoading, setPlansLoading] = useState(false);
 
+  const [selectedUpgradePreview, setSelectedUpgradePreview] = useState(null);
+
   const normRole = String(user?.role || "").toLowerCase().replace(/[-_\s]/g, "");
   const isPlatformAdmin =
     normRole === "superadmin" ||
@@ -150,11 +153,6 @@ export default function TrialBanner({ user, onNav }) {
 
       const normalizedPlans = normalizePlans(res);
 
-      console.log(
-        "[TrialBanner] Subscription plans:",
-        normalizedPlans
-      );
-
       setPlans(normalizedPlans);
     } catch (err) {
       console.warn(
@@ -194,184 +192,35 @@ export default function TrialBanner({ user, onNav }) {
 
   /*
   |--------------------------------------------------------------------------
-  | Buy / Upgrade Plan
+  | Buy / Upgrade Plan (Opens Coupon Checkout Modal)
   |--------------------------------------------------------------------------
   */
 
   const handleBuyPlan = async (plan) => {
     try {
       setLoadingPlan(plan.name);
-
-      const res = await subscriptionAPI.createOrder(
-        plan.name
-      );
-
-      const razorpayKey =
-        res.keyId ||
-        import.meta.env.VITE_RAZORPAY_KEY_ID ||
-        "rzp_test_TPCMQcPRZqe62i";
-
-      const executePaymentVerification = async (
-        payload
-      ) => {
-        try {
-          const verifyRes =
-            await subscriptionAPI.verifyPayment(payload);
-
-          if (verifyRes?.token) {
-            localStorage.setItem("smartbill_token", verifyRes.token);
-          }
-
-          /*
-          |--------------------------------------------------------------------------
-          | Refresh user profile after successful payment
-          |--------------------------------------------------------------------------
-          */
-
-          try {
-            const { getProfile } = await import(
-              "@shared/api/authAPI"
-            );
-
-            const profileRes = await getProfile();
-
-            if (profileRes?.user) {
-              setUserToStorage(profileRes.user);
-
-              window.dispatchEvent(
-                new Event("userUpdated")
-              );
-            } else if (verifyRes?.user) {
-              setUserToStorage(verifyRes.user);
-
-              window.dispatchEvent(
-                new Event("userUpdated")
-              );
-            } else if (verifyRes?.subscription) {
-              const cached =
-                localStorage.getItem("smartbill_user");
-
-              if (cached) {
-                const parsed = JSON.parse(cached);
-
-                parsed.subscription =
-                  verifyRes.subscription;
-
-                setUserToStorage(parsed);
-
-                window.dispatchEvent(
-                  new Event("userUpdated")
-                );
-              }
-            }
-          } catch (profileErr) {
-            console.warn(
-              "Profile refresh notice:",
-              profileErr?.message
-            );
-          }
-
-          alert(
-            `✓ ${verifyRes.message ||
-            "Payment successful! Welcome to " +
-            plan.name +
-            " plan."
-            }`
-          );
-
-          setShowUpgradeModal(false);
-
-          window.location.reload();
-        } catch (err) {
-          alert(
-            "Payment verification error: " +
-            (err?.message ||
-              err?.response?.data?.message ||
-              "Unknown error")
-          );
-        } finally {
-          setLoadingPlan(null);
-        }
-      };
-
-      /*
-      |--------------------------------------------------------------------------
-      | Razorpay options
-      |--------------------------------------------------------------------------
-      */
-
-      const options = {
-        key: razorpayKey,
-
-        amount: res.amount,
-
-        currency: res.currency || "INR",
-
-        name: "SmartBill",
-
-        description: `${plan.name} Plan Subscription`,
-
-        order_id: res.orderId,
-
-        handler: async function (response) {
-          await executePaymentVerification({
-            razorpay_order_id:
-              response.razorpay_order_id,
-
-            razorpay_payment_id:
-              response.razorpay_payment_id,
-
-            razorpay_signature:
-              response.razorpay_signature,
-
-            planName: plan.name,
-            email: user?.email || "",
-          });
+      const planKey = (plan.key || plan.name || "pro").toLowerCase();
+      const preview = await subscriptionAPI.getUpgradePreview(planKey);
+      setSelectedUpgradePreview(preview);
+    } catch (err) {
+      console.warn("Could not load preview, using fallback:", err?.message);
+      setSelectedUpgradePreview({
+        currentPlan: {
+          key: (subscription?.plan || "starter").toLowerCase(),
+          name: subscription?.plan || "Starter",
+          price: 999,
         },
-
-        modal: {
-          ondismiss: function () {
-            setLoadingPlan(null);
-          },
+        newPlan: {
+          key: (plan.key || plan.name || "pro").toLowerCase(),
+          name: plan.name,
+          price: Number(plan.price || 2499),
         },
-
-        theme: {
-          color: "#2563eb",
-        },
-      };
-
-      try {
-        if (typeof window.Razorpay === "undefined") {
-          throw new Error(
-            "Razorpay SDK not loaded"
-          );
-        }
-
-        const rzp = new window.Razorpay(options);
-
-        rzp.open();
-      } catch (rzpErr) {
-        console.error(
-          "Razorpay SDK modal error:",
-          rzpErr
-        );
-
-        alert(
-          "Failed to load payment gateway. Please make sure you are connected to the internet and try again."
-        );
-
-        setLoadingPlan(null);
-      }
-    } catch (error) {
-      console.error("Payment error:", error);
-
-      alert(
-        "Could not start payment process: " +
-        (error?.message ||
-          error?.response?.data?.message ||
-          "Unknown error")
-      );
-
+        isUpgrade: true,
+        originalPrice: Number(plan.price || 2499),
+        proratedCredit: 0,
+        daysRemaining: daysLeft,
+      });
+    } finally {
       setLoadingPlan(null);
     }
   };
@@ -576,6 +425,22 @@ export default function TrialBanner({ user, onNav }) {
             )}
           </div>
         </div>
+      )}
+
+      {/* ------------------------------------------------------------------
+          Subscription Upgrade Modal (Amazon-style Offers & Coupons)
+          ------------------------------------------------------------------ */}
+      {selectedUpgradePreview && (
+        <UpgradeModal
+          preview={selectedUpgradePreview}
+          userEmail={user?.email}
+          onClose={() => setSelectedUpgradePreview(null)}
+          onSuccess={() => {
+            setSelectedUpgradePreview(null);
+            setShowUpgradeModal(false);
+            window.location.reload();
+          }}
+        />
       )}
     </>
   );

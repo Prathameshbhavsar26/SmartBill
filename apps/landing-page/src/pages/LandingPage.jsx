@@ -17,6 +17,8 @@ import {
 
 import { FEATURES, TESTIMONIALS } from "@shared/constants/landing";
 import { Btn, Card } from "@shared/components/common/ui";
+import UpgradeModal from "@shared/components/subscription/UpgradeModal";
+import { useNavigate } from "react-router-dom";
 
 /*
 |--------------------------------------------------------------------------
@@ -50,6 +52,7 @@ const FEATURE_LABELS = {
 */
 
 export default function LandingPage({ onNav }) {
+  const navigate = useNavigate();
   /*
   |--------------------------------------------------------------------------
   | Subscription plans
@@ -59,14 +62,8 @@ export default function LandingPage({ onNav }) {
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState("");
-
-  /*
-  |--------------------------------------------------------------------------
-  | Selected plan loading
-  |--------------------------------------------------------------------------
-  */
-
   const [loadingPlan, setLoadingPlan] = useState(null);
+  const [selectedPreview, setSelectedPreview] = useState(null);
 
   /*
   |--------------------------------------------------------------------------
@@ -158,257 +155,29 @@ export default function LandingPage({ onNav }) {
 
   /*
   |--------------------------------------------------------------------------
-  | Buy subscription plan
+  | Buy subscription plan (Opens Coupon Checkout Modal)
   |--------------------------------------------------------------------------
-  |
-  | IMPORTANT:
-  |
-  | 1. Create Razorpay order
-  | 2. Open Razorpay
-  | 3. Verify payment
-  | 4. Only then go to registration
-  |
   */
 
-  const handleBuyPlan = async (plan) => {
-    if (!plan) {
-      return;
-    }
-
-    const planIdentifier =
-      plan.key ||
-      plan.name ||
-      "";
-
-    try {
-      setLoadingPlan(planIdentifier);
-
-      /*
-       * Store selected plan.
-       *
-       * Registration/payment flow can use this later.
-       */
-
-      localStorage.setItem(
-        "pending_subscription_plan",
-        plan.name || ""
-      );
-
-      if (plan.key) {
-        localStorage.setItem(
-          "pending_subscription_plan_key",
-          plan.key
-        );
-      }
-
-      /*
-       |--------------------------------------------------------------------------
-       | Step 1: Create Razorpay order
-       |--------------------------------------------------------------------------
-       */
-
-      const res =
-        await subscriptionAPI.createOrder(
-          plan.name
-        );
-
-      console.log(
-        "Create order response:",
-        res
-      );
-
-      if (!res) {
-        throw new Error(
-          "Invalid response from payment server."
-        );
-      }
-
-      /*
-       |--------------------------------------------------------------------------
-       | Razorpay Key
-       |--------------------------------------------------------------------------
-       */
-
-      const razorpayKey =
-        res.keyId ||
-        import.meta.env.VITE_RAZORPAY_KEY_ID ||
-        "rzp_test_TPCMQcPRZqe62i";
-
-      /*
-       |--------------------------------------------------------------------------
-       | Payment verification function
-       |--------------------------------------------------------------------------
-       */
-
-      const executePaymentVerification =
-        async (payload) => {
-          try {
-            const verifyRes =
-              await subscriptionAPI.verifyPayment(
-                payload
-              );
-
-            console.log(
-              "Payment verification response:",
-              verifyRes
-            );
-
-            /*
-             * Save selected plan again after successful
-             * payment verification.
-             */
-
-            localStorage.setItem(
-              "pending_subscription_plan",
-              plan.name || ""
-            );
-
-            if (plan.key) {
-              localStorage.setItem(
-                "pending_subscription_plan_key",
-                plan.key
-              );
-            }
-
-            alert(
-              `✓ ${verifyRes?.message ||
-              "Payment successful! Welcome to " +
-              plan.name +
-              " plan."
-              }`
-            );
-
-            /*
-             * Only navigate after successful
-             * payment verification.
-             */
-
-            onNav("register");
-          } catch (err) {
-            console.error(
-              "Payment verification failed:",
-              err
-            );
-
-            alert(
-              "Payment verification error: " +
-              (
-                err?.response?.data?.message ||
-                err?.message ||
-                "Unknown error"
-              )
-            );
-          } finally {
-            setLoadingPlan(null);
-          }
-        };
-
-
-
-      /*
-       |--------------------------------------------------------------------------
-       | Step 2: Razorpay options
-       |--------------------------------------------------------------------------
-       */
-
-      const options = {
-        key: razorpayKey,
-
-        amount: res.amount,
-
-        currency:
-          res.currency || "INR",
-
-        name: "SmartBill",
-
-        description:
-          `${plan.name} Plan Subscription`,
-
-        order_id: res.orderId,
-
-        /*
-         |--------------------------------------------------------------------------
-         | Step 3: Razorpay payment success
-         |--------------------------------------------------------------------------
-         */
-
-        handler: async function (response) {
-          console.log(
-            "Razorpay payment response:",
-            response
-          );
-
-          await executePaymentVerification({
-            razorpay_order_id:
-              response.razorpay_order_id,
-
-            razorpay_payment_id:
-              response.razorpay_payment_id,
-
-            razorpay_signature:
-              response.razorpay_signature,
-
-            planName: plan.name,
-          });
-        },
-
-        /*
-         |--------------------------------------------------------------------------
-         | User closes Razorpay
-         |--------------------------------------------------------------------------
-         */
-
-        modal: {
-          ondismiss: function () {
-            console.log(
-              "Razorpay payment window closed."
-            );
-
-            setLoadingPlan(null);
-          },
-        },
-
-        theme: {
-          color: "#2563eb",
-        },
-      };
-
-      /*
-       |--------------------------------------------------------------------------
-       | Step 4: Open Razorpay
-       |--------------------------------------------------------------------------
-       */
-
-      try {
-        const rzp =
-          new window.Razorpay(options);
-
-        rzp.open();
-      } catch (razorpayError) {
-        console.error(
-          "Razorpay SDK modal error:",
-          razorpayError
-        );
-        alert("Failed to open Razorpay payment window. Please try again.");
-        setLoadingPlan(null);
-      }
-    } catch (error) {
-      console.error(
-        "Payment initiation failed:",
-        error
-      );
-
-      alert(
-        "Could not start payment process: " +
-        (
-          error?.response?.data?.message ||
-          error?.message ||
-          "Unknown error"
-        )
-      );
-
-      setLoadingPlan(null);
-    }
+  const handleBuyPlan = (plan) => {
+    if (!plan) return;
+    const planKey = (plan.key || plan.name || "pro").toLowerCase();
+    setSelectedPreview({
+      currentPlan: {
+        key: "starter",
+        name: "Starter",
+        price: 999,
+      },
+      newPlan: {
+        key: planKey,
+        name: plan.name,
+        price: Number(plan.price || 2499),
+      },
+      isUpgrade: true,
+      originalPrice: Number(plan.price || 2499),
+      proratedCredit: 0,
+      daysRemaining: 14,
+    });
   };
 
   /*
@@ -1072,6 +841,28 @@ export default function LandingPage({ onNav }) {
       ================================================================= */}
 
       <Footer />
+
+      {/* ------------------------------------------------------------------
+          Subscription Checkout Modal with Amazon-style Coupons
+          ------------------------------------------------------------------ */}
+      {selectedPreview && (
+        <UpgradeModal
+          preview={selectedPreview}
+          onClose={() => setSelectedPreview(null)}
+          onSuccess={() => {
+            const planName = selectedPreview.newPlan.name || "";
+            const planKey = selectedPreview.newPlan.key || "";
+            setSelectedPreview(null);
+            localStorage.setItem("pending_subscription_plan", planName);
+            localStorage.setItem("pending_subscription_plan_key", planKey);
+            if (onNav) {
+              onNav("register");
+            } else {
+              navigate("/register");
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -74,7 +74,11 @@ const connectDB = async () => {
 
   if (!cached.promise) {
     const opts = {
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+      socketTimeoutMS: 30000,
+      maxPoolSize: 10,
+      minPoolSize: 1,
       bufferCommands: false,
     };
 
@@ -83,7 +87,9 @@ const connectDB = async () => {
         .connect(mongoUri, opts)
         .then((mongooseInstance) => {
           console.log(`[DB] MongoDB Connected: ${mongooseInstance.connection.host}`);
-          dropLegacyIndexes().catch(() => {});
+          if (!indexesChecked) {
+            setTimeout(() => { dropLegacyIndexes().catch(() => {}); }, 100);
+          }
           return mongooseInstance.connection;
         })
         .catch(async (error) => {
@@ -93,11 +99,11 @@ const connectDB = async () => {
             try {
               console.log("[DB] Attempting fallback to local MongoDB...");
               const localConn = await mongoose.connect("mongodb://127.0.0.1:27017/smartbill", {
-                serverSelectionTimeoutMS: 3000,
+                serverSelectionTimeoutMS: 2500,
+                connectTimeoutMS: 2500,
                 bufferCommands: false,
               });
               console.log(`[DB] Local MongoDB Connected: ${localConn.connection.host}`);
-              dropLegacyIndexes().catch(() => {});
               return localConn.connection;
             } catch (localErr) {
               cached.promise = null;
@@ -112,7 +118,8 @@ const connectDB = async () => {
       if (process.env.NODE_ENV !== "production") {
         cached.promise = mongoose
           .connect("mongodb://127.0.0.1:27017/smartbill", {
-            serverSelectionTimeoutMS: 3000,
+            serverSelectionTimeoutMS: 2500,
+            connectTimeoutMS: 2500,
             bufferCommands: false,
           })
           .then((conn) => {

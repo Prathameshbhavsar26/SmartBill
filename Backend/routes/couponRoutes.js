@@ -9,8 +9,9 @@ import {
   getCouponRedemptions,
   validateCoupon,
   getFeaturedBanner,
+  getAvailableCoupons,
 } from "../controller/couponController.js";
-import { protect, requireRole } from "../middleware/mid.js";
+import { protect, optionalProtect, requireRole } from "../middleware/mid.js";
 
 const router = express.Router();
 
@@ -22,8 +23,11 @@ const internalAdminRoles = ["superadmin", "super_admin", "admin", "support", "bi
 // Get featured announcement banner
 router.get("/featured-banner", getFeaturedBanner);
 
+// Get available active coupons for a plan/checkout (Amazon style)
+router.get("/available", optionalProtect, getAvailableCoupons);
+
 // Validate coupon code during checkout (optional auth)
-router.post("/validate", validateCoupon);
+router.post("/validate", optionalProtect, validateCoupon);
 
 /* ─────────────────────────────────────────────────────────────
    Protected Super Admin Routes (both /admin and direct path)

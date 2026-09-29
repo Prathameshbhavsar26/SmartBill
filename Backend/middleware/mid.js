@@ -103,6 +103,60 @@ export const protect = async (req, res, next) => {
 };
 
 /**
+ * Optional authentication middleware — attaches user to `req.user` if valid token is provided,
+ * but does not reject unauthenticated requests.
+ */
+export const optionalProtect = async (req, res, next) => {
+  try {
+    const header = req.headers.authorization || "";
+    const token = header.startsWith("Bearer ")
+      ? header.slice(7)
+      : req.query?.token
+      ? String(req.query.token).trim()
+      : null;
+
+    if (!token) {
+      return next();
+    }
+
+    const secret = process.env.JWT_SECRET || "smartbill_secret_key_123";
+    let decoded;
+    try {
+      decoded = jwt.verify(token, secret);
+    } catch (err) {
+      try {
+        decoded = jwt.verify(token, "smartbill_secret_key_123`");
+      } catch (err2) {
+        return next();
+      }
+    }
+
+    if (!decoded?.id) return next();
+
+    const user = await User.findById(decoded.id).select("-password");
+    if (user) {
+      const effectiveOwnerId = user.ownerId ? user.ownerId : user._id;
+      req.user = {
+        actualUserId: user._id,
+        userId: user._id,
+        ownerId: effectiveOwnerId,
+        effectiveOwnerId: effectiveOwnerId,
+        _id: effectiveOwnerId,
+        id: effectiveOwnerId.toString(),
+        email: user.email,
+        role: user.role,
+        businessName: user.businessName || "",
+        businessType: user.businessType || "Retail",
+        permissions: user.permissions || {},
+      };
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
+/**
  * Authorization middleware — verifies if user's permissions grant access to specified module.
  */
 export const requirePermission = (moduleKey) => {

@@ -29,6 +29,7 @@ export const resolveApiBaseUrl = () => {
   }
 
   if (!base) {
+    // If running in browser and origin is available, prefer same-origin /api if configured or fallback to backend URL
     return "https://smartbill-backend-tqf5.onrender.com/api";
   }
 
@@ -48,6 +49,21 @@ const axiosClient = axios.create({
   },
   timeout: 60000,
 });
+
+let isWarmedUp = false;
+/**
+ * Proactively wakes up and pre-warms the backend API & MongoDB connection
+ * as soon as the user loads authentication/registration screens.
+ */
+export const warmupBackend = () => {
+  if (isWarmedUp) return;
+  isWarmedUp = true;
+  try {
+    axiosClient.get("/health", { timeout: 8000 }).catch(() => {
+      axiosClient.get("/auth/profile", { timeout: 5000 }).catch(() => {});
+    });
+  } catch {}
+};
 
 // Request interceptor: attach JWT token if present in localStorage.
 axiosClient.interceptors.request.use(
