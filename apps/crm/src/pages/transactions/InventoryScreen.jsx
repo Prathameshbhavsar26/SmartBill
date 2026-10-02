@@ -9,7 +9,6 @@ import {
   Plus,
   RefreshCw,
   ShoppingCart,
-  SlidersHorizontal,
   Upload,
   XCircle,
   History,
@@ -30,7 +29,7 @@ import {
   TableSkeleton,
   ErrorState,
 } from "@shared/components/common/ui";
-import { getProducts, adjustProductStock } from "@shared/api/productAPI";
+import { getProducts } from "@shared/api/productAPI";
 import { exportToCsv, exportToExcel } from "@shared/utils/csvHelper";
 
 export default function InventoryScreen({ onNav }) {
@@ -39,14 +38,6 @@ export default function InventoryScreen({ onNav }) {
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
-
-  // Stock Adjustment Modal state
-  const [selectedProductForAdjustment, setSelectedProductForAdjustment] = useState(null);
-  const [adjustmentType, setAdjustmentType] = useState("Add"); // "Add", "Reduce", "Set Exact"
-  const [adjustmentQuantity, setAdjustmentQuantity] = useState("");
-  const [adjustmentReason, setAdjustmentReason] = useState("Physical Audit Discrepancy");
-  const [adjustmentNotes, setAdjustmentNotes] = useState("");
-  const [adjusting, setAdjusting] = useState(false);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -111,44 +102,6 @@ export default function InventoryScreen({ onNav }) {
       window.removeEventListener("purchaseCreated", handleUpdate);
     };
   }, [loadProducts]);
-
-  const handleOpenAdjustment = (product) => {
-    setSelectedProductForAdjustment(product);
-    setAdjustmentType("Add");
-    setAdjustmentQuantity("");
-    setAdjustmentReason("Physical Audit Discrepancy");
-    setAdjustmentNotes("");
-  };
-
-  const handleSaveAdjustment = async (e) => {
-    e.preventDefault();
-    if (!selectedProductForAdjustment) return;
-
-    const qty = Number(adjustmentQuantity);
-    if (!Number.isFinite(qty) || (adjustmentType !== "Set Exact" && qty <= 0)) {
-      showToast("Please enter a valid adjustment quantity.", "error");
-      return;
-    }
-
-    setAdjusting(true);
-    try {
-      const prodId = selectedProductForAdjustment._id || selectedProductForAdjustment.id;
-      const res = await adjustProductStock(prodId, {
-        adjustmentType,
-        quantity: qty,
-        reason: adjustmentReason,
-        notes: adjustmentNotes,
-      });
-
-      showToast(res.message || "Stock adjusted successfully!", "success");
-      setSelectedProductForAdjustment(null);
-      loadProducts();
-    } catch (err) {
-      showToast(err?.response?.data?.message || err.message || "Failed to adjust stock.", "error");
-    } finally {
-      setAdjusting(false);
-    }
-  };
 
   const totalProducts = productList.length;
   const totalStockValue = productList.reduce(
@@ -509,16 +462,7 @@ export default function InventoryScreen({ onNav }) {
                         <td className="px-5 py-3.5">
                           {statusBadge(p.stock === 0 ? "Inactive" : p.status || "Active")}
                         </td>
-                        <td className="px-5 py-3.5 text-right space-x-1.5 whitespace-nowrap">
-                          <Btn
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenAdjustment(p)}
-                            icon={<SlidersHorizontal className="w-3.5 h-3.5" />}
-                            className="text-xs py-1 px-2.5"
-                          >
-                            Adjust Stock
-                          </Btn>
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
                           <Btn
                             variant="outline"
                             size="sm"
@@ -612,14 +556,6 @@ export default function InventoryScreen({ onNav }) {
                     <div className="flex items-center gap-2 pt-1">
                       <button
                         type="button"
-                        onClick={() => handleOpenAdjustment(p)}
-                        className="flex-1 min-h-[38px] flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background hover:bg-muted text-xs font-medium text-foreground transition-colors"
-                      >
-                        <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-                        <span>Adjust Stock</span>
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => {
                           if (onNav) {
                             localStorage.setItem(
@@ -652,122 +588,6 @@ export default function InventoryScreen({ onNav }) {
           </div>
         )}
       </Card>
-
-      {/* Stock Adjustment Modal */}
-      {selectedProductForAdjustment && (
-        <Modal
-          title={`Adjust Stock — ${selectedProductForAdjustment.name}`}
-          onClose={() => setSelectedProductForAdjustment(null)}
-          size="md"
-        >
-          <form onSubmit={handleSaveAdjustment} className="space-y-4">
-            <div className="bg-muted/40 p-3.5 rounded-xl border border-border flex justify-between items-center text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Current Stock in System</p>
-                <p className="text-lg font-bold text-foreground font-mono">
-                  {selectedProductForAdjustment.stock} {selectedProductForAdjustment.unit || "units"}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">SKU / Code</p>
-                <p className="font-mono text-foreground text-xs font-semibold">
-                  {selectedProductForAdjustment.sku}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {[
-                { type: "Add", label: "+ Add Stock", desc: "Found / Surplus" },
-                { type: "Reduce", label: "- Reduce Stock", desc: "Damage / Loss" },
-                { type: "Set Exact", label: "= Exact Count", desc: "Physical Audit" },
-              ].map((m) => (
-                <button
-                  type="button"
-                  key={m.type}
-                  onClick={() => setAdjustmentType(m.type)}
-                  className={`p-2.5 text-center rounded-xl border transition-all ${
-                    adjustmentType === m.type
-                      ? "border-blue-600 bg-blue-50/80 dark:bg-blue-950/40 text-blue-900 dark:text-blue-300 font-bold shadow-sm"
-                      : "border-border hover:bg-muted/50 text-foreground"
-                  }`}
-                >
-                  <p className="text-xs font-semibold">{m.label}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{m.desc}</p>
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                {adjustmentType === "Set Exact" ? "New Exact Physical Quantity *" : "Adjustment Quantity *"}
-              </label>
-              <Input
-                type="number"
-                step="any"
-                min="0"
-                required
-                value={adjustmentQuantity}
-                onChange={(e) => setAdjustmentQuantity(e.target.value)}
-                placeholder={adjustmentType === "Set Exact" ? "e.g. 50" : "e.g. 5"}
-                className="w-full font-mono text-base"
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                Reason for Adjustment
-              </label>
-              <Select
-                value={adjustmentReason}
-                onChange={(e) => setAdjustmentReason(e.target.value)}
-                className="w-full"
-              >
-                <option value="Physical Audit Discrepancy">Physical Audit Discrepancy</option>
-                <option value="Damaged / Broken Goods">Damaged / Broken Goods</option>
-                <option value="Expired Batch / Scrap">Expired Batch / Scrap</option>
-                <option value="Theft / Lost Items">Theft / Lost Items</option>
-                <option value="Internal Consumption / Sample">Internal Consumption / Sample</option>
-                <option value="Opening Stock Correction">Opening Stock Correction</option>
-                <option value="Other">Other Adjustment</option>
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                Remarks / Audit Notes (Optional)
-              </label>
-              <Input
-                type="text"
-                value={adjustmentNotes}
-                onChange={(e) => setAdjustmentNotes(e.target.value)}
-                placeholder="e.g. Verified by Store Manager"
-                className="w-full text-xs"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Btn
-                type="button"
-                variant="outline"
-                onClick={() => setSelectedProductForAdjustment(null)}
-                disabled={adjusting}
-              >
-                Cancel
-              </Btn>
-              <Btn
-                type="submit"
-                variant="primary"
-                disabled={adjusting || !adjustmentQuantity}
-                icon={<CheckCircle2 className="w-4 h-4" />}
-              >
-                {adjusting ? "Updating..." : "Save Stock Adjustment"}
-              </Btn>
-            </div>
-          </form>
-        </Modal>
-      )}
     </div>
   );
 }
