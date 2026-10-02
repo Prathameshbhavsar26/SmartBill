@@ -256,7 +256,7 @@ export default function AdminRolesScreen() {
         name: roleToEdit.name,
         color: roleToEdit.color,
         description: roleToEdit.description,
-        permissions: JSON.parse(JSON.stringify(roleToEdit.permissions))
+        permissions: JSON.parse(JSON.stringify(roleToEdit.permissions || {}))
       });
     } else {
       setEditingRole(null);

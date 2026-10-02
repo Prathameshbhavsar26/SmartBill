@@ -41,6 +41,18 @@ export const protect = async (req, res, next) => {
         .json({ message: "Not authorized, user not found." });
     }
 
+    // Instant multi-device token revocation check
+    if (
+      decoded.tokenVersion !== undefined &&
+      user.tokenVersion !== undefined &&
+      decoded.tokenVersion !== user.tokenVersion
+    ) {
+      return res.status(401).json({
+        code: "TOKEN_REVOKED",
+        message: "Session expired or revoked. Please log in again with your updated credentials.",
+      });
+    }
+
     // Superadmin bypasses maintenance & suspension checks
     if (user.role !== "superadmin") {
       const systemSettings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();

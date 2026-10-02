@@ -553,7 +553,7 @@ export default function UpgradeModal({
                 </div>
               ) : availableCoupons.length > 0 ? (
                 <div className="space-y-2.5">
-                  {visibleCoupons.map((coupon) => {
+                  {visibleCoupons.map((coupon, idx) => {
                     const isCurrentApplied =
                       appliedCoupon &&
                       appliedCoupon.code.toUpperCase() === coupon.code.toUpperCase();
@@ -567,7 +567,7 @@ export default function UpgradeModal({
 
                     return (
                       <div
-                        key={coupon._id || coupon.code}
+                        key={coupon._id || coupon.code || `coupon-${idx}`}
                         className={`group relative border-2 rounded-2xl p-3 transition-all ${
                           isCurrentApplied
                             ? "border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 shadow-md shadow-emerald-500/10"

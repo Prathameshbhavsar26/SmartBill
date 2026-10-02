@@ -52,6 +52,20 @@ export const safeUserForStorage = (user) => {
 };
 
 /**
+ * Safely parse user from localStorage with try/catch guard
+ * @returns {object|null}
+ */
+export const getUserFromStorage = () => {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("smartbill_user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Persist user to localStorage using only safe/essential fields.
  * Gracefully handles quota errors by attempting a minimal fallback.
  *

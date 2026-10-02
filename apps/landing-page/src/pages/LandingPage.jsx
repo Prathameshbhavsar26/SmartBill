@@ -538,9 +538,9 @@ export default function LandingPage({ onNav }) {
 
                         {featureList.length > 0 ? (
                           featureList.map(
-                            (feature) => (
+                            (feature, fIdx) => (
                               <div
-                                key={feature}
+                                key={`${feature}-${fIdx}`}
                                 className="flex items-start gap-3"
                               >
                                 <div
