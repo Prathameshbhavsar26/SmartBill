@@ -3,7 +3,9 @@ import React, { useCallback, useEffect, useState } from "react";
 import Footer from "@shared/components/common/Footer";
 import PublicNavbar from "@shared/components/common/PublicNavbar";
 
-import subscriptionAPI from "@shared/api/subscriptionAPI";
+import subscriptionAPI, {
+  FALLBACK_SUBSCRIPTION_PLANS,
+} from "@shared/api/subscriptionAPI";
 
 import {
   ArrowRight,
@@ -72,79 +74,31 @@ export default function LandingPage({ onNav }) {
   */
 
   const fetchPlans = useCallback(async () => {
-    let timeoutId;
-
     try {
       setPlansLoading(true);
       setPlansError("");
 
-      const timeoutPromise = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => {
-          reject(
-            new Error(
-              "Subscription plans request timed out."
-            )
-          );
-        }, 10000);
-      });
-
-      const apiPromise =
-        subscriptionAPI.getPublicPlans();
-
-      const response = await Promise.race([
-        apiPromise,
-        timeoutPromise,
-      ]);
-
-      /*
-       * Expected backend response:
-       *
-       * {
-       *   success: true,
-       *   count: 3,
-       *   data: [...]
-       * }
-       */
+      const response = await subscriptionAPI.getPublicPlans();
 
       if (
         response?.success &&
-        Array.isArray(response.data)
+        Array.isArray(response.data) &&
+        response.data.length > 0
       ) {
         setPlans(response.data);
         setPlansError("");
       } else {
-        setPlans([]);
-        setPlansError(
-          "Unable to load subscription plans."
-        );
+        setPlans(FALLBACK_SUBSCRIPTION_PLANS);
+        setPlansError("");
       }
     } catch (error) {
-      console.error(
-        "Failed to load subscription plans:",
-        error
+      console.warn(
+        "Using fallback subscription plans:",
+        error?.message || error
       );
-
-      setPlans([]);
-
-      if (
-        error?.message ===
-        "Subscription plans request timed out."
-      ) {
-        setPlansError(
-          "Subscription plans are taking too long to load. Please try again."
-        );
-      } else {
-        setPlansError(
-          error?.response?.data?.message ||
-          error?.message ||
-          "Unable to load subscription plans."
-        );
-      }
+      setPlans(FALLBACK_SUBSCRIPTION_PLANS);
+      setPlansError("");
     } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
       setPlansLoading(false);
     }
   }, []);
