@@ -59,9 +59,7 @@ export const warmupBackend = () => {
   if (isWarmedUp) return;
   isWarmedUp = true;
   try {
-    axiosClient.get("/health", { timeout: 8000 }).catch(() => {
-      axiosClient.get("/auth/profile", { timeout: 5000 }).catch(() => {});
-    });
+    axiosClient.get("/health", { timeout: 8000 }).catch(() => {});
   } catch {}
 };
 
@@ -203,7 +201,11 @@ axiosClient.interceptors.response.use(
             window.location.href = "/login";
           }
         } catch {}
-      } else if (status === 401 && !originalRequest?.url?.includes("/auth/login")) {
+      } else if (
+        status === 401 &&
+        !originalRequest?.url?.includes("/auth/login") &&
+        !originalRequest?.url?.includes("/auth/profile")
+      ) {
         try {
           localStorage.removeItem("smartbill_token");
           localStorage.removeItem("smartbill_user");
