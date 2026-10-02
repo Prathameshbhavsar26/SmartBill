@@ -1,7 +1,4 @@
-import axios from "axios";
-import axiosClient, { resolveApiBaseUrl } from "./axiosClient";
-
-const PUBLIC_API_BASE_URL = resolveApiBaseUrl();
+import axiosClient from "./axiosClient";
 
 export const FALLBACK_SUBSCRIPTION_PLANS = [
   {
@@ -93,18 +90,10 @@ export const FALLBACK_SUBSCRIPTION_PLANS = [
   },
 ];
 
-const publicAxios = axios.create({
-  baseURL: PUBLIC_API_BASE_URL,
-  timeout: 6000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
 export const subscriptionAPI = {
   getPublicPlans: async () => {
     try {
-      const response = await publicAxios.get("/subscription-plans", {
+      const response = await axiosClient.get("/subscription-plans", {
         params: {
           _t: Date.now(),
         },
@@ -112,7 +101,7 @@ export const subscriptionAPI = {
           "Cache-Control": "no-cache",
           Pragma: "no-cache",
         },
-        timeout: 6000,
+        timeout: 12000,
       });
 
       if (
@@ -128,8 +117,8 @@ export const subscriptionAPI = {
         count: FALLBACK_SUBSCRIPTION_PLANS.length,
         data: FALLBACK_SUBSCRIPTION_PLANS,
       };
-    } catch (err) {
-      // Gracefully fall back to local subscription plans on timeout or server wake-up delay
+    } catch {
+      // Gracefully fall back to local subscription plans without console noise
       return {
         success: true,
         count: FALLBACK_SUBSCRIPTION_PLANS.length,
@@ -150,25 +139,15 @@ export const subscriptionAPI = {
 
   /** Create a Razorpay order. Pass isUpgrade + proratedAmount + couponCode for discounts. */
   createOrder: (planName, options = {}) => {
-    const token = typeof localStorage !== "undefined" ? localStorage.getItem("smartbill_token") : null;
-    return publicAxios
-      .post(
-        "/subscriptions/create-order",
-        { planName, ...options },
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      )
+    return axiosClient
+      .post("/subscriptions/create-order", { planName, ...options })
       .then((res) => res.data);
   },
 
   /** Verify Razorpay payment and activate/schedule plan */
   verifyPayment: (payload) => {
-    const token = typeof localStorage !== "undefined" ? localStorage.getItem("smartbill_token") : null;
-    return publicAxios
-      .post("/subscriptions/verify-payment", payload, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
+    return axiosClient
+      .post("/subscriptions/verify-payment", payload)
       .then((res) => res.data);
   },
 

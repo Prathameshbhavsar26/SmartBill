@@ -154,13 +154,8 @@ export default function TrialBanner({ user, onNav }) {
       const normalizedPlans = normalizePlans(res);
 
       setPlans(normalizedPlans);
-    } catch (err) {
-      console.warn(
-        "Could not fetch subscription plans:",
-        err?.message
-      );
-
-      setPlans([]);
+    } catch {
+      setPlans(normalizePlans({ data: FALLBACK_SUBSCRIPTION_PLANS }));
     } finally {
       setPlansLoading(false);
     }

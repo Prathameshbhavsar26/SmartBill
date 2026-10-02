@@ -85,11 +85,7 @@ export default function PricingPage() {
         setPlans(FALLBACK_SUBSCRIPTION_PLANS);
         setPlansError("");
       }
-    } catch (error) {
-      console.warn(
-        "Using fallback subscription plans:",
-        error?.message || error
-      );
+    } catch {
       setPlans(FALLBACK_SUBSCRIPTION_PLANS);
       setPlansError("");
     } finally {
