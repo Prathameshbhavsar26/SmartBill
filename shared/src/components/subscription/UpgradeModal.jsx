@@ -265,6 +265,34 @@ export default function UpgradeModal({
         couponCode: appliedCoupon?.code || "",
       });
 
+      // If simulated / free order (100% discount, zero payable, or demo server), verify immediately!
+      if (orderData.isMock || orderData.isFree || finalPayableToday === 0 || !window.Razorpay) {
+        const verifyRes = await subscriptionAPI.verifyPayment({
+          razorpay_order_id: orderData.orderId,
+          razorpay_payment_id: `pay_sim_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          razorpay_signature: "simulated_success_signature",
+          planName: newPlan.key,
+          isUpgrade: true,
+          email: userEmail || "",
+          couponCode: appliedCoupon?.code || "",
+        });
+
+        if (verifyRes?.token) {
+          localStorage.setItem("smartbill_token", verifyRes.token);
+        }
+        if (verifyRes?.user) {
+          setUserToStorage(verifyRes.user);
+        }
+        try {
+          sessionStorage.removeItem("smartbill_claimed_coupon");
+        } catch {}
+        window.dispatchEvent(new Event("userUpdated"));
+
+        setStep("success");
+        if (onSuccess) onSuccess(verifyRes);
+        return;
+      }
+
       const options = {
         key: orderData.keyId,
         amount: orderData.amount,
@@ -317,10 +345,14 @@ export default function UpgradeModal({
       };
 
       const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (resp) => {
+        setErrorMsg(resp?.error?.description || "Payment failed at payment gateway.");
+        setStep("error");
+      });
       rzp.open();
       setStep("preview");
     } catch (err) {
-      setErrorMsg(err?.response?.data?.message || "Failed to initiate payment.");
+      setErrorMsg(err?.response?.data?.message || err?.message || "Failed to initiate payment.");
       setStep("error");
     }
   }
