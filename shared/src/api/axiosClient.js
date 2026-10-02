@@ -167,12 +167,13 @@ axiosClient.interceptors.response.use(
       // Helper to check if current page is already an auth screen or public landing page
       const isPublicOrAuthPage = () => {
         if (typeof window === "undefined" || !window.location) return false;
-        const p = window.location.pathname.toLowerCase();
+        const p = (window.location.pathname || "").toLowerCase();
         return (
           p.includes("/login") ||
           p.includes("/register") ||
           p.includes("/forgot") ||
           p === "/" ||
+          p === "" ||
           p.startsWith("/features") ||
           p.startsWith("/pricing") ||
           p.startsWith("/about") ||
@@ -184,8 +185,19 @@ axiosClient.interceptors.response.use(
         );
       };
 
-      // If active session token was rejected due to suspension and not login endpoint
-      if (isSuspended && !originalRequest?.url?.includes("/auth/login")) {
+      const isAuthOrPublicEndpoint = () => {
+        const reqUrl = (originalRequest?.url || "").toLowerCase();
+        return (
+          reqUrl.includes("/auth/") ||
+          reqUrl.includes("/health") ||
+          reqUrl.includes("/coupons/") ||
+          reqUrl.includes("/subscription-plans") ||
+          reqUrl.includes("/public")
+        );
+      };
+
+      // If active session token was rejected due to suspension and not auth endpoint
+      if (isSuspended && !isAuthOrPublicEndpoint()) {
         try {
           sessionStorage.setItem(
             "smartbill_suspension_notice",
@@ -203,8 +215,7 @@ axiosClient.interceptors.response.use(
         } catch {}
       } else if (
         status === 401 &&
-        !originalRequest?.url?.includes("/auth/login") &&
-        !originalRequest?.url?.includes("/auth/profile")
+        !isAuthOrPublicEndpoint()
       ) {
         try {
           localStorage.removeItem("smartbill_token");

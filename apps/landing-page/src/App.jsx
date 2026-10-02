@@ -43,6 +43,12 @@ function AppRoutes() {
       <Route path="/login" element={<AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />} />
       <Route path="/register" element={<AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />} />
       <Route path="/forgot" element={<AuthScreen view="forgot" onNav={navAuth} />} />
+      <Route path="/app/login" element={<AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />} />
+      <Route path="/app/register" element={<AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />} />
+      <Route path="/app/forgot" element={<AuthScreen view="forgot" onNav={navAuth} />} />
+      <Route path="/crm/login" element={<AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />} />
+      <Route path="/crm/register" element={<AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />} />
+      <Route path="/crm/forgot" element={<AuthScreen view="forgot" onNav={navAuth} />} />
       <Route path="*" element={<LandingPage onNav={navAuth} />} />
     </Routes>
   );
