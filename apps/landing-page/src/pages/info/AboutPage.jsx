@@ -4,10 +4,10 @@ import { Users, Target, Heart, TrendingUp } from 'lucide-react';
 import PublicNavbar from "@shared/components/common/PublicNavbar";
 import { Link } from 'react-router-dom';
 
-export default function AboutPage() {
+export default function AboutPage({ onNav }) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <PublicNavbar />
+      <PublicNavbar onNav={onNav} />
 
       {/* Hero */}
       <section className="px-8 py-20 max-w-4xl mx-auto text-center">

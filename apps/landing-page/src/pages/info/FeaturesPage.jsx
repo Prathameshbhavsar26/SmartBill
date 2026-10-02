@@ -2,13 +2,21 @@ import React from 'react';
 import { FileText, PieChart, Box, ShieldCheck, ArrowRight, Zap, CheckCircle2, BellRing } from 'lucide-react';
 
 import PublicNavbar from "@shared/components/common/PublicNavbar";
-import { Link } from 'react-router-dom';
+import { getCrmUrl } from "@shared/utils/urlUtils";
 
-export default function FeaturesPage() {
+export default function FeaturesPage({ onNav }) {
+  const handleRegister = () => {
+    if (onNav) {
+      onNav("register");
+    } else {
+      window.location.href = getCrmUrl("/register");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       {/* Navbar (Minimal) */}
-      <PublicNavbar />
+      <PublicNavbar onNav={onNav} />
 
       {/* Hero */}
       <section className="px-8 py-20 text-center max-w-4xl mx-auto">
@@ -22,9 +30,12 @@ export default function FeaturesPage() {
           From powerful invoicing to real-time inventory tracking, Smart Bill gives you the tools to manage and grow your operations with confidence.
         </p>
         <div className="flex items-center justify-center gap-4">
-          <Link to="/register" className="px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all hover:shadow-lg active:scale-95 flex items-center gap-2">
+          <button
+            onClick={handleRegister}
+            className="px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all hover:shadow-lg active:scale-95 flex items-center gap-2 cursor-pointer"
+          >
             Get Started Free <ArrowRight className="w-4 h-4" />
-          </Link>
+          </button>
         </div>
       </section>
 

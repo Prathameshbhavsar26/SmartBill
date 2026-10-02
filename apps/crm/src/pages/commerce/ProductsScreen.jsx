@@ -331,129 +331,6 @@ export default function ProductsScreen({ onNav }) {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [categoryToRemove, setCategoryToRemove] = useState(null);
 
-  // =========================
-  // EXPORT PRODUCTS
-  // =========================
-  const getExportColumns = () => [
-    { key: "name", label: "Product Name" },
-    { key: "sku", label: "SKU / Barcode" },
-    { key: "category", label: "Category" },
-    { key: "supplier", label: "Supplier" },
-    { key: "price", label: "Selling Price (₹)" },
-    { key: "cost", label: "Purchase Cost (₹)" },
-    { key: "wholesalePrice", label: "Wholesale Price (₹)" },
-    { key: "minPrice", label: "Min Price (₹)" },
-    { key: "stock", label: "Stock Quantity" },
-    { key: "minStock", label: "Min Stock Alert" },
-    { key: "unit", label: "Unit" },
-    { key: "gst", label: "GST (%)" },
-    { key: "status", label: "Status" },
-  ];
-
-  const handleExportCsv = () => {
-    if (productList.length === 0) {
-      showToast("No products available to export.", "error");
-      return;
-    }
-    exportToCsv("SmartBill_Products.csv", getExportColumns(), productList);
-    showToast(`Exported ${productList.length} products to CSV successfully!`, "success");
-    setShowExportMenu(false);
-  };
-
-  const handleExportExcel = () => {
-    if (productList.length === 0) {
-      showToast("No products available to export.", "error");
-      return;
-    }
-    exportToExcel("SmartBill_Products.xlsx", "Products & Stock", getExportColumns(), productList);
-    showToast(`Exported ${productList.length} products to Excel (.xlsx) successfully!`, "success");
-    setShowExportMenu(false);
-  };
-
-  // =========================
-  // PARSE CSV / EXCEL FILE
-  // =========================
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportFile(file);
-    setParsing(true);
-    setImportErrors([]);
-
-    try {
-      const rawRows = await parseExcelOrCsvFile(file);
-      const result = normalizeProductImportRows(rawRows, productList);
-      setParsedProducts(result.valid);
-      setImportErrors(result.errors);
-      setImportSummary(result.summary);
-
-      // Auto-register any new categories found in the import
-      const discoveredCats = new Set([...categories]);
-      result.valid.forEach((p) => {
-        if (p.category && String(p.category).trim()) {
-          discoveredCats.add(String(p.category).trim());
-        }
-      });
-      setCategories(Array.from(discoveredCats));
-
-      // Auto-register any new units found in the import
-      const discoveredUnits = new Set([...units]);
-      result.valid.forEach((p) => {
-        if (p.unit && String(p.unit).trim()) {
-          discoveredUnits.add(String(p.unit).trim());
-        }
-      });
-      setUnits(Array.from(discoveredUnits));
-    } catch (err) {
-      console.error("Failed to parse file:", err);
-      setImportErrors([`Failed to parse file: ${err.message}`]);
-      setParsedProducts([]);
-      setImportSummary({ total: 0, newCount: 0, updateCount: 0, errorCount: 1 });
-    } finally {
-      setParsing(false);
-    }
-  };
-
-  // =========================
-  // EXECUTE BULK IMPORT
-  // =========================
-  const handleExecuteImport = async () => {
-    if (parsedProducts.length === 0) {
-      showToast("No valid products to import.", "error");
-      return;
-    }
-    setImporting(true);
-
-    try {
-      const res = await bulkCreateProducts(parsedProducts, {
-        mode: importMode,
-        stockMode: stockMode,
-      });
-
-      await loadProducts();
-      window.dispatchEvent(new CustomEvent("stockUpdated"));
-      window.dispatchEvent(new CustomEvent("productUpdated"));
-      setImporting(false);
-      setShowImportModal(false);
-      setImportFile(null);
-      setParsedProducts([]);
-      setImportErrors([]);
-      setImportSummary({ total: 0, newCount: 0, updateCount: 0, errorCount: 0 });
-
-      const msg =
-        res.message ||
-        `Successfully imported ${res.count || parsedProducts.length} items (${res.createdCount || 0} created, ${res.updatedCount || 0} updated).`;
-      showToast(msg, "success");
-    } catch (bulkErr) {
-      console.error("Bulk import failed:", bulkErr);
-      showToast(
-        bulkErr.response?.data?.message || bulkErr.message || "Bulk import failed. Please check your data.",
-        "error"
-      );
-      setImporting(false);
-    }
-  };
-
   // --- DYNAMIC & PERSISTENT UNITS ---
   const [units, setUnits] = useState(() => {
     const saved = localStorage.getItem("smartbill_units");
@@ -526,6 +403,141 @@ export default function ProductsScreen({ onNav }) {
       showToast(`Category "${catName}" removed successfully.`, "success");
     }
     setCategoryToRemove(null);
+  };
+
+  // =========================
+  // EXPORT PRODUCTS
+  // =========================
+  const getExportColumns = () => [
+    { key: "name", label: "Product Name" },
+    { key: "sku", label: "SKU / Barcode" },
+    { key: "category", label: "Category" },
+    { key: "supplier", label: "Supplier" },
+    { key: "price", label: "Selling Price (₹)" },
+    { key: "cost", label: "Purchase Cost (₹)" },
+    { key: "wholesalePrice", label: "Wholesale Price (₹)" },
+    { key: "minPrice", label: "Min Price (₹)" },
+    { key: "stock", label: "Stock Quantity" },
+    { key: "minStock", label: "Min Stock Alert" },
+    { key: "unit", label: "Unit" },
+    { key: "gst", label: "GST (%)" },
+    { key: "status", label: "Status" },
+  ];
+
+  const handleExportCsv = () => {
+    if (productList.length === 0) {
+      showToast("No products available to export.", "error");
+      return;
+    }
+    exportToCsv("SmartBill_Products.csv", getExportColumns(), productList);
+    showToast(`Exported ${productList.length} products to CSV successfully!`, "success");
+    setShowExportMenu(false);
+  };
+
+  const handleExportExcel = () => {
+    if (productList.length === 0) {
+      showToast("No products available to export.", "error");
+      return;
+    }
+    exportToExcel("SmartBill_Products.xlsx", "Products & Stock", getExportColumns(), productList);
+    showToast(`Exported ${productList.length} products to Excel (.xlsx) successfully!`, "success");
+    setShowExportMenu(false);
+  };
+
+  // =========================
+  // PARSE CSV / EXCEL FILE
+  // =========================
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFile(file);
+    setParsing(true);
+    setImportErrors([]);
+
+    try {
+      const rawRows = await parseExcelOrCsvFile(file);
+      const result = normalizeProductImportRows(rawRows, productList);
+      setParsedProducts(result.valid);
+      setImportErrors(result.errors);
+      setImportSummary(result.summary);
+
+      // Auto-register any new categories found in the import
+      const newImportedCats = [];
+      result.valid.forEach((p) => {
+        const cat = p.category && String(p.category).trim();
+        if (cat && !categories.includes(cat) && !newImportedCats.includes(cat)) {
+          newImportedCats.push(cat);
+        }
+      });
+      if (newImportedCats.length > 0) {
+        setCustomCategories((prev) => {
+          const updated = Array.from(new Set([...prev, ...newImportedCats]));
+          try {
+            localStorage.setItem("smartbill_custom_categories", JSON.stringify(updated));
+          } catch (_) {}
+          return updated;
+        });
+      }
+
+      // Auto-register any new units found in the import
+      const newImportedUnits = [];
+      result.valid.forEach((p) => {
+        const u = p.unit && String(p.unit).trim();
+        if (u && !units.includes(u) && !newImportedUnits.includes(u)) {
+          newImportedUnits.push(u);
+        }
+      });
+      if (newImportedUnits.length > 0) {
+        setUnits((prev) => Array.from(new Set([...prev, ...newImportedUnits])));
+      }
+    } catch (err) {
+      console.error("Failed to parse file:", err);
+      setImportErrors([`Failed to parse file: ${err.message}`]);
+      setParsedProducts([]);
+      setImportSummary({ total: 0, newCount: 0, updateCount: 0, errorCount: 1 });
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  // =========================
+  // EXECUTE BULK IMPORT
+  // =========================
+  const handleExecuteImport = async () => {
+    if (parsedProducts.length === 0) {
+      showToast("No valid products to import.", "error");
+      return;
+    }
+    setImporting(true);
+
+    try {
+      const res = await bulkCreateProducts(parsedProducts, {
+        mode: importMode,
+        stockMode: stockMode,
+      });
+
+      await loadProducts();
+      window.dispatchEvent(new CustomEvent("stockUpdated"));
+      window.dispatchEvent(new CustomEvent("productUpdated"));
+      setImporting(false);
+      setShowImportModal(false);
+      setImportFile(null);
+      setParsedProducts([]);
+      setImportErrors([]);
+      setImportSummary({ total: 0, newCount: 0, updateCount: 0, errorCount: 0 });
+
+      const msg =
+        res.message ||
+        `Successfully imported ${res.count || parsedProducts.length} items (${res.createdCount || 0} created, ${res.updatedCount || 0} updated).`;
+      showToast(msg, "success");
+    } catch (bulkErr) {
+      console.error("Bulk import failed:", bulkErr);
+      showToast(
+        bulkErr.response?.data?.message || bulkErr.message || "Bulk import failed. Please check your data.",
+        "error"
+      );
+      setImporting(false);
+    }
   };
   // -------------------------------------------------
 
@@ -691,9 +703,7 @@ export default function ProductsScreen({ onNav }) {
                       onChange={(e) => setNewCategory(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && newCategory.trim()) {
-                          if (!categories.includes(newCategory.trim())) {
-                            setCategories([...categories, newCategory.trim()]);
-                          }
+                          handleAddCategory(newCategory.trim());
                           setNewCategory("");
                           setShowCategoryInput(false);
                         }

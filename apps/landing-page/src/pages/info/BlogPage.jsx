@@ -4,7 +4,7 @@ import { ArrowRight, Calendar, Clock } from 'lucide-react';
 import PublicNavbar from "@shared/components/common/PublicNavbar";
 import { Link } from 'react-router-dom';
 
-export default function BlogPage() {
+export default function BlogPage({ onNav }) {
   const articles = [
     { title: "5 Tips to Improve Cash Flow", category: "Finance", readTime: "5 min", date: "Aug 12, 2026", color: "from-blue-500 to-cyan-500" },
     { title: "Understanding New GST Regulations", category: "Compliance", readTime: "8 min", date: "Jul 28, 2026", color: "from-indigo-500 to-purple-500" },
@@ -16,7 +16,7 @@ export default function BlogPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <PublicNavbar />
+      <PublicNavbar onNav={onNav} />
 
       {/* Featured */}
       <section className="px-8 py-12 max-w-7xl mx-auto w-full">

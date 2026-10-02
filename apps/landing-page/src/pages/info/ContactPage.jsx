@@ -4,10 +4,10 @@ import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import PublicNavbar from "@shared/components/common/PublicNavbar";
 import { Link } from 'react-router-dom';
 
-export default function ContactPage() {
+export default function ContactPage({ onNav }) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <PublicNavbar />
+      <PublicNavbar onNav={onNav} />
 
       <section className="px-8 py-16 max-w-7xl mx-auto w-full flex-1">
         <div className="text-center max-w-2xl mx-auto mb-16">

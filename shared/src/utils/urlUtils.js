@@ -52,7 +52,8 @@ export const getCrmUrl = (path = "") => {
     if (cleanPath.startsWith("/app") || cleanPath.startsWith("/crm")) {
       return cleanPath;
     }
-    if (cleanPath === "/login" || cleanPath === "/register" || cleanPath === "/forgot") {
+    const baseAuthPath = cleanPath.split("?")[0].replace(/\/+$/, "");
+    if (baseAuthPath === "/login" || baseAuthPath === "/register" || baseAuthPath === "/forgot") {
       return cleanPath;
     }
     return `/app${cleanPath}`;

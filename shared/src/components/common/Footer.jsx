@@ -1,7 +1,7 @@
 import React from 'react';
 import { BarChart2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getAdminUrl, getCrmUrl } from '../../utils/urlUtils';
+import { getCrmUrl } from '../../utils/urlUtils';
 
 export default function Footer() {
   const footerSections = [
@@ -23,7 +23,7 @@ export default function Footer() {
       title: "Support",
       links: [
         { label: "Help Center", key: "help-center" },
-        { label: "Contact Us", key: "contact" },
+        { label: "Contact", key: "contact" },
         { label: "Merchant Sign In", href: getCrmUrl("/login") },
       ]
     }
