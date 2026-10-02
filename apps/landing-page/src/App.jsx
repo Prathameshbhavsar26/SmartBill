@@ -7,30 +7,26 @@ import {
   CareersPage, HelpCenterPage, StatusPage, ContactPage
 } from "./pages/FooterPages";
 
-import { useEffect } from "react";
-import { getCrmUrl } from "@shared/utils/urlUtils.js";
-
-function RedirectToCrm({ path }) {
-  useEffect(() => {
-    window.location.href = getCrmUrl(path);
-  }, [path]);
-  return null;
-}
+import AuthScreen from "@shared/components/AuthScreen.jsx";
+import { getCrmUrl, getAdminUrl } from "@shared/utils/urlUtils.js";
 
 function AppRoutes() {
   const navigate = useNavigate();
 
-  const navAuth = (v) => {
-    if (v === "landing") navigate("/");
-    else if (v === "login") {
-       window.location.href = getCrmUrl("/login");
-    } else if (v === "register") {
-       window.location.href = getCrmUrl("/register");
-    } else if (v === "forgot") {
-       window.location.href = getCrmUrl("/forgot");
+  const handleLogin = (role) => {
+    if (role === "superadmin" || String(role || "").toLowerCase().includes("admin")) {
+      window.location.href = getAdminUrl("/admin");
     } else {
-       navigate(`/${v}`);
+      window.location.href = getCrmUrl("/app");
     }
+  };
+
+  const navAuth = (v) => {
+    if (v === "landing" || v === "") navigate("/");
+    else if (v === "login") navigate("/login");
+    else if (v === "register") navigate("/register");
+    else if (v === "forgot") navigate("/forgot");
+    else navigate(`/${v}`);
   };
 
   return (
@@ -44,9 +40,9 @@ function AppRoutes() {
       <Route path="/help-center" element={<HelpCenterPage onNav={navAuth} />} />
       <Route path="/status" element={<StatusPage onNav={navAuth} />} />
       <Route path="/contact" element={<ContactPage onNav={navAuth} />} />
-      <Route path="/login" element={<RedirectToCrm path="/login" />} />
-      <Route path="/register" element={<RedirectToCrm path="/register" />} />
-      <Route path="/forgot" element={<RedirectToCrm path="/forgot" />} />
+      <Route path="/login" element={<AuthScreen view="login" onNav={navAuth} onLogin={handleLogin} />} />
+      <Route path="/register" element={<AuthScreen view="register" onNav={navAuth} onLogin={handleLogin} />} />
+      <Route path="/forgot" element={<AuthScreen view="forgot" onNav={navAuth} />} />
       <Route path="*" element={<LandingPage onNav={navAuth} />} />
     </Routes>
   );
