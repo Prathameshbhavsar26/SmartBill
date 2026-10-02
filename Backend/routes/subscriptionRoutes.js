@@ -5,6 +5,7 @@ import {
   getSubscriptionStatus,
   getUpgradePreview,
 } from "../controller/subscriptionController.js";
+import { getPublicSubscriptionPlans } from "../controller/subscriptionPlanController.js";
 import { authMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -56,6 +57,10 @@ const optionalAuth = async (req, res, next) => {
   }
   next();
 };
+
+// Public plan listings
+router.get("/plans", getPublicSubscriptionPlans);
+router.get("/subscription-plans", getPublicSubscriptionPlans);
 
 // Prorated upgrade/downgrade preview (requires auth — reads current plan from user record)
 router.get("/upgrade-preview", authMiddleware, getUpgradePreview);

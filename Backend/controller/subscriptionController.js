@@ -159,9 +159,10 @@ export const createSubscriptionOrder = async (req, res) => {
     }
 
     // Base price calculation
-    let baseAmount = (isUpgrade && proratedAmount != null)
-      ? Math.max(0, Math.round(proratedAmount))
-      : (planConfig.price || 0);
+    const numericProrated = Number(proratedAmount);
+    let baseAmount = (isUpgrade && proratedAmount != null && !isNaN(numericProrated))
+      ? Math.max(0, Math.round(numericProrated))
+      : (Number(planConfig.price) || 0);
 
     let appliedCoupon = null;
     let discountAmount = 0;
@@ -198,7 +199,7 @@ export const createSubscriptionOrder = async (req, res) => {
     }
 
     // Zero-charge order (e.g. 100% coupon or full prorated credit)
-    if (finalAmount === 0) {
+    if (finalAmount <= 0 || isNaN(finalAmount)) {
       return res.json({
         success: true,
         orderId: `order_free_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -213,7 +214,7 @@ export const createSubscriptionOrder = async (req, res) => {
         discountAmount,
         finalAmount: 0,
         appliedCoupon,
-        proratedCredit: isUpgrade ? ((planConfig.price || 0) - baseAmount) : 0,
+        proratedCredit: isUpgrade ? Math.max(0, (planConfig.price || 0) - baseAmount) : 0,
       });
     }
 
