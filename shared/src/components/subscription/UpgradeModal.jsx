@@ -265,10 +265,20 @@ export default function UpgradeModal({
         couponCode: appliedCoupon?.code || "",
       });
 
-      // If simulated / free order (100% discount, zero payable, or demo server), verify immediately!
-      if (orderData.isMock || orderData.isFree || finalPayableToday === 0 || !window.Razorpay) {
+      const isSimulated = Boolean(
+        orderData.isMock ||
+        orderData.isFree ||
+        finalPayableToday === 0 ||
+        !window.Razorpay ||
+        orderData.orderId?.startsWith("order_sim_") ||
+        orderData.orderId?.startsWith("order_mock_") ||
+        orderData.orderId?.startsWith("order_free_")
+      );
+
+      // If simulated / free order (100% discount, zero payable, or offline demo), verify immediately!
+      if (isSimulated) {
         const verifyRes = await subscriptionAPI.verifyPayment({
-          razorpay_order_id: orderData.orderId,
+          razorpay_order_id: orderData.orderId || `order_sim_${Date.now()}`,
           razorpay_payment_id: `pay_sim_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           razorpay_signature: "simulated_success_signature",
           planName: newPlan.key,
@@ -298,18 +308,18 @@ export default function UpgradeModal({
         amount: orderData.amount,
         currency: orderData.currency || "INR",
         name: "SmartBill",
-        description: `${newPlan.name} Plan${
-          totalSavings > 0 ? ` (${formatINR(totalSavings)} total savings applied)` : ""
+        description: `${newPlan.name} Plan Subscription${
+          totalSavings > 0 ? ` (${formatINR(totalSavings)} savings applied)` : ""
         }`,
         order_id: orderData.orderId,
         prefill: { email: userEmail || "" },
         theme: { color: "#2563EB" },
         handler: async (response) => {
           try {
+            setStep("processing");
             const verifyRes = await subscriptionAPI.verifyPayment({
-              razorpay_order_id: orderData.orderId,
-              razorpay_payment_id:
-                response.razorpay_payment_id || `pay_mock_${Date.now()}`,
+              razorpay_order_id: response.razorpay_order_id || orderData.orderId,
+              razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature || "",
               planName: newPlan.key,
               isUpgrade: true,
@@ -332,7 +342,7 @@ export default function UpgradeModal({
             if (onSuccess) onSuccess(verifyRes);
           } catch (err) {
             setErrorMsg(
-              err?.response?.data?.message || err?.message || "Payment verification failed."
+              err?.response?.data?.message || err?.message || "Payment verification failed on server. Please contact support."
             );
             setStep("error");
           }
@@ -346,13 +356,14 @@ export default function UpgradeModal({
 
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", (resp) => {
-        setErrorMsg(resp?.error?.description || "Payment failed at payment gateway.");
+        const desc = resp?.error?.description || resp?.error?.reason || "Payment was declined or cancelled at the gateway.";
+        setErrorMsg(`${desc} No amount was charged to your account.`);
         setStep("error");
       });
       rzp.open();
       setStep("preview");
     } catch (err) {
-      setErrorMsg(err?.response?.data?.message || err?.message || "Failed to initiate payment.");
+      setErrorMsg(err?.response?.data?.message || err?.message || "Failed to initialize payment gateway order. Please try again.");
       setStep("error");
     }
   }

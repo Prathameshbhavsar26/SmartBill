@@ -2,7 +2,7 @@ import Razorpay from "razorpay";
 import "dotenv/config";
 
 const key_id = process.env.RAZORPAY_KEY_ID || "rzp_test_TPCMQcPRZqe62i";
-const key_secret = process.env.RAZORPAY_KEY_SECRET || "rzp_test_secret_placeholder";
+const key_secret = process.env.RAZORPAY_KEY_SECRET || "WB9HIOs9OudSgP3ivaGXeJ2E";
 
 let instance = null;
 try {

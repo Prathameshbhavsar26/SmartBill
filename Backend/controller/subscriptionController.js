@@ -220,9 +220,9 @@ export const createSubscriptionOrder = async (req, res) => {
 
     const amountInPaise = Math.round(finalAmount * 100);
     const keyId = process.env.RAZORPAY_KEY_ID || "rzp_test_TPCMQcPRZqe62i";
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || "WB9HIOs9OudSgP3ivaGXeJ2E";
 
-    // Check if live Razorpay keys are valid and configured
+    // Check if live/test Razorpay keys are valid and configured
     const hasLiveRazorpay = Boolean(
       razorpayInstance &&
       keySecret &&
@@ -316,7 +316,7 @@ export const verifySubscriptionPayment = async (req, res) => {
       razorpay_order_id?.startsWith("order_downgrade_") ||
       isDowngrade;
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || "WB9HIOs9OudSgP3ivaGXeJ2E";
 
     if (!isSimulatedOrMock) {
       if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
