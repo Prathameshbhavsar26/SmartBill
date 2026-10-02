@@ -7,7 +7,15 @@ import {
   CareersPage, HelpCenterPage, StatusPage, ContactPage
 } from "./pages/FooterPages";
 
+import { useEffect } from "react";
 import { getCrmUrl } from "@shared/utils/urlUtils.js";
+
+function RedirectToCrm({ path }) {
+  useEffect(() => {
+    window.location.href = getCrmUrl(path);
+  }, [path]);
+  return null;
+}
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -18,6 +26,8 @@ function AppRoutes() {
        window.location.href = getCrmUrl("/login");
     } else if (v === "register") {
        window.location.href = getCrmUrl("/register");
+    } else if (v === "forgot") {
+       window.location.href = getCrmUrl("/forgot");
     } else {
        navigate(`/${v}`);
     }
@@ -26,14 +36,17 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage onNav={navAuth} />} />
-      <Route path="/features" element={<FeaturesPage />} />
-      <Route path="/pricing" element={<PricingPage />} />
-      <Route path="/about" element={<AboutPage />} />
-      <Route path="/blog" element={<BlogPage />} />
-      <Route path="/careers" element={<CareersPage />} />
-      <Route path="/help-center" element={<HelpCenterPage />} />
-      <Route path="/status" element={<StatusPage />} />
-      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/features" element={<FeaturesPage onNav={navAuth} />} />
+      <Route path="/pricing" element={<PricingPage onNav={navAuth} />} />
+      <Route path="/about" element={<AboutPage onNav={navAuth} />} />
+      <Route path="/blog" element={<BlogPage onNav={navAuth} />} />
+      <Route path="/careers" element={<CareersPage onNav={navAuth} />} />
+      <Route path="/help-center" element={<HelpCenterPage onNav={navAuth} />} />
+      <Route path="/status" element={<StatusPage onNav={navAuth} />} />
+      <Route path="/contact" element={<ContactPage onNav={navAuth} />} />
+      <Route path="/login" element={<RedirectToCrm path="/login" />} />
+      <Route path="/register" element={<RedirectToCrm path="/register" />} />
+      <Route path="/forgot" element={<RedirectToCrm path="/forgot" />} />
       <Route path="*" element={<LandingPage onNav={navAuth} />} />
     </Routes>
   );

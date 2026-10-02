@@ -230,7 +230,13 @@ export function NotificationProvider({ children, onNav }) {
                   try {
                     es.close();
                   } catch (_) {}
-                  if (!window.location.pathname.includes("/login")) {
+                  const isPublicOrAuth = typeof window !== "undefined" && window.location && (
+                    window.location.pathname.includes("/login") ||
+                    window.location.pathname.includes("/register") ||
+                    window.location.pathname.includes("/forgot") ||
+                    window.location.pathname === "/"
+                  );
+                  if (!isPublicOrAuth) {
                     window.location.href = "/login";
                   }
                   return;
@@ -375,7 +381,13 @@ export function NotificationProvider({ children, onNav }) {
                 try {
                   es.close();
                 } catch (_) {}
-                if (!window.location.pathname.includes("/login")) {
+                const isPublicOrAuthEvent = typeof window !== "undefined" && window.location && (
+                  window.location.pathname.includes("/login") ||
+                  window.location.pathname.includes("/register") ||
+                  window.location.pathname.includes("/forgot") ||
+                  window.location.pathname === "/"
+                );
+                if (!isPublicOrAuthEvent) {
                   window.location.href = "/login";
                 }
                 break;

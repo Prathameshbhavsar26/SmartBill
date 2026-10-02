@@ -166,6 +166,26 @@ axiosClient.interceptors.response.use(
         (status === 403 && typeof message === "string" && /suspended/i.test(message))
       );
 
+      // Helper to check if current page is already an auth screen or public landing page
+      const isPublicOrAuthPage = () => {
+        if (typeof window === "undefined" || !window.location) return false;
+        const p = window.location.pathname.toLowerCase();
+        return (
+          p.includes("/login") ||
+          p.includes("/register") ||
+          p.includes("/forgot") ||
+          p === "/" ||
+          p.startsWith("/features") ||
+          p.startsWith("/pricing") ||
+          p.startsWith("/about") ||
+          p.startsWith("/contact") ||
+          p.startsWith("/blog") ||
+          p.startsWith("/careers") ||
+          p.startsWith("/help-center") ||
+          p.startsWith("/status")
+        );
+      };
+
       // If active session token was rejected due to suspension and not login endpoint
       if (isSuspended && !originalRequest?.url?.includes("/auth/login")) {
         try {
@@ -179,7 +199,7 @@ axiosClient.interceptors.response.use(
           localStorage.removeItem("smartbill_token");
           localStorage.removeItem("smartbill_user");
           window.dispatchEvent(new Event("userUpdated"));
-          if (!window.location.pathname.includes("/login")) {
+          if (!isPublicOrAuthPage()) {
             window.location.href = "/login";
           }
         } catch {}
@@ -188,7 +208,7 @@ axiosClient.interceptors.response.use(
           localStorage.removeItem("smartbill_token");
           localStorage.removeItem("smartbill_user");
           window.dispatchEvent(new Event("userUpdated"));
-          if (!window.location.pathname.includes("/login")) {
+          if (!isPublicOrAuthPage()) {
             window.location.href = "/login";
           }
         } catch {}

@@ -4,7 +4,7 @@ import { Search, Book, CreditCard, Settings, Users, FileText, ChevronRight, Arro
 import PublicNavbar from "@shared/components/common/PublicNavbar";
 import { Link } from 'react-router-dom';
 
-export default function HelpCenterPage() {
+export default function HelpCenterPage({ onNav }) {
   const categories = [
     { title: "Getting Started", icon: <Book className="w-6 h-6 text-blue-600" />, count: "12 articles" },
     { title: "Billing & Subscriptions", icon: <CreditCard className="w-6 h-6 text-indigo-600" />, count: "8 articles" },
@@ -44,7 +44,7 @@ export default function HelpCenterPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <PublicNavbar />
+      <PublicNavbar onNav={onNav} />
 
       {/* Hero */}
       <section className="bg-gradient-to-br from-blue-900 to-indigo-900 pt-32 pb-24 px-8 text-center relative overflow-hidden">

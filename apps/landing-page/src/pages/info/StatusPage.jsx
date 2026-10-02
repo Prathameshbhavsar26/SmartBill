@@ -4,7 +4,7 @@ import { CheckCircle2, AlertTriangle, XCircle, Clock } from 'lucide-react';
 import PublicNavbar from "@shared/components/common/PublicNavbar";
 import { Link } from 'react-router-dom';
 
-export default function StatusPage() {
+export default function StatusPage({ onNav }) {
   const systems = [
     { name: "API & Webhooks", status: "operational", uptime: "99.99%" },
     { name: "Web Application", status: "operational", uptime: "99.99%" },
@@ -30,7 +30,7 @@ export default function StatusPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <PublicNavbar />
+      <PublicNavbar onNav={onNav} />
 
       {/* Header */}
       <section className="px-8 py-12 max-w-4xl mx-auto w-full">

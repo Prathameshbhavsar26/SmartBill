@@ -4,7 +4,7 @@ import { Briefcase, Laptop, HeartPulse, GraduationCap, ArrowRight } from 'lucide
 import PublicNavbar from "@shared/components/common/PublicNavbar";
 import { Link } from 'react-router-dom';
 
-export default function CareersPage() {
+export default function CareersPage({ onNav }) {
   const perks = [
     { title: "Remote-First", icon: <Laptop className="w-6 h-6 text-blue-600" />, desc: "Work from anywhere in India. We care about output, not hours spent at a desk." },
     { title: "Comprehensive Health", icon: <HeartPulse className="w-6 h-6 text-rose-600" />, desc: "Top-tier medical insurance for you and your dependents, plus wellness stipends." },
@@ -15,7 +15,7 @@ export default function CareersPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <PublicNavbar />
+      <PublicNavbar onNav={onNav} />
 
       <section className="px-8 py-24 text-center max-w-3xl mx-auto">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-6">

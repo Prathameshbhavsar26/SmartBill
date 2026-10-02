@@ -8,6 +8,7 @@ import subscriptionAPI, {
   FALLBACK_SUBSCRIPTION_PLANS,
 } from "@shared/api/subscriptionAPI";
 import UpgradeModal from "@shared/components/subscription/UpgradeModal";
+import { getCrmUrl } from "@shared/utils/urlUtils";
 /*
 |--------------------------------------------------------------------------
 | Backend feature key -> Frontend display label
@@ -39,7 +40,7 @@ const FEATURE_LABELS = {
 |--------------------------------------------------------------------------
 */
 
-export default function PricingPage() {
+export default function PricingPage({ onNav }) {
   const navigate = useNavigate();
 
   /*
@@ -182,7 +183,7 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
 
-      <PublicNavbar />
+      <PublicNavbar onNav={onNav} />
 
       <section
         id="pricing"
@@ -543,7 +544,11 @@ export default function PricingPage() {
             setSelectedPreview(null);
             localStorage.setItem("pending_subscription_plan", planName);
             localStorage.setItem("pending_subscription_plan_key", planKey);
-            navigate("/register");
+            if (onNav) {
+              onNav("register");
+            } else {
+              window.location.href = getCrmUrl("/register");
+            }
           }}
         />
       )}
