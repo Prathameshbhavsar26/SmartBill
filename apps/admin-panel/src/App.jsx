@@ -9,6 +9,7 @@ import { useCustomization } from "@shared/hooks/useCustomization.js";
 import { setUserToStorage } from "@shared/utils/userUtils.js";
 import { AccountingProvider } from "@shared/context/AccountingContext.jsx";
 import { getCrmUrl, getLandingUrl } from "@shared/utils/urlUtils.js";
+import { getProfile } from "@shared/api/authAPI.js";
 
 function ThemeRouteManager() {
   const location = useLocation();
@@ -86,15 +87,13 @@ function AppRoutes() {
 
     const token = localStorage.getItem("smartbill_token");
     if (token) {
-      import("@shared/api/authAPI.js").then(({ getProfile }) => {
-        getProfile().then((res) => {
-          if (res?.user) {
-            setUser(res.user);
-            if (res.user.role) setRole(res.user.role);
-            setUserToStorage(res.user);
-          }
-        }).catch(() => {});
-      });
+      getProfile().then((res) => {
+        if (res?.user) {
+          setUser(res.user);
+          if (res.user.role) setRole(res.user.role);
+          setUserToStorage(res.user);
+        }
+      }).catch(() => {});
     }
 
     window.addEventListener("userUpdated", syncUser);

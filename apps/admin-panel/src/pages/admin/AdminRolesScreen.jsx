@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axiosClient from "@shared/api/axiosClient";
 import {
   Shield,
   Users,
@@ -174,7 +175,6 @@ export default function AdminRolesScreen() {
   React.useEffect(() => {
     async function fetchStaff() {
       try {
-        const { default: axiosClient } = await import("@shared/api/axiosClient");
         const res = await axiosClient.get("/admin/staff");
         if (res.data?.data && Array.isArray(res.data.data)) {
           setAdmins(res.data.data);
@@ -296,7 +296,6 @@ export default function AdminRolesScreen() {
 
       // Sync updated role permissions to all staff users assigned to this roleId in MongoDB
       try {
-        const { default: axiosClient } = await import("@shared/api/axiosClient");
         const res = await axiosClient.put(`/admin/roles/${editingRole.id}`, {
           permissions: roleForm.permissions
         });
@@ -395,7 +394,6 @@ export default function AdminRolesScreen() {
     if (editingAdmin) {
       // Edit existing staff user in backend
       try {
-        const { default: axiosClient } = await import("@shared/api/axiosClient");
         await axiosClient.put(`/admin/staff/${editingAdmin.id || editingAdmin._id}`, {
           name: adminForm.name,
           department: adminForm.department,
@@ -417,7 +415,6 @@ export default function AdminRolesScreen() {
       // Create new staff user in backend
       let newAdminObj = null;
       try {
-        const { default: axiosClient } = await import("@shared/api/axiosClient");
         const res = await axiosClient.post("/admin/staff", {
           name: adminForm.name,
           email: adminForm.email,
@@ -467,7 +464,6 @@ export default function AdminRolesScreen() {
   const handleToggleAdminStatus = async (admin) => {
     const newStatus = admin.status === "Active" ? "Suspended" : "Active";
     try {
-      const { default: axiosClient } = await import("@shared/api/axiosClient");
       await axiosClient.put(`/admin/staff/${admin.id || admin._id}`, {
         status: newStatus
       });
@@ -484,7 +480,6 @@ export default function AdminRolesScreen() {
   // Delete Admin
   const handleDeleteAdmin = async (adminId, adminName) => {
     try {
-      const { default: axiosClient } = await import("@shared/api/axiosClient");
       await axiosClient.delete(`/admin/staff/${adminId}`);
     } catch (err) {
       console.warn("Backend delete failed:", err.message);
