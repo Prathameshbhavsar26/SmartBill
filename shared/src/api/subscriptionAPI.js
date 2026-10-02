@@ -97,11 +97,7 @@ export const subscriptionAPI = {
         params: {
           _t: Date.now(),
         },
-        headers: {
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
-        timeout: 12000,
+        timeout: 10000,
       });
 
       if (
