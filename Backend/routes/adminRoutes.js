@@ -18,12 +18,29 @@ import {
   getBusinessCustomers,
 } from "../controller/adminController.js";
 
+import {
+  getRegions,
+  createRegion,
+  updateRegion,
+  deleteRegion,
+  getRegionData,
+  assignEntityRegion,
+} from "../controller/regionController.js";
+
 const router = express.Router();
 
 router.use((req, res, next) => {
   console.log(`[AdminRouter] ${req.method} ${req.originalUrl} (url: ${req.url})`);
   next();
 });
+
+// GET, POST, PUT, DELETE /api/admin/regions - Territory Region Module Routes
+router.get("/regions/data", protect, getRegionData);
+router.get("/regions", protect, getRegions);
+router.post("/regions/assign", protect, assignEntityRegion);
+router.post("/regions", protect, createRegion);
+router.put("/regions/:id", protect, updateRegion);
+router.delete("/regions/:id", protect, deleteRegion);
 
 // GET, POST, PUT, DELETE /api/admin/staff - Manage internal admin staff accounts
 router.get("/staff", protect, getAdminStaff);

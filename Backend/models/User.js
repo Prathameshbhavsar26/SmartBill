@@ -97,6 +97,11 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Regional Module Mapping
+    regionId: { type: mongoose.Schema.Types.ObjectId, ref: "Region", default: null, index: true },
+    region: { type: String, default: "", index: true },
+    regionAssignmentType: { type: String, enum: ["automatic", "manual"], default: "automatic" },
+
     // Business Profile & Invoice Customization Fields
     tagline: { type: String, default: "" },
     address: { type: String, default: "" },

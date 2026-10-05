@@ -9,6 +9,7 @@ import SuperAdminSettingsScreen from "./pages/admin/SuperAdminSettingsScreen";
 import SubscriptionManagementScreen from "./pages/admin/SubscriptionManagementScreen";
 import AdminRolesScreen from "./pages/admin/AdminRolesScreen";
 import OffersCouponsScreen from "./pages/admin/OffersCouponsScreen";
+import RegionManagementScreen from "./pages/admin/RegionManagementScreen";
 import NotificationsScreen from "./pages/users/NotificationsScreen";
 import ProfileScreen from "./pages/settings/ProfileScreen";
 import { useCustomization } from "@shared/hooks/useCustomization";
@@ -147,6 +148,8 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
       case "businesses":
       case "vendors":
         return <BusinessesNew />;
+      case "regions":
+        return <RegionManagementScreen />;
       case "revenue":
         return <Revenue />;
       case "admin-role":

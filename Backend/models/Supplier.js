@@ -45,6 +45,25 @@ const supplierSchema = new mongoose.Schema(
       default: "",
     },
 
+    regionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Region",
+      default: null,
+      index: true,
+    },
+
+    region: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    regionAssignmentType: {
+      type: String,
+      enum: ["automatic", "manual"],
+      default: "automatic",
+    },
+
     address: {
       type: String,
       default: "",

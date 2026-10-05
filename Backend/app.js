@@ -31,6 +31,7 @@ import inventorySettingsRoutes from "./routes/inventorySettingsRoutes.js";
 import subscriptionPublicRoutes from "./routes/subscriptionPublicRoutes.js";
 import couponRoutes from "./routes/couponRoutes.js";
 import cashVoucherRoutes from "./routes/cashVoucherRoutes.js";
+import regionRoutes from "./routes/regionRoutes.js";
 
 import {
   securityHeaders,
@@ -145,9 +146,10 @@ app.use("/api/settings/inventory", inventorySettingsRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/admin/coupons", couponRoutes);
+app.use("/api/admin/subscription-plans", subscriptionPlanRoutes);
+app.use("/api/admin/regions", regionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/admin/subscription-plans", subscriptionPlanRoutes);
 app.use("/api/cash-vouchers", cashVoucherRoutes);
 
 app.get("/", (req, res) => {

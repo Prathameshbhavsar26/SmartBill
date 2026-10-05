@@ -29,7 +29,13 @@ export const resolveApiBaseUrl = () => {
   }
 
   if (!base) {
-    // If running in browser and origin is available, prefer same-origin /api if configured or fallback to backend URL
+    if (
+      typeof window !== "undefined" &&
+      window.location &&
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ) {
+      return "/api";
+    }
     return "https://smartbill-backend-tqf5.onrender.com/api";
   }
 

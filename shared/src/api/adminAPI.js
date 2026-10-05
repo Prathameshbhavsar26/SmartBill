@@ -100,6 +100,62 @@ export const adminAPI = {
     const res = await axiosClient.get(url);
     return res.data;
   },
+
+  /**
+   * Fetch all regions with summary stats
+   */
+  getRegions: async () => {
+    const res = await axiosClient.get("/admin/regions");
+    return res.data;
+  },
+
+  /**
+   * Fetch region-wise businesses & vendors with search and filters
+   */
+  getRegionData: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.regionId) query.append("regionId", params.regionId);
+    if (params.regionCode) query.append("regionCode", params.regionCode);
+    if (params.entityType) query.append("entityType", params.entityType);
+    if (params.search) query.append("search", params.search);
+    if (params.page) query.append("page", params.page);
+    if (params.limit) query.append("limit", params.limit);
+
+    const res = await axiosClient.get(`/admin/regions/data?${query.toString()}`);
+    return res.data;
+  },
+
+  /**
+   * Create a new region
+   */
+  createRegion: async (regionData) => {
+    const res = await axiosClient.post("/admin/regions", regionData);
+    return res.data;
+  },
+
+  /**
+   * Update an existing region
+   */
+  updateRegion: async (id, regionData) => {
+    const res = await axiosClient.put(`/admin/regions/${id}`, regionData);
+    return res.data;
+  },
+
+  /**
+   * Delete a region
+   */
+  deleteRegion: async (id) => {
+    const res = await axiosClient.delete(`/admin/regions/${id}`);
+    return res.data;
+  },
+
+  /**
+   * Assign a region to a business or vendor
+   */
+  assignRegion: async (payload) => {
+    const res = await axiosClient.post("/admin/regions/assign", payload);
+    return res.data;
+  },
 };
 
 export default adminAPI;

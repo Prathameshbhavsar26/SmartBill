@@ -107,6 +107,7 @@ export const NAV_GROUPS = [
 export const SUPER_ADMIN_ITEMS = [
   { key: "super-dashboard", label: "Overview", icon: LayoutDashboard },
   { key: "businesses", label: "Vendors", icon: Building2 },
+  { key: "regions", label: "Region Module", icon: Globe },
   { key: "revenue", label: "Revenue", icon: BarChart3 },
   { key: "admin-role", label: "Admin Role", icon: Shield },
   { key: "offers-coupons", label: "Offers & Coupons", icon: Tag },

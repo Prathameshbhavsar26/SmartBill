@@ -219,6 +219,10 @@ export function hasPermission(user, pageKey) {
       modResult = checkPerm("vendors") ?? checkPerm("businesses");
       break;
 
+    case "regions":
+      modResult = checkPerm("regions");
+      break;
+
     case "revenue":
       modResult = checkPerm("revenue");
       break;
