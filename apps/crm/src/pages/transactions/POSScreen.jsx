@@ -65,6 +65,7 @@ import {
   getCachedProducts,
 } from "@shared/utils/offlineDb";
 import POSInvoiceModal from "./pos/POSInvoiceModal";
+import SalesHistoryScreen from "./pos/SalesHistoryScreen";
 import { getTemplateConfig } from "@shared/components/invoice/templateConfigs";
 
 export default function POSScreen() {
@@ -186,6 +187,7 @@ export default function POSScreen() {
 
   const [search, setSearch] = useState("");
   const [showInvoice, setShowInvoice] = useState(false);
+  const [activeSalesView, setActiveSalesView] = useState("billing");
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1547,6 +1549,17 @@ export default function POSScreen() {
     );
   }
 
+  if (activeSalesView === "history") {
+    return (
+      <SalesHistoryScreen
+        onBack={() => setActiveSalesView("billing")}
+        activeBiz={activeBiz}
+        paymentSettings={paymentSettings}
+        invSettings={invSettings}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-5 min-h-[calc(100vh-120px)] lg:h-[calc(100vh-110px)] relative pb-16 lg:pb-0">
       {/* Success Notification */}
@@ -1654,6 +1667,16 @@ export default function POSScreen() {
                   {heldCarts.length}
                 </span>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSalesView("history")}
+              className="h-10 px-3.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+              title="View sales invoices"
+            >
+              <History className="w-4 h-4 text-slate-500" />
+              <span>Invoices</span>
             </button>
           </div>
         </div>
