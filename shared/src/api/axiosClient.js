@@ -172,11 +172,12 @@ axiosClient.interceptors.response.use(
 
       // Helper to check if current page is already an auth screen or public landing page
       const isPublicOrAuthPage = () => {
-        if (typeof window === "undefined" || !window.location) return false;
+        if (typeof window === "undefined" || !window.location) return true;
         const p = (window.location.pathname || "").toLowerCase();
         return (
           p.includes("/login") ||
           p.includes("/register") ||
+          p.includes("/signup") ||
           p.includes("/forgot") ||
           p === "/" ||
           p === "" ||
@@ -198,6 +199,8 @@ axiosClient.interceptors.response.use(
           reqUrl.includes("/health") ||
           reqUrl.includes("/coupons/") ||
           reqUrl.includes("/subscription-plans") ||
+          reqUrl.includes("/settings/accounting") ||
+          reqUrl.includes("/customization") ||
           reqUrl.includes("/public")
         );
       };

@@ -233,8 +233,17 @@ export function NotificationProvider({ children, onNav }) {
                   const isPublicOrAuth = typeof window !== "undefined" && window.location && (
                     window.location.pathname.includes("/login") ||
                     window.location.pathname.includes("/register") ||
+                    window.location.pathname.includes("/signup") ||
                     window.location.pathname.includes("/forgot") ||
-                    window.location.pathname === "/"
+                    window.location.pathname === "/" ||
+                    window.location.pathname.startsWith("/features") ||
+                    window.location.pathname.startsWith("/pricing") ||
+                    window.location.pathname.startsWith("/about") ||
+                    window.location.pathname.startsWith("/contact") ||
+                    window.location.pathname.startsWith("/blog") ||
+                    window.location.pathname.startsWith("/careers") ||
+                    window.location.pathname.startsWith("/help-center") ||
+                    window.location.pathname.startsWith("/status")
                   );
                   if (!isPublicOrAuth) {
                     window.location.href = "/login";
@@ -384,8 +393,17 @@ export function NotificationProvider({ children, onNav }) {
                 const isPublicOrAuthEvent = typeof window !== "undefined" && window.location && (
                   window.location.pathname.includes("/login") ||
                   window.location.pathname.includes("/register") ||
+                  window.location.pathname.includes("/signup") ||
                   window.location.pathname.includes("/forgot") ||
-                  window.location.pathname === "/"
+                  window.location.pathname === "/" ||
+                  window.location.pathname.startsWith("/features") ||
+                  window.location.pathname.startsWith("/pricing") ||
+                  window.location.pathname.startsWith("/about") ||
+                  window.location.pathname.startsWith("/contact") ||
+                  window.location.pathname.startsWith("/blog") ||
+                  window.location.pathname.startsWith("/careers") ||
+                  window.location.pathname.startsWith("/help-center") ||
+                  window.location.pathname.startsWith("/status")
                 );
                 if (!isPublicOrAuthEvent) {
                   window.location.href = "/login";
@@ -428,11 +446,14 @@ export function NotificationProvider({ children, onNav }) {
       }
     };
 
-    refresh();
-    connectSSE();
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("smartbill_token") : null;
+    if (token) {
+      refresh();
+      connectSSE();
+    }
 
     const pollInterval = setInterval(() => {
-      if (isSubscribed && localStorage.getItem("smartbill_token")) {
+      if (isSubscribed && typeof localStorage !== "undefined" && localStorage.getItem("smartbill_token")) {
         fetchNotificationsAPI()
           .then((res) => {
             if (res && Array.isArray(res.notifications)) {
@@ -449,13 +470,29 @@ export function NotificationProvider({ children, onNav }) {
     }, 8000);
 
     const handleAuthChange = () => {
-      refresh();
-      connectSSE();
+      const currentToken = typeof localStorage !== "undefined" ? localStorage.getItem("smartbill_token") : null;
+      if (currentToken) {
+        refresh();
+        connectSSE();
+      } else {
+        setNotifications([]);
+        setUnreadCount(0);
+        setConnected(false);
+        if (eventSourceRef.current) {
+          try { eventSourceRef.current.close(); } catch (_) {}
+        }
+      }
+    };
+
+    const handleFocus = () => {
+      if (typeof localStorage !== "undefined" && localStorage.getItem("smartbill_token")) {
+        refresh();
+      }
     };
 
     window.addEventListener("userUpdated", handleAuthChange);
     window.addEventListener("storage", handleAuthChange);
-    window.addEventListener("focus", refresh);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       isSubscribed = false;
@@ -470,7 +507,7 @@ export function NotificationProvider({ children, onNav }) {
       }
       window.removeEventListener("userUpdated", handleAuthChange);
       window.removeEventListener("storage", handleAuthChange);
-      window.removeEventListener("focus", refresh);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [refresh, onNav]);
 

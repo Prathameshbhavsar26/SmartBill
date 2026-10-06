@@ -12,20 +12,36 @@ export const AccountingProvider = ({ children }) => {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   
-  // You might want to trigger this only when auth is successful.
-  // We'll fetch on mount for now and handle errors silently if unauthenticated.
   useEffect(() => {
     fetchSettings();
+    const handleSync = () => {
+      fetchSettings();
+    };
+    window.addEventListener("userUpdated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("userUpdated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
   }, []);
 
   const fetchSettings = async () => {
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("smartbill_token") : null;
+    if (!token) {
+      setSettings({
+        baseCurrency: "INR (₹)",
+        numberFormat: "Indian",
+        decimalPlaces: 2
+      });
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const data = await getAccountingSettings();
       setSettings(data);
     } catch (error) {
-      console.warn("Could not load accounting settings", error);
-      // Fallback to defaults
+      // Fallback to defaults on error
       setSettings({
         baseCurrency: "INR (₹)",
         numberFormat: "Indian",
