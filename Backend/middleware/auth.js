@@ -56,7 +56,8 @@ export const authMiddleware = async (req, res, next) => {
       });
     }
 
-    if (dbUser.role !== "superadmin") {
+    const userNormRole = String(dbUser.role || "").toLowerCase().replace(/[-_\s]/g, "");
+    if (!["superadmin", "super_admin", "admin", "platformadmin", "platform_admin"].includes(userNormRole)) {
       const systemSettings = await SystemSettings.findOne({ key: "global_system_settings" }).lean();
       if (systemSettings?.maintenanceMode) {
         return res.status(403).json({

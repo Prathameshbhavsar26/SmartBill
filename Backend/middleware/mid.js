@@ -177,8 +177,16 @@ export const requirePermission = (moduleKey) => {
       return res.status(401).json({ message: "Authentication required." });
     }
 
-    // SuperAdmin and Owner always have full permission
-    if (req.user.role === "superadmin" || req.user.role === "owner") {
+    // SuperAdmin, Admin, and Owner always have full permission
+    const normRole = String(req.user.role || "").toLowerCase().replace(/[-_\s]/g, "");
+    if (
+      normRole === "superadmin" ||
+      normRole === "super_admin" ||
+      normRole === "admin" ||
+      normRole === "platformadmin" ||
+      normRole === "platform_admin" ||
+      normRole === "owner"
+    ) {
       return next();
     }
 
@@ -216,8 +224,15 @@ export const requireRole = (allowedRoles = []) => {
     }
     const userRole = String(req.user.role || "").toLowerCase().replace(/[-_\s]/g, "");
 
-    // Superadmin and owner always have full access
-    if (userRole === "superadmin" || userRole === "owner") {
+    // Superadmin, admin, and owner always have full access
+    if (
+      userRole === "superadmin" ||
+      userRole === "super_admin" ||
+      userRole === "admin" ||
+      userRole === "platformadmin" ||
+      userRole === "platform_admin" ||
+      userRole === "owner"
+    ) {
       return next();
     }
 

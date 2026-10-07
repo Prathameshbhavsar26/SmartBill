@@ -117,8 +117,26 @@ export function getUserPermissions(user) {
   if (!user) return { ...ROLE_DEFAULT_PERMISSIONS.Owner };
 
   const roleStr = String(user.role || "").toLowerCase().replace(/[-_\s]/g, "");
-  if (roleStr === "superadmin") {
-    return { ...ROLE_DEFAULT_PERMISSIONS.Owner };
+  if (
+    roleStr === "superadmin" ||
+    roleStr === "super_admin" ||
+    roleStr === "admin" ||
+    roleStr === "platformadmin" ||
+    roleStr === "platform_admin" ||
+    roleStr === "billingadmin" ||
+    roleStr === "supportadmin"
+  ) {
+    return {
+      ...ROLE_DEFAULT_PERMISSIONS.Owner,
+      regions: true,
+      businesses: true,
+      vendors: true,
+      revenue: true,
+      subscriptions: true,
+      "admin-role": true,
+      "offers-coupons": true,
+      settings: true,
+    };
   }
 
   if (isOwnerOrSuperAdmin(user)) {
