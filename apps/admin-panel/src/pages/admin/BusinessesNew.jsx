@@ -102,6 +102,7 @@ export default function BusinessesNew() {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [regionFilter, setRegionFilter] = useState("all");
+  const [selectedCityFilter, setSelectedCityFilter] = useState("all");
   const [regionsList, setRegionsList] = useState([]);
   const [vendorGrouping, setVendorGrouping] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: "joined", direction: "desc" });
@@ -400,6 +401,29 @@ export default function BusinessesNew() {
     return ["all", ...Array.from(set).sort()];
   }, [rows]);
 
+  const availableCities = useMemo(() => {
+    const cityMap = new Map();
+    rows.forEach((b) => {
+      if (regionFilter !== "all") {
+        const bRegion = String(b.region || "").trim().toLowerCase();
+        const bState = String(b.state || "").trim().toLowerCase();
+        const target = regionFilter.trim().toLowerCase();
+        if (regionFilter === "unassigned") {
+          if (b.region && b.region !== "Unassigned") return;
+        } else if (bRegion !== target && bState !== target) {
+          return;
+        }
+      }
+      const city = b.city ? String(b.city).trim() : (b.ownerCity ? String(b.ownerCity).trim() : "");
+      if (city && city.toLowerCase() !== "n/a") {
+        cityMap.set(city, (cityMap.get(city) || 0) + 1);
+      }
+    });
+    return Array.from(cityMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows, regionFilter]);
+
   const processedRows = useMemo(() => {
     let filtered = rows;
 
@@ -430,6 +454,15 @@ export default function BusinessesNew() {
           return bRegion === target || bState === target || bCity === target;
         });
       }
+    }
+
+    // 3. Filter by City
+    if (selectedCityFilter && selectedCityFilter !== "all") {
+      const targetCity = selectedCityFilter.trim().toLowerCase();
+      filtered = filtered.filter((b) => {
+        const bCity = String(b.city || b.ownerCity || "").trim().toLowerCase();
+        return bCity === targetCity;
+      });
     }
 
     // 2. Filter by Search (name, owner, email, phone, category, plan, status, city, state, gstin)
@@ -923,7 +956,10 @@ export default function BusinessesNew() {
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             <select
               value={regionFilter}
-              onChange={(e) => setRegionFilter(e.target.value)}
+              onChange={(e) => {
+                setRegionFilter(e.target.value);
+                setSelectedCityFilter("all");
+              }}
               className="pl-9 pr-8 py-2 text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-lg shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer text-slate-700"
             >
               <option value="all">🌍 All Regions ({rows.length})</option>
@@ -935,6 +971,25 @@ export default function BusinessesNew() {
               ))}
             </select>
           </div>
+
+          {/* City Filter Dropdown */}
+          {availableCities.length > 0 && (
+            <div className="relative flex-1 sm:flex-initial">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <select
+                value={selectedCityFilter}
+                onChange={(e) => setSelectedCityFilter(e.target.value)}
+                className="pl-9 pr-8 py-2 text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-lg shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer text-slate-700"
+              >
+                <option value="all">🏙️ All Cities ({availableCities.length})</option>
+                {availableCities.map((c) => (
+                  <option key={c.name} value={c.name}>
+                    📍 {c.name} ({c.count})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

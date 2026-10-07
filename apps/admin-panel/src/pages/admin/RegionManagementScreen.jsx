@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Globe,
   Plus,
@@ -39,6 +39,8 @@ export default function RegionManagementScreen() {
 
   // Active view filters
   const [selectedRegionCode, setSelectedRegionCode] = useState("all"); // 'all' | 'unassigned' | REGION_CODE
+  const [selectedState, setSelectedState] = useState("all");
+  const [selectedCity, setSelectedCity] = useState("all");
   const [entityType, setEntityType] = useState("all"); // 'all' | 'business' | 'vendor'
   const [activeTab, setActiveTab] = useState("entities"); // 'entities' | 'regions'
   const [searchQuery, setSearchQuery] = useState("");
@@ -128,6 +130,54 @@ export default function RegionManagementScreen() {
       setDataLoading(false);
     }
   }, [selectedRegionCode, entityType, searchQuery, page]);
+
+  // Extract unique states from entities
+  const availableStates = useMemo(() => {
+    const sMap = new Map();
+    entities.forEach((item) => {
+      if (item.state && String(item.state).trim()) {
+        const s = String(item.state).trim();
+        sMap.set(s, (sMap.get(s) || 0) + 1);
+      }
+    });
+    return Array.from(sMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [entities]);
+
+  // Extract unique cities (filtered by selected state if any)
+  const availableCities = useMemo(() => {
+    const cMap = new Map();
+    entities.forEach((item) => {
+      if (selectedState !== "all" && String(item.state || "").trim().toLowerCase() !== selectedState.toLowerCase()) {
+        return;
+      }
+      if (item.city && String(item.city).trim()) {
+        const c = String(item.city).trim();
+        cMap.set(c, (cMap.get(c) || 0) + 1);
+      }
+    });
+    return Array.from(cMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [entities, selectedState]);
+
+  // Filter entities by state and city
+  const displayEntities = useMemo(() => {
+    return entities.filter((item) => {
+      if (selectedState !== "all") {
+        if (!item.state || String(item.state).trim().toLowerCase() !== selectedState.toLowerCase()) {
+          return false;
+        }
+      }
+      if (selectedCity !== "all") {
+        if (!item.city || String(item.city).trim().toLowerCase() !== selectedCity.toLowerCase()) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [entities, selectedState, selectedCity]);
 
   useEffect(() => {
     fetchRegions();
@@ -461,37 +511,121 @@ export default function RegionManagementScreen() {
               </div>
             </div>
 
-            {/* Combined List Status & Search */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Combined Entity List ({pagination.total || (summary.totalBusinesses + summary.totalVendors)})
-                </span>
+            {/* State & City Filter Toolbar */}
+            <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-slate-100 dark:border-slate-800">
+              {/* State Filter Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-500">State:</span>
+                <select
+                  value={selectedState}
+                  onChange={(e) => {
+                    setSelectedState(e.target.value);
+                    setSelectedCity("all");
+                  }}
+                  className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="all">🏛️ All States ({availableStates.length})</option>
+                  {availableStates.map((s) => (
+                    <option key={s.name} value={s.name}>
+                      {s.name} ({s.count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* City Filter Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-500">City:</span>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="all">🏙️ All Cities ({availableCities.length})</option>
+                  {availableCities.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      📍 {c.name} ({c.count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Entity Type Selector */}
+              <div className="flex items-center gap-1.5 ml-auto">
+                <span className="text-xs font-bold text-slate-500">Type:</span>
+                <select
+                  value={entityType}
+                  onChange={(e) => {
+                    setEntityType(e.target.value);
+                    setPage(1);
+                  }}
+                  className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="all">👥 All (Businesses & Vendors)</option>
+                  <option value="business">🏢 Businesses Only</option>
+                  <option value="vendor">🚚 Vendors Only</option>
+                </select>
               </div>
 
               {/* Search input */}
-              <div className="relative w-full md:w-80">
+              <div className="relative w-full sm:w-64">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search name, email, phone, city..."
+                  placeholder="Search city, name, phone..."
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full pl-9 pr-8 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
+
+            {/* Quick City Filter Pills */}
+            {availableCities.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap">City Quick Filter:</span>
+                <button
+                  onClick={() => setSelectedCity("all")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    selectedCity === "all"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                  }`}
+                >
+                  All Cities ({availableCities.reduce((acc, c) => acc + c.count, 0)})
+                </button>
+                {availableCities.map((c) => {
+                  const isCityActive = selectedCity.toLowerCase() === c.name.toLowerCase();
+                  return (
+                    <button
+                      key={c.name}
+                      onClick={() => setSelectedCity(isCityActive ? "all" : c.name)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                        isCityActive
+                          ? "bg-indigo-600 text-white shadow-xs"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                      }`}
+                    >
+                      <span>📍 {c.name}</span>
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${isCityActive ? "bg-white/20 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"}`}>
+                        {c.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Region Entities Data Table */}
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
@@ -515,14 +649,14 @@ export default function RegionManagementScreen() {
                         Fetching region records...
                       </td>
                     </tr>
-                  ) : entities.length === 0 ? (
+                  ) : displayEntities.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-4 py-12 text-center text-slate-500">
-                        No businesses or vendors found for the selected region filter.
+                        No businesses or vendors found for the selected city and region filter.
                       </td>
                     </tr>
                   ) : (
-                    entities.map((item) => {
+                    displayEntities.map((item) => {
                       const isBusiness = item.entityType === "Business";
                       return (
                         <tr key={`${item.entityType}-${item.id}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
