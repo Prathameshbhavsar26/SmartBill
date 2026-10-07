@@ -21,6 +21,8 @@ import {
   Tag,
   Folder,
   Eye,
+  Globe,
+  MapPin,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@shared/components/ui/avatar";
@@ -99,6 +101,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export default function BusinessesNew() {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [regionFilter, setRegionFilter] = useState("all");
+  const [regionsList, setRegionsList] = useState([]);
   const [vendorGrouping, setVendorGrouping] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: "joined", direction: "desc" });
 
@@ -363,6 +367,18 @@ export default function BusinessesNew() {
   useEffect(() => {
     const controller = new AbortController();
     loadBusinesses(controller.signal);
+    
+    // Fetch regions list for the region filter dropdown
+    const fetchRegions = async () => {
+      try {
+        const res = await adminAPI.getRegions();
+        if (res?.success && Array.isArray(res.regions)) {
+          setRegionsList(res.regions);
+        }
+      } catch (_) {}
+    };
+    fetchRegions();
+
     return () => controller.abort(); // Cleanup on unmount / StrictMode double-invoke
   }, []);
 
@@ -397,6 +413,21 @@ export default function BusinessesNew() {
         filtered = filtered.filter((b) => {
           const cat = String(b.category || b.businessType || "Other").trim().toLowerCase();
           return cat === activeTab.toLowerCase();
+        });
+      }
+    }
+
+    // 2. Filter by Region / Territory
+    if (regionFilter && regionFilter !== "all") {
+      if (regionFilter === "unassigned") {
+        filtered = filtered.filter((b) => !b.region || b.region === "Unassigned" || b.region === "");
+      } else {
+        const target = regionFilter.trim().toLowerCase();
+        filtered = filtered.filter((b) => {
+          const bRegion = String(b.region || "").trim().toLowerCase();
+          const bState = String(b.state || "").trim().toLowerCase();
+          const bCity = String(b.city || "").trim().toLowerCase();
+          return bRegion === target || bState === target || bCity === target;
         });
       }
     }
@@ -572,6 +603,14 @@ export default function BusinessesNew() {
               <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-slate-400" /> {selectedDetailsBusiness.ownerEmail}</span>
               <span>•</span>
               <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> {selectedDetailsBusiness.ownerPhone || "N/A"}</span>
+              <span>•</span>
+              <span className="flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                <Globe className="w-3.5 h-3.5 text-indigo-600" /> {selectedDetailsBusiness.region || "Unassigned"}
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1 text-slate-600">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" /> {[selectedDetailsBusiness.city, selectedDetailsBusiness.state].filter(Boolean).join(", ") || "Location N/A"}
+              </span>
             </p>
           </div>
 
@@ -879,12 +918,30 @@ export default function BusinessesNew() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          {/* Region Filter Dropdown */}
+          <div className="relative flex-1 sm:flex-initial">
+            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <select
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              className="pl-9 pr-8 py-2 text-xs sm:text-sm font-semibold bg-white border border-slate-200 rounded-lg shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer text-slate-700"
+            >
+              <option value="all">🌍 All Regions ({rows.length})</option>
+              <option value="unassigned">⚠️ Unassigned Region</option>
+              {regionsList.map((r) => (
+                <option key={r._id || r.code} value={r.code}>
+                  📍 {r.name} ({r.code})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search businesses..."
+              placeholder="Search by name, owner, city, region..."
               className="pl-9 pr-4 py-2 w-full sm:w-72 text-sm bg-white border border-slate-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
             />
           </div>
@@ -1228,6 +1285,7 @@ export default function BusinessesNew() {
                           { label: "Business & Owner", key: "name", sortable: true },
                           { label: "Email", key: "ownerEmail", sortable: true },
                           { label: "Phone No", key: "ownerPhone", sortable: true },
+                          { label: "Region / Location", key: "region", sortable: true },
                           { label: "Plan", key: "plan", sortable: true },
                           { label: "Joined", key: "joined", sortable: true },
                           { label: "Users", key: "users", sortable: true },
@@ -1331,6 +1389,21 @@ export default function BusinessesNew() {
                                 <span>{b.ownerPhone || "-"}</span>
                               </div>
                             </td>
+                            <td className="px-4 py-3 text-sm">
+                              <div className="flex flex-col gap-1">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold w-fit ${
+                                  b.region && b.region !== "Unassigned"
+                                    ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                    : "bg-slate-100 text-slate-500 border border-slate-200"
+                                }`}>
+                                  {b.region || "Unassigned"}
+                                </span>
+                                <span className="text-[11px] text-slate-500 flex items-center gap-1 truncate max-w-[150px]" title={[b.city, b.state].filter(Boolean).join(", ")}>
+                                  <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                  {[b.city, b.state].filter(Boolean).join(", ") || "Location N/A"}
+                                </span>
+                              </div>
+                            </td>
                             <td className="px-4 py-3">
                               <Badge label={b.plan} variant={planToVariant(b.plan)} />
                             </td>
@@ -1384,6 +1457,7 @@ export default function BusinessesNew() {
                     { label: "Business & Owner", key: "name", sortable: true },
                     { label: "Email", key: "ownerEmail", sortable: true },
                     { label: "Phone No", key: "ownerPhone", sortable: true },
+                    { label: "Region / Location", key: "region", sortable: true },
                     { label: "Plan", key: "plan", sortable: true },
                     { label: "Joined", key: "joined", sortable: true },
                     { label: "Users", key: "users", sortable: true },
@@ -1485,6 +1559,21 @@ export default function BusinessesNew() {
                         <div className="flex items-center gap-1.5">
                           <Phone className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                           <span>{b.ownerPhone || "-"}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold w-fit ${
+                            b.region && b.region !== "Unassigned"
+                              ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              : "bg-slate-100 text-slate-500 border border-slate-200"
+                          }`}>
+                            {b.region || "Unassigned"}
+                          </span>
+                          <span className="text-[11px] text-slate-500 flex items-center gap-1 truncate max-w-[150px]" title={[b.city, b.state].filter(Boolean).join(", ")}>
+                            <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                            {[b.city, b.state].filter(Boolean).join(", ") || "Location N/A"}
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
