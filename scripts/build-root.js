@@ -107,5 +107,25 @@ if (fs.existsSync(path.join(distDir, "admin"))) {
 }
 console.log(" ✓ Generated routing _redirects for Render, Netlify, and Cloudflare Pages");
 
+// 6. Generate _headers file for ultra-fast Edge CDN caching (Netlify, Cloudflare Pages, Render)
+const rootHeaders = [
+  "/assets/*",
+  "  Cache-Control: public, max-age=31536000, immutable",
+  "/*.ico",
+  "  Cache-Control: public, max-age=604800, stale-while-revalidate=86400",
+  "/*.png",
+  "  Cache-Control: public, max-age=604800, stale-while-revalidate=86400",
+  "/*.svg",
+  "  Cache-Control: public, max-age=604800, stale-while-revalidate=86400",
+  "/*",
+  "  X-Content-Type-Options: nosniff",
+  "  X-Frame-Options: SAMEORIGIN",
+  "  X-XSS-Protection: 1; mode=block",
+].join("\n");
+
+fs.writeFileSync(path.join(distDir, "_headers"), rootHeaders, "utf8");
+console.log(" ✓ Generated performance caching _headers for CDN & static hosts");
+
 console.log("[BUILD-ROOT] Unified production bundle created successfully in dist/.");
+
 

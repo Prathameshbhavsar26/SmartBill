@@ -11,7 +11,27 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@shared': path.resolve(__dirname, '../../shared/src')
     },
-    extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx','.json']
+    extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.json']
+  },
+  build: {
+    minify: 'esbuild',
+    cssMinify: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'vendor-react';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+          }
+        }
+      }
+    }
   },
   server: {
     host: true,

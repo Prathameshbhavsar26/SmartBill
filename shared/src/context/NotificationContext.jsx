@@ -452,8 +452,20 @@ export function NotificationProvider({ children, onNav }) {
       connectSSE();
     }
 
+    // Intelligent background sync: only poll periodically if tab is visible and SSE is not actively streaming
     const pollInterval = setInterval(() => {
-      if (isSubscribed && typeof localStorage !== "undefined" && localStorage.getItem("smartbill_token")) {
+      if (
+        isSubscribed &&
+        typeof document !== "undefined" &&
+        !document.hidden &&
+        typeof localStorage !== "undefined" &&
+        localStorage.getItem("smartbill_token")
+      ) {
+        // If SSE is fully connected and ready, skip frequent polling to save CPU and network
+        if (eventSourceRef.current && eventSourceRef.current.readyState === 1) {
+          return;
+        }
+
         fetchNotificationsAPI()
           .then((res) => {
             if (res && Array.isArray(res.notifications)) {
@@ -467,7 +479,7 @@ export function NotificationProvider({ children, onNav }) {
           })
           .catch(() => {});
       }
-    }, 8000);
+    }, 20000);
 
     const handleAuthChange = () => {
       const currentToken = typeof localStorage !== "undefined" ? localStorage.getItem("smartbill_token") : null;

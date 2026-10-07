@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import "dotenv/config";
 import dns from "node:dns";
 import mongoose from "mongoose";
@@ -42,6 +43,9 @@ import {
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
+
+// Enable Gzip / Brotli payload compression for ultra-fast API data transfer
+app.use(compression());
 
 // Trust reverse proxy (needed for accurate IP rate limiting on Vercel / Render / Railway / Cloudflare)
 app.set("trust proxy", 1);

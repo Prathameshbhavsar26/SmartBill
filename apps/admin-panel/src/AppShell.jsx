@@ -1,24 +1,35 @@
-import { useState, useEffect } from "react";
-import Revenue from "./pages/admin/Revenue";
-import BusinessesNew from "./pages/admin/BusinessesNew";
+import { useState, useEffect, lazy, Suspense } from "react";
 import Sidebar from "@shared/layouts/Sidebar";
 import Topbar from "@shared/layouts/Topbar";
 import TrialBanner from "@shared/components/common/TrialBanner";
-import SuperAdminDashboard from "./pages/dashboard/SuperAdminDashboard";
-import SuperAdminSettingsScreen from "./pages/admin/SuperAdminSettingsScreen";
-import SubscriptionManagementScreen from "./pages/admin/SubscriptionManagementScreen";
-import AdminRolesScreen from "./pages/admin/AdminRolesScreen";
-import OffersCouponsScreen from "./pages/admin/OffersCouponsScreen";
-import RegionManagementScreen from "./pages/admin/RegionManagementScreen";
-import NotificationsScreen from "./pages/users/NotificationsScreen";
-import ProfileScreen from "./pages/settings/ProfileScreen";
 import { useCustomization } from "@shared/hooks/useCustomization";
 import { useLowStock } from "@shared/hooks/useLowStock";
 import { useNotifications } from "@shared/hooks/useNotifications";
 import { Toaster } from "sonner";
-import { AlertTriangle, X, ShoppingCart, TrendingDown, ShieldAlert, Info } from "lucide-react";
+import { AlertTriangle, X, ShoppingCart, TrendingDown, ShieldAlert, Info, Loader2 } from "lucide-react";
 import { hasPermission } from "@shared/utils/permissions";
 import ErrorBoundary from "@shared/components/common/ErrorBoundary";
+
+// Lazy-loaded SuperAdmin screens for fast initial bundle delivery
+const SuperAdminDashboard = lazy(() => import("./pages/dashboard/SuperAdminDashboard"));
+const BusinessesNew = lazy(() => import("./pages/admin/BusinessesNew"));
+const RegionManagementScreen = lazy(() => import("./pages/admin/RegionManagementScreen"));
+const Revenue = lazy(() => import("./pages/admin/Revenue"));
+const AdminRolesScreen = lazy(() => import("./pages/admin/AdminRolesScreen"));
+const OffersCouponsScreen = lazy(() => import("./pages/admin/OffersCouponsScreen"));
+const SubscriptionManagementScreen = lazy(() => import("./pages/admin/SubscriptionManagementScreen"));
+const SuperAdminSettingsScreen = lazy(() => import("./pages/admin/SuperAdminSettingsScreen"));
+const NotificationsScreen = lazy(() => import("./pages/users/NotificationsScreen"));
+const ProfileScreen = lazy(() => import("./pages/settings/ProfileScreen"));
+
+function PageLoadingFallback() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] w-full gap-3 text-slate-500 dark:text-slate-400">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <p className="text-sm font-medium animate-pulse">Loading admin module...</p>
+    </div>
+  );
+}
 
 function LowStockAlert({ lowStockItems, outOfStockItems, globalThreshold, onClose, onNav }) {
   const total = lowStockItems.length + outOfStockItems.length;
@@ -200,7 +211,9 @@ export default function AppShell({ role, user, onLogout, page, onNav }) {
         <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col min-w-0">
           <div className="flex-1 min-w-0">
             <ErrorBoundary key={page}>
-              {renderPage()}
+              <Suspense fallback={<PageLoadingFallback />}>
+                {renderPage()}
+              </Suspense>
             </ErrorBoundary>
           </div>
         </main>
