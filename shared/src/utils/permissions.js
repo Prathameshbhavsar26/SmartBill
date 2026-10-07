@@ -160,8 +160,17 @@ export function getUserPermissions(user) {
 export function hasPermission(user, pageKey) {
   if (!user) return true;
   const roleStr = String(user.role || "").toLowerCase().replace(/[-_\s]/g, "");
-
-  if (roleStr === "superadmin") return true;
+  if (
+    roleStr === "superadmin" ||
+    roleStr === "admin" ||
+    roleStr === "super_admin" ||
+    roleStr === "platformadmin" ||
+    roleStr === "platform_admin" ||
+    roleStr === "billingadmin" ||
+    roleStr === "supportadmin"
+  ) {
+    return true;
+  }
 
   // Always accessible core pages across all roles
   if (

@@ -1,25 +1,24 @@
 async function main() {
-  const urls = [
-    "https://smartbill-pos-beige.vercel.app/",
-    "https://smartbill-pos-beige.vercel.app/admin",
-    "https://smartbill-pos-beige.vercel.app/app",
-    "https://smartbill-pos-beige.vercel.app/crm",
-    "https://smartbill-crm.vercel.app",
-    "https://smartbill-admin.vercel.app",
-    "https://smartbill-landing.vercel.app",
-    "https://smartbill-backend-tqf5.onrender.com/health"
+  const domains = [
+    "https://smartbill-pos.vercel.app",
+    "https://smartbill-pos-beige.vercel.app",
+    "https://smartbill.vercel.app"
   ];
-  for (const u of urls) {
-    try {
-      const r = await fetch(u, { headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" } });
-      const text = await r.text();
-      const scripts = [...text.matchAll(/src=["']([^"']+)["']/g)].map(m => m[1]);
-      console.log("=== " + u + " ===");
-      console.log("Status:", r.status, "Age:", r.headers.get("age"), "x-vercel-id:", r.headers.get("x-vercel-id") || "none");
-      console.log("Scripts:", scripts);
-    } catch (e) {
-      console.log("=== " + u + " ===");
-      console.log("Error:", e.message);
+  
+  const paths = ["", "/admin", "/app", "/crm"];
+
+  for (const domain of domains) {
+    console.log(`\n================== ${domain} ==================`);
+    for (const path of paths) {
+      const url = domain + path;
+      try {
+        const r = await fetch(url, { headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" } });
+        const text = await r.text();
+        const scripts = [...text.matchAll(/src=["']([^"']+)["']/g)].map(m => m[1]);
+        console.log(`${url} => Status: ${r.status} | Age: ${r.headers.get("age")} | Scripts: ${JSON.stringify(scripts)}`);
+      } catch (e) {
+        console.log(`${url} => Error: ${e.message}`);
+      }
     }
   }
 }
