@@ -67,10 +67,10 @@ export default function PublicNavbar({ onNav }) {
           </div>
 
           {/* Desktop Right Action Buttons */}
-          <div className="hidden md:flex items-center gap-3 flex-shrink-0">
+          <div className="hidden md:flex items-center gap-2.5 flex-shrink-0">
             {currentUser ? (
-              isSuperAdmin ? (
-                <>
+              <>
+                {isSuperAdmin ? (
                   <a
                     href={getAdminUrl("/admin")}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
@@ -78,9 +78,7 @@ export default function PublicNavbar({ onNav }) {
                     <ShieldCheck className="w-4 h-4" />
                     <span>Open SuperAdmin Panel</span>
                   </a>
-                </>
-              ) : (
-                <>
+                ) : (
                   <a
                     href={getCrmUrl("/app")}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
@@ -88,8 +86,21 @@ export default function PublicNavbar({ onNav }) {
                     <Store className="w-4 h-4" />
                     <span>Go to Dashboard</span>
                   </a>
-                </>
-              )
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.removeItem("smartbill_token");
+                    localStorage.removeItem("smartbill_user");
+                    setCurrentUser(null);
+                    handleAuthNav("login");
+                  }}
+                  className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </>
             ) : (
               <>
                 <Btn 
