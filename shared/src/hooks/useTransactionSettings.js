@@ -22,6 +22,12 @@ export const DEFAULT_TRANSACTION_SETTINGS = {
   cashDiscountPercent: "0",
   showPrintPreview: true,
   printAfterSaving: false,
+
+  // 4. Sales Returns & Refunds
+  restoreStockAfterReturn: true,
+  allowPartialReturn: true,
+  requireReturnPasscode: false,
+  allowReturnWithoutInvoice: false,
 };
 
 function getStorageKey() {

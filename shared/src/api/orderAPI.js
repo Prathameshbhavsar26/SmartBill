@@ -35,6 +35,14 @@ export const recordOrderPayment = (id, payload) =>
   axiosClient.post(`/orders/${id}/payment`, payload).then((res) => res.data);
 
 /**
+ * Process a sales return / refund (by orderId or invoiceNo).
+ * @param {object} payload
+ * @returns {{ message: string, returnStatus: string, refundAmount: number, restoredStock: boolean, order?: object }}
+ */
+export const createOrderReturn = (payload) =>
+  axiosClient.post("/orders/return", payload).then((res) => res.data);
+
+/**
  * Process a sales return / credit note against an invoice.
  * @param {string} id
  * @param {{ returnedItems: Array, refundAmount?: number, refundMode?: string, reason?: string, returnDate?: string }} payload

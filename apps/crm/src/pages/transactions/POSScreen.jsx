@@ -49,7 +49,7 @@ import {
 } from "lucide-react";
 import { fmt } from "@shared/utils/format";
 import { Badge, Btn, Card, Input, Select, Modal, StepperInput, GST_RATES } from "@shared/components/common/ui";
-import { createOrder } from "@shared/api/orderAPI";
+import { createOrder, createOrderReturn, fetchOrders } from "@shared/api/orderAPI";
 import { fetchCustomers, createCustomer } from "@shared/api/customerAPI";
 import { getProducts } from "@shared/api/productAPI";
 import { getInvoiceSettings } from "@shared/api/invoiceSettingsAPI";
@@ -221,6 +221,23 @@ export default function POSScreen() {
     }
   });
   const [showHeldModal, setShowHeldModal] = useState(false);
+
+  // Sales Returns & Refunds state
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnModalTab, setReturnModalTab] = useState("process"); // "process" | "history"
+  const [returnHistorySearch, setReturnHistorySearch] = useState("");
+
+  const [pastOrders, setPastOrders] = useState([]);
+  const [returnInvoiceNo, setReturnInvoiceNo] = useState("");
+  const [selectedReturnOrder, setSelectedReturnOrder] = useState(null);
+  const [returnItems, setReturnItems] = useState([]);
+  const [returnPasscode, setReturnPasscode] = useState("");
+  const [showReturnPasscode, setShowReturnPasscode] = useState(false);
+  const [returnReason, setReturnReason] = useState("Customer Return");
+  const [returnPaymentMode, setReturnPaymentMode] = useState("Cash");
+  const [processingReturn, setProcessingReturn] = useState(false);
+  const [returnError, setReturnError] = useState("");
+  const [manualReturnProduct, setManualReturnProduct] = useState("");
 
   // Sync held carts to localStorage
   useEffect(() => {
@@ -443,6 +460,15 @@ export default function POSScreen() {
       .then((res) => {
         const list = Array.isArray(res?.customers) ? res.customers : Array.isArray(res) ? res : [];
         setCustomers(list);
+      })
+      .catch(console.warn);
+
+    // Load past orders for sales return lookup
+    fetchOrders({ limit: 50 })
+      .then((res) => {
+        if (res && Array.isArray(res.orders)) {
+          setPastOrders(res.orders);
+        }
       })
       .catch(console.warn);
 
@@ -1469,6 +1495,102 @@ export default function POSScreen() {
     }
   }, [cart.length]);
 
+  // Load past orders for sales returns
+  const loadPastOrders = useCallback(async () => {
+    try {
+      const res = await fetchOrders({ limit: 50 });
+      if (res && Array.isArray(res.orders)) {
+        setPastOrders(res.orders);
+      }
+    } catch (err) {
+      console.warn("Failed to load past orders for return:", err);
+    }
+  }, []);
+
+  const handleOpenReturnModal = () => {
+    setShowReturnModal(true);
+    setReturnModalTab("process");
+    setReturnHistorySearch("");
+    setReturnError("");
+    setReturnInvoiceNo("");
+    setSelectedReturnOrder(null);
+    setReturnItems([]);
+    setReturnPasscode("");
+    loadPastOrders();
+  };
+
+  const handleSelectOrderForReturn = (order) => {
+    setSelectedReturnOrder(order);
+    setReturnInvoiceNo(order.invoiceNo || "");
+    const initialItems = (order.items || []).map((it) => ({
+      productId: it.productId,
+      name: it.name,
+      sku: it.sku,
+      price: it.price,
+      qty: it.qty,
+      returnQty: it.qty,
+      selected: true,
+    }));
+    setReturnItems(initialItems);
+  };
+
+  const handleProcessSalesReturn = async () => {
+    setReturnError("");
+    setProcessingReturn(true);
+
+    try {
+      const activeItemsToReturn = returnItems
+        .filter((it) => it.selected && Number(it.returnQty) > 0)
+        .map((it) => ({
+          productId: it.productId,
+          name: it.name,
+          sku: it.sku,
+          price: Number(it.price) || 0,
+          qty: Number(it.returnQty),
+          amount: (Number(it.price) || 0) * Number(it.returnQty),
+        }));
+
+      if (activeItemsToReturn.length === 0) {
+        setReturnError("Please select at least one item and quantity to return.");
+        setProcessingReturn(false);
+        return;
+      }
+
+      const totalRefund = activeItemsToReturn.reduce(
+        (sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1),
+        0
+      );
+
+      const payload = {
+        orderId: selectedReturnOrder?._id,
+        invoiceNo: returnInvoiceNo.trim(),
+        items: activeItemsToReturn,
+        reason: returnReason,
+        refundAmount: totalRefund,
+        paymentMode: returnPaymentMode,
+        passcode: returnPasscode,
+      };
+
+      const res = await createOrderReturn(payload);
+
+      setShowReturnModal(false);
+
+      showToast(
+        `✓ Sales Return processed! Refund: ${fmt(res.refundAmount || totalRefund)}${
+          res.restoredStock ? " (Stock restored)" : ""
+        }`
+      );
+      loadProductsList();
+      loadPastOrders();
+    } catch (err) {
+      setReturnError(
+        err?.response?.data?.message || err?.message || "Failed to process sales return."
+      );
+    } finally {
+      setProcessingReturn(false);
+    }
+  };
+
   // Global Keyboard Hotkeys Listener (F2, F4, F8, F7, Esc, F1)
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
@@ -1492,7 +1614,13 @@ export default function POSScreen() {
         setShowHeldModal((prev) => !prev);
       } else if (e.key === "Escape") {
         e.preventDefault();
-        if (showHeldModal) {
+        if (showReturnInvoiceModal) {
+          setShowReturnInvoiceModal(false);
+        } else if (selectedInvoiceForView) {
+          setSelectedInvoiceForView(null);
+        } else if (showReturnModal) {
+          setShowReturnModal(false);
+        } else if (showHeldModal) {
           setShowHeldModal(false);
         } else if (paymentModalOpen) {
           setPaymentModalOpen(false);
@@ -1561,7 +1689,8 @@ export default function POSScreen() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-5 min-h-[calc(100vh-120px)] lg:h-[calc(100vh-110px)] relative pb-16 lg:pb-0">
+    <div className="flex flex-col gap-3 min-h-[calc(100vh-120px)] relative pb-16 lg:pb-0">
+      <div className="flex flex-col lg:flex-row gap-5 min-h-[calc(100vh-180px)] lg:h-[calc(100vh-165px)] relative">
       {/* Success Notification */}
       {successToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-xs font-semibold animate-in fade-in max-w-[90vw] text-center">
@@ -1649,24 +1778,15 @@ export default function POSScreen() {
               <span>Scan Barcode</span>
             </button>
 
-            {/* Held Bills Button */}
+            {/* Sales Return Button */}
             <button
               type="button"
-              onClick={() => setShowHeldModal(true)}
-              className={`h-10 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer shadow-2xs whitespace-nowrap active:scale-95 border ${
-                heldCarts.length > 0
-                  ? "border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
-                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-              }`}
-              title="Parked / Held Bills"
+              onClick={handleOpenReturnModal}
+              className="h-10 px-3.5 bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer shadow-2xs whitespace-nowrap active:scale-95"
+              title="Process Sales Return & Customer Refund"
             >
-              <PauseCircle className={`w-4 h-4 ${heldCarts.length > 0 ? "text-amber-500 animate-pulse" : "text-slate-400"}`} />
-              <span>Held Bills</span>
-              {heldCarts.length > 0 && (
-                <span className="px-1.5 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-black leading-none shadow-2xs">
-                  {heldCarts.length}
-                </span>
-              )}
+              <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              <span>Sales Return</span>
             </button>
 
             <button
@@ -1917,6 +2037,26 @@ export default function POSScreen() {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {/* Held / Parked Bills Button */}
+              <button
+                type="button"
+                onClick={() => setShowHeldModal(true)}
+                className={`text-[10px] flex items-center gap-1 px-2 py-1 rounded-lg transition-all font-bold cursor-pointer border shadow-2xs ${
+                  heldCarts.length > 0
+                    ? "border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200"
+                    : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                }`}
+                title="View Held / Parked Bills"
+              >
+                <PauseCircle className={`w-3.5 h-3.5 ${heldCarts.length > 0 ? "text-amber-500 animate-pulse" : "text-slate-400"}`} />
+                <span>Held Bills</span>
+                {heldCarts.length > 0 && (
+                  <span className="px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[9px] font-black leading-none ml-0.5">
+                    {heldCarts.length}
+                  </span>
+                )}
+              </button>
+
               {cart.length > 0 && (
                 <>
                   <button
@@ -3092,6 +3232,568 @@ export default function POSScreen() {
         </Modal>
       )}
 
+      {/* ── SALES RETURN MODAL WITH PROCESS & HISTORY TABS ── */}
+      {showReturnModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200 dark:border-rose-900/40">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                    <span>Sales Returns & Refunds</span>
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                      बिक्री वापसी
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Select invoice items to return, restore stock, and process customer refunds.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowReturnModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Top Tabs */}
+            <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => setReturnModalTab("process")}
+                className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                  returnModalTab === "process"
+                    ? "bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Process New Return</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setReturnModalTab("history");
+                  loadPastOrders();
+                }}
+                className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                  returnModalTab === "history"
+                    ? "bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Return History (वापसी इतिहास)</span>
+                {pastOrders.filter((o) => (o.returnStatus && o.returnStatus !== "None") || (o.refundAmount || 0) > 0).length > 0 && (
+                  <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 rounded-full text-[10px] font-mono font-bold">
+                    {pastOrders.filter((o) => (o.returnStatus && o.returnStatus !== "None") || (o.refundAmount || 0) > 0).length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin">
+              {returnModalTab === "process" ? (
+                /* Tab 1: Process Return */
+                <div className="space-y-4 max-w-2xl mx-auto py-1">
+                  {/* Return Settings Summary Badge */}
+                  <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap gap-3 justify-between border border-slate-100 dark:border-slate-800">
+                    <span>
+                      Stock Restoral:{" "}
+                      <strong className="text-emerald-600 dark:text-emerald-400">
+                        {txSettings?.restoreStockAfterReturn !== false
+                          ? "Automatic (+Stock Restored)"
+                          : "Disabled"}
+                      </strong>
+                    </span>
+                    <span>
+                      Partial Return:{" "}
+                      <strong className="text-blue-600 dark:text-blue-400">
+                        {txSettings?.allowPartialReturn !== false ? "Allowed" : "Full Only"}
+                      </strong>
+                    </span>
+                    <span>
+                      Passcode Guard:{" "}
+                      <strong className="text-amber-600 dark:text-amber-400">
+                        {txSettings?.requireReturnPasscode ? "Required" : "Not Required"}
+                      </strong>
+                    </span>
+                  </div>
+
+                  {/* Search Invoice Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Search Invoice / Bill Number
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. INV/26-27-0001 or customer name..."
+                        value={returnInvoiceNo}
+                        onChange={(e) => setReturnInvoiceNo(e.target.value)}
+                        className="flex-1 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                      <Btn
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const q = returnInvoiceNo.trim().toLowerCase();
+                          const match = pastOrders.find(
+                            (o) =>
+                              (o.invoiceNo && o.invoiceNo.toLowerCase() === q) ||
+                              (o.customerName && o.customerName.toLowerCase().includes(q))
+                          );
+                          if (match) {
+                            handleSelectOrderForReturn(match);
+                            setReturnError("");
+                          } else {
+                            setReturnError("No bill found matching this invoice number.");
+                          }
+                        }}
+                      >
+                        Find Bill
+                      </Btn>
+                    </div>
+                  </div>
+
+                  {/* Quick Pick from Past Orders */}
+                  {!selectedReturnOrder && pastOrders.length > 0 && (
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        Recent Invoices (Click to load items):
+                      </label>
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                        {pastOrders.slice(0, 8).map((o) => (
+                          <button
+                            key={o._id || o.invoiceNo}
+                            type="button"
+                            onClick={() => handleSelectOrderForReturn(o)}
+                            className="text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:border-rose-300 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 font-mono transition cursor-pointer flex items-center gap-1.5"
+                          >
+                            <span className="font-bold">{o.invoiceNo}</span>
+                            <span className="text-slate-400">•</span>
+                            <span>{fmt(o.totalOrderValue || o.totalAmount || 0)}</span>
+                            {o.customerName && (
+                              <span className="text-[10px] text-slate-500 truncate max-w-[80px]">
+                                ({o.customerName})
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Direct product return if allowReturnWithoutInvoice is true */}
+                  {!selectedReturnOrder && txSettings?.allowReturnWithoutInvoice && (
+                    <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Or Add Direct Item to Return (No Invoice Mode)
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={manualReturnProduct}
+                          onChange={(e) => setManualReturnProduct(e.target.value)}
+                          className="flex-1 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-white"
+                        >
+                          <option value="">Select product to return...</option>
+                          {productList.map((p) => (
+                            <option key={p._id || p.id} value={p._id || p.id}>
+                              {p.name} ({p.sku || "No SKU"}) - {fmt(p.price)}
+                            </option>
+                          ))}
+                        </select>
+                        <Btn
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const prod = productList.find(
+                              (p) => (p._id || p.id) === manualReturnProduct
+                            );
+                            if (prod) {
+                              setReturnItems((prev) => [
+                                ...prev,
+                                {
+                                  productId: prod._id || prod.id,
+                                  name: prod.name,
+                                  sku: prod.sku,
+                                  price: prod.price,
+                                  qty: 1,
+                                  returnQty: 1,
+                                  selected: true,
+                                },
+                              ]);
+                              setManualReturnProduct("");
+                            }
+                          }}
+                        >
+                          Add
+                        </Btn>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Items list for Return */}
+                  {returnItems.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          Select Items & Quantities to Return:
+                        </p>
+                        {selectedReturnOrder && (
+                          <span className="text-[11px] font-mono text-blue-600 dark:text-blue-400 font-semibold">
+                            Invoice: {selectedReturnOrder.invoiceNo}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {returnItems.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs border border-slate-200 dark:border-slate-700"
+                          >
+                            <div className="flex items-center gap-2">
+                              {txSettings?.allowPartialReturn !== false && (
+                                <input
+                                  type="checkbox"
+                                  checked={item.selected}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setReturnItems((prev) =>
+                                      prev.map((it, i) =>
+                                        i === idx ? { ...it, selected: checked } : it
+                                      )
+                                    );
+                                  }}
+                                  className="rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                                />
+                              )}
+                              <div>
+                                <p className="font-semibold text-slate-900 dark:text-white">
+                                  {item.name}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-mono">
+                                  Rate: {fmt(item.price)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-slate-500">Return Qty:</span>
+                              {txSettings?.allowPartialReturn !== false ? (
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={item.qty || 999}
+                                  value={item.returnQty}
+                                  onChange={(e) => {
+                                    const val = Math.max(1, Number(e.target.value) || 1);
+                                    setReturnItems((prev) =>
+                                      prev.map((it, i) =>
+                                        i === idx ? { ...it, returnQty: val } : it
+                                      )
+                                    );
+                                  }}
+                                  className="w-16 border border-slate-300 rounded-lg px-1.5 py-0.5 text-xs font-mono font-bold text-right dark:bg-slate-900 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-rose-500"
+                                />
+                              ) : (
+                                <span className="font-mono font-bold text-slate-900 dark:text-white">
+                                  {item.qty || 1} (Full)
+                                </span>
+                              )}
+                              <span className="font-mono font-extrabold text-rose-600 min-w-[65px] text-right">
+                                {fmt((item.price || 0) * (item.returnQty || 1))}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Passcode input if requireReturnPasscode is enabled */}
+                  {txSettings?.requireReturnPasscode && (
+                    <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-amber-600" />
+                        Authorization Passcode / Password (Required)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showReturnPasscode ? "text" : "password"}
+                          value={returnPasscode}
+                          onChange={(e) => setReturnPasscode(e.target.value)}
+                          placeholder="Enter password or manager PIN..."
+                          className="w-full border border-amber-300 bg-amber-50/40 rounded-xl px-3 py-2 pr-10 text-xs outline-none focus:ring-2 focus:ring-amber-500 font-mono text-slate-900"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowReturnPasscode(!showReturnPasscode)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-600/70 hover:text-amber-700 focus:outline-none cursor-pointer"
+                          tabIndex="-1"
+                        >
+                          {showReturnPasscode ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reason & Refund Mode */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Return Reason
+                      </label>
+                      <input
+                        type="text"
+                        value={returnReason}
+                        onChange={(e) => setReturnReason(e.target.value)}
+                        placeholder="Customer Return / Defect / Exchange..."
+                        className="w-full border border-slate-300 dark:border-slate-700 dark:bg-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Refund Method
+                      </label>
+                      <select
+                        value={returnPaymentMode}
+                        onChange={(e) => setReturnPaymentMode(e.target.value)}
+                        className="w-full border border-slate-300 dark:border-slate-700 dark:bg-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-white"
+                      >
+                        {["Cash", "UPI", "Bank Transfer", "Credit Note"].map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {returnError && (
+                    <div className="text-xs text-rose-600 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 p-2.5 rounded-xl font-medium">
+                      {returnError}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <Btn
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowReturnModal(false)}
+                    >
+                      Cancel
+                    </Btn>
+                    <Btn
+                      variant="danger"
+                      size="md"
+                      onClick={handleProcessSalesReturn}
+                      disabled={processingReturn || returnItems.length === 0}
+                    >
+                      {processingReturn ? "Processing..." : "Confirm & Process Return"}
+                    </Btn>
+                  </div>
+                </div>
+              ) : (
+                /* Tab 2: Return History */
+                <div className="space-y-3">
+                  {/* Search Bar */}
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={returnHistorySearch}
+                        onChange={(e) => setReturnHistorySearch(e.target.value)}
+                        placeholder="Search returns by invoice no, customer name or phone..."
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500/20"
+                      />
+                    </div>
+                    <Btn
+                      variant="outline"
+                      size="sm"
+                      onClick={loadPastOrders}
+                      icon={<RefreshCw className="w-3.5 h-3.5" />}
+                    >
+                      Refresh
+                    </Btn>
+                  </div>
+
+                  {(() => {
+                    const returnedOrders = pastOrders.filter((o) => {
+                      const hasReturn =
+                        (o.returnStatus && o.returnStatus !== "None") ||
+                        (Array.isArray(o.salesReturns) && o.salesReturns.length > 0) ||
+                        (Number(o.refundAmount) || 0) > 0;
+                      if (!hasReturn) return false;
+                      const q = (returnHistorySearch || "").trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        (o.invoiceNo && o.invoiceNo.toLowerCase().includes(q)) ||
+                        (o.customerName && o.customerName.toLowerCase().includes(q)) ||
+                        (o.customerPhone && o.customerPhone.toLowerCase().includes(q))
+                      );
+                    });
+
+                    const totalRefundedSum = returnedOrders.reduce(
+                      (sum, o) => sum + (Number(o.refundAmount) || 0),
+                      0
+                    );
+
+                    if (returnedOrders.length === 0) {
+                      return (
+                        <div className="py-12 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                          <RotateCcw className="w-10 h-10 text-slate-300 mx-auto" />
+                          <p className="font-bold text-slate-700 dark:text-slate-300 text-xs">
+                            No Sales Return Records Found
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            {returnHistorySearch
+                              ? "No returns matched your search criteria."
+                              : "No sales return transactions have been recorded yet."}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-2.5">
+                        {/* Summary Bar */}
+                        <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl flex items-center justify-between text-xs text-rose-900 dark:text-rose-200">
+                          <span className="font-bold flex items-center gap-1.5">
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>{returnedOrders.length} return transaction(s) recorded</span>
+                          </span>
+                          <span className="font-extrabold font-mono text-rose-700 dark:text-rose-300">
+                            Total Refunded: {fmt(totalRefundedSum)}
+                          </span>
+                        </div>
+
+                        {/* Table of Returns */}
+                        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                          <div className="overflow-x-auto max-h-[380px]">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead className="bg-slate-50 dark:bg-slate-800/80 sticky top-0 z-10 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold uppercase text-[10px]">
+                                <tr>
+                                  <th className="py-2.5 px-3">Invoice #</th>
+                                  <th className="py-2.5 px-3">Date</th>
+                                  <th className="py-2.5 px-3">Customer</th>
+                                  <th className="py-2.5 px-3">Returned Items</th>
+                                  <th className="py-2.5 px-3 text-right">Refund Amount</th>
+                                  <th className="py-2.5 px-3 text-center">Status</th>
+                                  <th className="py-2.5 px-3 text-right">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                {returnedOrders.map((order) => {
+                                  const refundAmt = Number(order.refundAmount || 0);
+                                  const retItems =
+                                    order.returnedItems?.length > 0
+                                      ? order.returnedItems
+                                      : Array.isArray(order.salesReturns) && order.salesReturns.length > 0
+                                      ? order.salesReturns[order.salesReturns.length - 1]?.items || []
+                                      : [];
+
+                                  return (
+                                    <tr
+                                      key={order._id || order.invoiceNo}
+                                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition"
+                                    >
+                                      <td className="py-2.5 px-3 font-mono font-bold text-blue-600 dark:text-blue-400">
+                                        {order.invoiceNo}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap text-[11px]">
+                                        {order.updatedAt || order.createdAt || order.date
+                                          ? new Date(order.updatedAt || order.createdAt || order.date).toLocaleDateString("en-IN", {
+                                              day: "2-digit",
+                                              month: "short",
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                            })
+                                          : "—"}
+                                      </td>
+                                      <td className="py-2.5 px-3">
+                                        <div className="font-semibold text-slate-800 dark:text-slate-200">
+                                          {order.customerName || order.customer || "Walk-in Customer"}
+                                        </div>
+                                        {order.customerPhone && (
+                                          <div className="text-[10px] text-slate-400 font-mono">
+                                            {order.customerPhone}
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="py-2.5 px-3">
+                                        {retItems.length > 0 ? (
+                                          <div className="space-y-0.5 max-w-[200px]">
+                                            {retItems.map((it, i) => (
+                                              <div key={i} className="text-[11px] text-slate-700 dark:text-slate-300 truncate">
+                                                • {it.name || "Item"} <span className="text-slate-400 font-mono">(×{it.qty || it.returnQty || 1})</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <span className="text-slate-400 italic text-[11px]">Items returned</span>
+                                        )}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-right">
+                                        <span className="font-mono font-extrabold text-rose-600 dark:text-rose-400 text-xs">
+                                          -{fmt(refundAmt)}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3 text-center">
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                                          {order.returnStatus === "Full" ? "Full Return" : "Partial Return"}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 px-3 text-right">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            handleSelectOrderForReturn(order);
+                                            setReturnModalTab("process");
+                                          }}
+                                          className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 rounded-lg text-xs font-bold transition cursor-pointer border border-rose-200 dark:border-rose-800 inline-flex items-center gap-1"
+                                          title="Process further return on this bill"
+                                        >
+                                          <RotateCcw className="w-3 h-3" />
+                                          <span>Return More</span>
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+      </div>
     </div>
   );
 }

@@ -294,7 +294,6 @@ export default function TransactionSettingsTab() {
           icon={CreditCard}
           title="Payment & Checkout"
           description="Set default payment methods, round-off calculation, and receipt printing behavior."
-          isLast={true}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
@@ -350,6 +349,41 @@ export default function TransactionSettingsTab() {
               description="Instantly sends receipt directly to the printer without waiting for user action."
               checked={settings.printAfterSaving}
               onChange={() => handleToggle("printAfterSaving")}
+            />
+          </div>
+        </Section>
+
+        {/* SECTION 4: SALES RETURNS & REFUNDS */}
+        <Section
+          icon={RotateCcw}
+          title="Sales Returns & Refunds"
+          description="Establish policies for product returns, inventory restoral, and authorization."
+          isLast={true}
+        >
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            <CleanToggle
+              title="Automatic Stock Restoral"
+              description="Automatically add returned item quantities back into active inventory."
+              checked={settings.restoreStockAfterReturn}
+              onChange={() => handleToggle("restoreStockAfterReturn")}
+            />
+            <CleanToggle
+              title="Allow Partial Item Returns"
+              description="Allow customers to return selected items or quantities rather than the entire invoice."
+              checked={settings.allowPartialReturn}
+              onChange={() => handleToggle("allowPartialReturn")}
+            />
+            <CleanToggle
+              title="Require Manager Passcode for Returns"
+              description="Prompt for account password or manager PIN before approving any return or refund."
+              checked={settings.requireReturnPasscode}
+              onChange={() => handleToggle("requireReturnPasscode")}
+            />
+            <CleanToggle
+              title="Allow Returns Without Original Invoice"
+              description="Allow processing sales returns for walk-in customers who do not have their original invoice."
+              checked={settings.allowReturnWithoutInvoice}
+              onChange={() => handleToggle("allowReturnWithoutInvoice")}
             />
           </div>
         </Section>

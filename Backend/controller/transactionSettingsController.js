@@ -29,6 +29,12 @@ export const getTransactionSettings = async (req, res) => {
         cashDiscountPercent: "0",
         showPrintPreview: true,
         printAfterSaving: false,
+
+        // 4. Sales Returns & Refunds
+        restoreStockAfterReturn: true,
+        allowPartialReturn: true,
+        requireReturnPasscode: false,
+        allowReturnWithoutInvoice: false,
       });
     }
 
@@ -65,6 +71,11 @@ export const updateTransactionSettings = async (req, res) => {
       cashDiscountPercent,
       showPrintPreview,
       printAfterSaving,
+
+      restoreStockAfterReturn,
+      allowPartialReturn,
+      requireReturnPasscode,
+      allowReturnWithoutInvoice,
     } = req.body;
 
     const updateDoc = {
@@ -82,6 +93,11 @@ export const updateTransactionSettings = async (req, res) => {
       cashDiscountPercent: cashDiscountPercent !== undefined ? String(cashDiscountPercent) : "0",
       showPrintPreview: showPrintPreview ?? true,
       printAfterSaving: printAfterSaving ?? false,
+
+      restoreStockAfterReturn: restoreStockAfterReturn ?? true,
+      allowPartialReturn: allowPartialReturn ?? true,
+      requireReturnPasscode: requireReturnPasscode ?? false,
+      allowReturnWithoutInvoice: allowReturnWithoutInvoice ?? false,
     };
 
     const transaction = await TransactionSettings.findOneAndUpdate(

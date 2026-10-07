@@ -4,6 +4,7 @@ import {
   getOrders,
   getOrder,
   recordOrderPayment,
+  processOrderReturn,
   createSalesReturn,
   deleteOrder,
 } from "../controller/orderController.js";
@@ -16,6 +17,7 @@ const router = express.Router();
 router.use(protect);
 
 router.post("/", checkInvoiceLimit, createOrder);
+router.post("/return", processOrderReturn);
 router.get("/", getOrders);
 router.get("/:id", getOrder);
 router.post("/:id/payment", recordOrderPayment);
