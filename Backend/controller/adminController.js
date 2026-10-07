@@ -74,7 +74,7 @@ export const getAllBusinesses = async (req, res) => {
 
     const [owners, orderStatsByOwner, employeeCounts] = await Promise.all([
       User.find(ownerQuery)
-        .select("_id firstName lastName businessName businessType businessCategory email phone city status suspensionReason subscription permissions createdAt")
+        .select("_id firstName lastName businessName businessType businessCategory email phone address city state pincode country gstin panNumber msmeNumber status suspensionReason subscription permissions region regionId regionAssignmentType createdAt updatedAt")
         .sort({ createdAt: -1 })
         .lean(),
       Order.aggregate([
@@ -154,6 +154,9 @@ export const getAllBusinesses = async (req, res) => {
         status: owner.status || "Active",
         suspensionReason: owner.suspensionReason || "",
         permissions: owner.permissions || {},
+        region: owner.region || "",
+        regionId: owner.regionId || null,
+        regionAssignmentType: owner.regionAssignmentType || "automatic",
         databaseStatus: "Live Database",
         joined: owner.createdAt
           ? new Date(owner.createdAt).toISOString().split("T")[0]

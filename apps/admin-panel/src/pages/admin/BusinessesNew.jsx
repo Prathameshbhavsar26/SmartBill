@@ -417,6 +417,7 @@ export default function BusinessesNew() {
           String(b.ownerCity ?? "").toLowerCase().includes(q) ||
           String(b.city ?? "").toLowerCase().includes(q) ||
           String(b.state ?? "").toLowerCase().includes(q) ||
+          String(b.region ?? "").toLowerCase().includes(q) ||
           String(b.gstin ?? "").toLowerCase().includes(q)
         );
       });
