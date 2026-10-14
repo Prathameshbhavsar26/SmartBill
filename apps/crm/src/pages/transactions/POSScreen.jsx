@@ -1701,103 +1701,109 @@ export default function POSScreen() {
 
       {/* Left: Products List */}
       <div className="flex-1 flex flex-col gap-3.5 min-w-0">
-        {/* Top Bar: Mode Switcher & Search & Actions */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          {/* Mode Switcher Buttons */}
-          <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex-shrink-0 h-10">
-            <button
-              type="button"
-              onClick={() => handleTogglePosMode("Retail")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 h-full ${
-                posMode === "Retail"
-                  ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold ring-1 ring-blue-500/20"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-              }`}
-            >
-              <span>🛒 Retail B2C</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTogglePosMode("Wholesale")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 h-full ${
-                posMode === "Wholesale"
-                  ? "bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-2xs font-extrabold ring-1 ring-purple-500/20"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-              }`}
-            >
-              <span>🏢 Wholesale B2B</span>
-            </button>
-          </div>
-
-          {/* Offline Queue Badge (only shown when offline) */}
-          {!isOnline && (
-            <div
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold shadow-xs h-10 flex-shrink-0"
-              title="POS is operating offline using IndexedDB"
-            >
-              <WifiOff className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
-              <span>Offline Queue ({pendingOfflineCount})</span>
-            </div>
-          )}
-
-          {/* Search Input & Action Buttons Row */}
-          <div className="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
-            {/* Search Input Box */}
-            <div className="relative flex-1 min-w-[200px] w-full sm:w-auto">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                <Search className="w-4 h-4" />
-              </div>
-              <input
-                id="pos-product-search-input"
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search products by name, SKU, barcode..."
-                className="w-full h-10 pl-9 pr-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs transition"
-              />
-              {search && (
+        {/* Top Bar: Mode Switcher & Quick Actions */}
+        <div className="flex flex-col gap-2.5">
+          {/* Row 1: Mode Switcher & Quick Actions (Scan, Return, Invoices) */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            {/* Mode Switcher Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex-shrink-0 h-10">
                 <button
                   type="button"
-                  onClick={() => setSearch("")}
-                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                  title="Clear search"
+                  onClick={() => handleTogglePosMode("Retail")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 h-full ${
+                    posMode === "Retail"
+                      ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold ring-1 ring-blue-500/20"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  }`}
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <span>🛒 Retail B2C</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => handleTogglePosMode("Wholesale")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 h-full ${
+                    posMode === "Wholesale"
+                      ? "bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-2xs font-extrabold ring-1 ring-purple-500/20"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <span>🏢 Wholesale B2B</span>
+                </button>
+              </div>
+
+              {/* Offline Queue Badge (only shown when offline) */}
+              {!isOnline && (
+                <div
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold shadow-xs h-10 flex-shrink-0"
+                  title="POS is operating offline using IndexedDB"
+                >
+                  <WifiOff className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
+                  <span>Offline Queue ({pendingOfflineCount})</span>
+                </div>
               )}
             </div>
 
-            {/* Scan Barcode Button */}
-            <button
-              type="button"
-              onClick={() => setCameraScannerOpen(true)}
-              className="h-10 px-3.5 bg-emerald-50 hover:bg-emerald-100/80 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer shadow-2xs whitespace-nowrap active:scale-95"
-              title="Open camera barcode scanner"
-            >
-              <ScanLine className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Scan Barcode</span>
-            </button>
+            {/* Action Buttons: Scan Barcode, Sales Return, View Sales Invoices */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Scan Barcode Button */}
+              <button
+                type="button"
+                onClick={() => setCameraScannerOpen(true)}
+                className="h-10 px-3 bg-emerald-50 hover:bg-emerald-100/80 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 justify-center cursor-pointer shadow-2xs whitespace-nowrap active:scale-95"
+                title="Open camera barcode scanner"
+              >
+                <ScanLine className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Scan Barcode</span>
+              </button>
 
-            {/* Sales Return Button */}
-            <button
-              type="button"
-              onClick={handleOpenReturnModal}
-              className="h-10 px-3.5 bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer shadow-2xs whitespace-nowrap active:scale-95"
-              title="Process Sales Return & Customer Refund"
-            >
-              <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-              <span>Sales Return</span>
-            </button>
+              {/* Sales Return Button */}
+              <button
+                type="button"
+                onClick={handleOpenReturnModal}
+                className="h-10 px-3 bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 justify-center cursor-pointer shadow-2xs whitespace-nowrap active:scale-95"
+                title="Process Sales Return & Customer Refund"
+              >
+                <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <span>Sales Return</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveSalesView("history")}
-              className="h-10 px-3.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 flex-1 sm:flex-initial justify-center cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-              title="View sales invoices"
-            >
-              <History className="w-4 h-4 text-slate-500" />
-              <span>Invoices</span>
-            </button>
+              {/* View Sales Invoices Button */}
+              <button
+                type="button"
+                onClick={() => setActiveSalesView("history")}
+                className="h-10 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 justify-center cursor-pointer border border-blue-200 dark:border-blue-800/80 bg-blue-50/80 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 shadow-2xs whitespace-nowrap active:scale-95"
+                title="View sales invoices & billing history"
+              >
+                <History className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>View Sales Invoices</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: Search Input Box */}
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <Search className="w-4 h-4" />
+            </div>
+            <input
+              id="pos-product-search-input"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products by name, SKU, barcode..."
+              className="w-full h-10 pl-9 pr-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs transition"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -2037,6 +2043,17 @@ export default function POSScreen() {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {/* View Sales Invoices button in panel header */}
+              <button
+                type="button"
+                onClick={() => setActiveSalesView("history")}
+                className="text-[10px] flex items-center gap-1 px-2 py-1 rounded-lg transition-all font-bold cursor-pointer border border-blue-200 dark:border-blue-800/80 bg-blue-50/70 hover:bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 shadow-2xs whitespace-nowrap"
+                title="View Sales Invoices & History"
+              >
+                <History className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Invoices</span>
+              </button>
+
               {/* Held / Parked Bills Button */}
               <button
                 type="button"
